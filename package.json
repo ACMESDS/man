@@ -1,0 +1,22 @@
+{
+  "name": "jslab",
+  "version": "1.0.0",
+  "description": "js lab",
+  "main": "jslab.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "digitalsignals": "^1.0.0",
+    "expectation-maximization": "^1.5.0",
+    "gamma": "^1.0.0",
+    "jsbayes": "0.0.5",
+    "mathjs": "^3.20.0",
+    "multivariate-normal": "^0.1.1",
+    "node-svd": "^0.1.3",
+    "nodehmm": "0.0.3",
+	"glwip": "^1.0.0"
+  }
+}
