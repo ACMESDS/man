@@ -35,19 +35,21 @@ var JSLAB = module.exports = {  // js-engine plugins
 	MAT: function (ctx,code) {
 		var emctx = {};
 
-		Each(ctx, function (key, val) {
+		for (key in ctx) {
+			val = ctx[key];
 			emctx[key] = (val && val.constructor == Array) 
 					? emctx[key] = EM.matrix(val)
 					: val;
-		});
+		}
 
 		EM.eval(code, emctx);
 
-		Each(emctx, function (key, val) {
+		for (key in emctx) {
+			val = emctx[key];
 			ctx[key] = (val && val._data)
 				? val._data
 				: val;
-		});
+		}
 	}
 };
 
