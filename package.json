@@ -12,11 +12,11 @@
     "digitalsignals": "^1.0.0",
     "expectation-maximization": "^1.5.0",
     "gamma": "^1.0.0",
+    "glwip": "^1.0.0",
     "jsbayes": "0.0.5",
     "mathjs": "^3.20.0",
     "multivariate-normal": "^0.1.1",
     "node-svd": "^0.1.3",
-    "nodehmm": "0.0.3",
-	"glwip": "^1.0.0"
+    "nodehmm": "0.0.3"
   }
 }
