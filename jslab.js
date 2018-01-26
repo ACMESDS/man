@@ -25,7 +25,7 @@ var JSLAB = module.exports = {  // js-engine plugins
 	//RAN: require("randpr"),  // added by debe to avoid recursive requires
 	//SVD: require("node-svd"),
 	//RNN: require("recurrentjs"),
-	BNET: require("jsbayes"),
+	BAYS: require("jsbayes"),
 	MLE: require("expectation-maximization"),
 	MVN: require("multivariate-normal"),
 	VITA: require("nodehmm"),
