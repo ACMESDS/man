@@ -16,55 +16,209 @@
  * @requires multivariate-normal
  */
 
+var
+	FS = require("fs");
+
+var 														// Totem modules
+	ENUM = require("enum"),
+	Copy = ENUM.copy,
+	Each = ENUM.each;
+
 var JSLAB = module.exports = {  // js-engine plugins 
-	MATH: require('mathjs'),
-	LWIP: require('glwip'),
-	DSP: require('digitalsignals'),
-	GAMMA: require("gamma"),
-	CRY: require('crypto'),
-	//RAN: require("randpr"),  // added by debe to avoid recursive requires
-	//SVD: require("node-svd"),
-	//RNN: require("recurrentjs"),
-	BAYS: require("jsbayes"),
-	MLE: require("expectation-maximization"),
-	MVN: require("multivariate-normal"),
-	VITA: require("nodehmm"),
-	LOG: console.log,
-	Log: console.log,
-	JSON: JSON,	
+	libs: {
+		require: function (pk) {
+			console.log("jslab blocked package require");
+		},
+		
+		MAT: function (ctx,code) {
+			var emctx = {};
+
+			for (key in ctx) {
+				val = ctx[key];
+				emctx[key] = (val && val.constructor == Array) 
+						? emctx[key] = EM.matrix(val)
+						: val;
+			}
+
+			EM.eval(code, emctx);
+
+			for (key in emctx) {
+				val = emctx[key];
+				ctx[key] = (val && val._data)
+					? val._data
+					: val;
+			}
+		},
+		
+		MATH: require('mathjs'),
+		LWIP: require('glwip'),
+		DSP: require('digitalsignals'),
+		GAMMA: require("gamma"),
+		CRY: require('crypto'),
+		//RAN: require("randpr"),  // added by debe to avoid recursive requires
+		//SVD: require("node-svd"),
+		//RNN: require("recurrentjs"),
+		BAYS: require("jsbayes"),
+		MLE: require("expectation-maximization"),
+		MVN: require("multivariate-normal"),
+		VITA: require("nodehmm"),
+		LOG: console.log,
+		JSON: JSON,
+		PUT: function putter(ctx, cb) {
+			var data = ctx.Save;
+			if ( query = ctx.Dump )   // callback cb was already issued so save results w/o callback
+				if ( query.endsWith(".json") )
+					FS.writeFile( query, JSON.stringify(data) );
+
+				else
+				if ( query.endsWith(".jpg") )
+					LWIP.write( query, data );
+
+				else
+					JSLAB.thread( function (sql) {
+						sql.query( query, data);
+						sql.release();
+					});
+
+			else
+				cb(ctx);
+		},
+
+		GET: function getter(ctx, cb) {  // prime global dataset request
+			var 
+				flushers = {
+					all: function flush(ctx,rec,recs) { 
+						return false;
+					},
+
+					none: function flush(ctx,rec,recs) { 
+						return true;
+					},
+
+					byStep: function flush(ctx,rec,recs) { 
+						return recs.length ? (rec.t - recs[0].t) > test : false;
+					},
+
+					byDepth: function flush(ctx,rec,recs) {
+						return recs.length < test;
+					}
+				},
+				mode = "byStep",
+				test = 1, //ctx.Job.buffer || 1,
+				flush = flushers[mode] || flushers.none,
+				query = ctx.Load;
+
+			LOG("get query", query);
+			if ( query )
+				if ( query.endsWith(".json") )
+					FS.readFile( query, function (err, buf) {
+						try {
+							cb( JSON.parse( buf ) );
+						}
+						catch (err) {
+							cb( null );
+						}
+					});
+
+				else
+				if ( query.endsWith(".jpg") ) 
+					LWIP.open( query , function (err, data) {
+						cb( err ? null : data );
+					});
+
+				else
+				if ( query.startsWith("/") )
+					JSLAB.fetcher( query, function (recs) {
+						if ( recs) {
+							recs.each( function (n,rec) {
+								if ( flush(ctx, rec, recs) ) {
+									LOG("FLUSH ", recs.length);
+									cb( recs );
+									recs.length = 0;
+								}
+
+								recs.push(rec);
+							});
+
+							if ( recs.length ) {
+								LOG("FLUSH ", recs.length);
+								cb( recs );	
+							}
+						}
+					});
+
+				else 
+					JSLAB.thread( function (sql) {
+						var recs = [];
+
+						sql.each( "REG", query , [], function (rec) {
+							if ( flush(ctx, rec, recs) ) {
+								LOG("FLUSH ", recs.length);
+								cb( recs );
+								recs.length = 0;
+							}
+
+							recs.push(rec);
+						})
+						.on("end", function () {
+							if ( recs.length ) {
+								LOG("FLUSH ", recs.length);
+								cb( recs );
+							}
+
+							sql.release();
+						});
+					});
+
+			else 
+				cb( null );
+		}
+	},
+	
+	fetcher: null, //function () {},	// reserved for http fetcher
+	thread: null,
+	
+	config: function (opts) {
+		if (opts) Copy(opts,JSLAB);
+	
+		/*
+		if (mysql = JSLAB.mysql)
+			DSVAR.config({   // establish the db agnosticator 
+				mysql: Copy({ 
+					opts: {
+						host: mysql.host,   // hostname 
+						user: mysql.user, 	// username
+						password : mysql.pass,				// passphrase
+						connectionLimit : mysql.sessions || 100, 		// max simultaneous connections
+						//acquireTimeout : 10000, 			// connection acquire timer
+						queueLimit: 0,  						// max concections to queue (0=unlimited)
+						waitForConnections: true			// allow connection requests to be queued
+					}
+				}, mysql)
+			}, function (sql) {
+				LOG("jslan est mysql");
+				sql.release();
+			});
+		*/
+	},
+	
 	plugins: {
 		news: news,
 		estmix: estmix,
 		genpr: genpr,
 		estpr: estpr
-	},
-	require: function (pk) {
-		console.log("jslab blocked package require");
-	},
-	MAT: function (ctx,code) {
-		var emctx = {};
-
-		for (key in ctx) {
-			val = ctx[key];
-			emctx[key] = (val && val.constructor == Array) 
-					? emctx[key] = EM.matrix(val)
-					: val;
-		}
-
-		EM.eval(code, emctx);
-
-		for (key in emctx) {
-			val = emctx[key];
-			ctx[key] = (val && val._data)
-				? val._data
-				: val;
-		}
 	}
 };
 
 //=========== Extend matlab emulator
 
-var EM = JSLAB.MATH;
+var 
+	LIBS = JSLAB.libs,
+	GET = LIBS.GET,
+	PUT = LIBS.PUT,
+	LWIP = LIBS.LWIP,
+	LOG = console.log,
+	EM = LIBS.MATH;
 
 EM.import({
 	isEqual: function (a,b) {
@@ -77,7 +231,7 @@ EM.import({
 
 //=========== Plugins
 
-function news(ctx, res) {  
+function news(ctx,res) {  
 	var 
 		sql = ctx.sql,
 		parts = ctx.Message.split("@"),
@@ -138,7 +292,7 @@ function news(ctx, res) {
 			+ "LEFT JOIN states ON (states.Class='TRL' and states.State=intake.TRL) "
 			+ "WHERE intake.?", ["/intake.view?name=","/queue.view?name=",client,{ Name:name }] ) 
 		.on("error", function (err) {
-			Log(err);
+			LOG(err);
 		})
 		.on("result", function (sys) {
 			var msg = sys.Link+" "+make.format(sys);
@@ -164,7 +318,7 @@ function sss(ctx,res) {
 /*
 Use the FLEX randpr plugin to send spoofed streaming data.
 */
-	//Log(ctx);
+	//LOG(ctx);
 	
 	FLEX.randpr( ctx, function (evs) {
 		res( evs );
@@ -218,9 +372,8 @@ Respond with {mu,sigma} estimates to the [x,y,...] app.events given ctx paramete
 	Refs = [ref, ref, ...] optional references [x,y,z] to validate estimates
 	Select = event getter (cb(evs))
 */
-
 	var 
-		Log = console.log,
+		RAN = LIBS.RAN,
 		Mixes = ctx.Mixes,
 		Refs = ctx.Refs,
 		Select = ctx.Select;
@@ -243,7 +396,7 @@ Respond with {mu,sigma} estimates to the [x,y,...] app.events given ctx paramete
 	Select( function (evs) {
 		
 		var evlist = [];
-		//Log("mix evs", evs.length, Mixes);
+		//LOG("mix evs", evs.length, Mixes);
 		
 		evs.each( function (n,ev) {
 			evlist.push( [ev.x,ev.y,ev.z] );
@@ -282,7 +435,7 @@ Respond with {mu,sigma} estimates to the [x,y,...] app.events given ctx paramete
 			delete mle._sinv;
 		});
 		
-		//Log({mixes:JSON.stringify(obs)});
+		//LOG({mixes:JSON.stringify(obs)});
 		res([obs]);  //ship it
 	});
 }
@@ -315,6 +468,7 @@ Return random [ {x,y,...}, ...] for ctx parameters:
 	}
 
 	var 
+		RAN = LIBS.RAN,
 		exp = Math.exp, log = Math.log, sqrt = Math.sqrt, floor = Math.floor, rand = Math.random;
 
 	/*
@@ -336,7 +490,7 @@ Return random [ {x,y,...}, ...] for ctx parameters:
 			});
 	} */
 
-	Log("genpr ctx",ctx);
+	LOG("genpr ctx",ctx);
 	
 	var
 		mvd = [], 	// multivariate distribution parms
@@ -403,10 +557,10 @@ Return random [ {x,y,...}, ...] for ctx parameters:
 
 	//sigma = mix.sigma || [ [ scalevec([0.4, 0.3, 0],dims), scalevec([0.3, 0.8, 0],dims), scalevec([0, 0, 1],dims)] ],
 		
-	Log({mix:ctx.Mix,txprs:ctx.TxPrs,steps:ctx.Steps,batch:ctx.Batch, States:states}); //, mu:mus, sig:sigs});
+	LOG({mix:ctx.Mix,txprs:ctx.TxPrs,steps:ctx.Steps,batch:ctx.Batch, States:states}); //, mu:mus, sig:sigs});
 		/*
 		mix.each( function (k,mix) {  // scale mix mu,sigma to voxel dimensions
-			//Log([k, floor(k / 20), k % 20, mix, dims]);
+			//LOG([k, floor(k / 20), k % 20, mix, dims]);
 
 			offsetvec( scalevec( mix.mu, dims), [
 				floor(k / 20) * dims[0] + Offsets[0],
@@ -437,7 +591,7 @@ Return random [ {x,y,...}, ...] for ctx parameters:
 			switch ( ev.at ) {
 				case "config":
 					//Copy({mu: mus, sigma:sigs}, ev);
-					Log(ev);
+					LOG(ev);
 					str.push(ev);
 					break;
 
@@ -455,13 +609,13 @@ Return random [ {x,y,...}, ...] for ctx parameters:
 						});
 
 						str.push(ev);
-						//Log(ev);
+						//LOG(ev);
 					}
 
 					else
 						ran.U.each( function (id, state) {
 							var ys = ran.Y[id];
-							//Log(id,state,ran.Y.length, ys);
+							//LOG(id,state,ran.Y.length, ys);
 							str.push({ 
 								at: ev.at,  // step name
 								t: ran.t, // time sampled
@@ -493,19 +647,18 @@ Return random [ {x,y,...}, ...] for ctx parameters:
 	
 }
 
-function estpr(ctx,res) {
+function estpr(ctx,res) {  // learn hidden parameters of Markov process
 /* 
 Return MLEs for random event process [ {x,y,...}, ...] given ctx parameters:
-	Job = { ... } event getter
 	Symbols = [sym, ...] state symbols or null to generate
 	Batch = batch size in steps
-	Members = number of members participating in process
+	Members = ensembe size
 	States = number of states consumed by process
 	Steps = number of time steps
+	Load = event query
 */
-
 	var 
-		Log = console.log,
+		RAN = LIBS.RAN,
 		exp = Math.exp, log = Math.log, sqrt = Math.sqrt, floor = Math.floor, rand = Math.random;
 
 	var 
@@ -516,8 +669,13 @@ Return MLEs for random event process [ {x,y,...}, ...] given ctx parameters:
 			store: [], 	// use sync pipe() since we are running a web service
 			steps: ctx.Steps, // process steps
 			batch: ctx.Batch, // batch size in steps 
-			K: ctx.States,	// number of states (realtime mode)
-			events: ctx.Job,  // event getter (realtime mode)
+			K: ctx.States,	// number of states 
+			store: [],
+			learn: function (cb) {  // event getter in learning mode with callback cb(events)
+				GET(ctx, function (evs) {
+					cb(evs);
+				});
+			},  
 			filter: function (str, ev) {  // retain selected onEvent info
 				switch ( ev.at ) {
 					case "end":
@@ -534,3 +692,4 @@ Return MLEs for random event process [ {x,y,...}, ...] given ctx parameters:
 }
 
 // UNCLASSIFIED
+
