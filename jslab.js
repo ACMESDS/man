@@ -64,7 +64,7 @@ var JSLAB = module.exports = {  // js-engine plugins
 		VITA: require("nodehmm"),
 		LOG: console.log,
 		JSON: JSON,
-		PUT: function putter(ctx, cb) {
+		PUT: function putter(trace, ctx, cb) {
 			var data = ctx.Save;
 			if ( query = ctx.Dump )   // callback cb was already issued so save results w/o callback
 				if ( query.endsWith(".json") )
@@ -84,7 +84,14 @@ var JSLAB = module.exports = {  // js-engine plugins
 				cb(ctx);
 		},
 
-		GET: function getter(ctx, cb) {  // prime global dataset request
+		GET: function getter(trace, ctx, cb) {  // get events with callback cb(events) or cb(null) at end
+			
+			function feed(recs, cb) {
+				if (trace) LOG(trace, recs.length);
+				cb( recs );
+				recs.length = 0;
+			}				
+			
 			var 
 				flushers = {
 					all: function flush(ctx,rec,recs) { 
@@ -96,7 +103,8 @@ var JSLAB = module.exports = {  // js-engine plugins
 					},
 
 					byStep: function flush(ctx,rec,recs) { 
-						return recs.length ? (rec.t - recs[0].t) > test : false;
+						//LOG( rec.t, recs.length ? recs[0].t : -1, test);
+						return recs.length ? (rec.t - recs[0].t) >= test : false;
 					},
 
 					byDepth: function flush(ctx,rec,recs) {
@@ -108,12 +116,13 @@ var JSLAB = module.exports = {  // js-engine plugins
 				flush = flushers[mode] || flushers.none,
 				query = ctx.Load;
 
-			LOG("get query", query);
+			//LOG("jslab get", query);
 			if ( query )
 				if ( query.endsWith(".json") )
 					FS.readFile( query, function (err, buf) {
 						try {
 							cb( JSON.parse( buf ) );
+							cb( null );
 						}
 						catch (err) {
 							cb( null );
@@ -123,7 +132,8 @@ var JSLAB = module.exports = {  // js-engine plugins
 				else
 				if ( query.endsWith(".jpg") ) 
 					LWIP.open( query , function (err, data) {
-						cb( err ? null : data );
+						if ( !err ) cb( data );
+						cb( null );
 					});
 
 				else
@@ -131,19 +141,12 @@ var JSLAB = module.exports = {  // js-engine plugins
 					JSLAB.fetcher( query, function (recs) {
 						if ( recs) {
 							recs.each( function (n,rec) {
-								if ( flush(ctx, rec, recs) ) {
-									LOG("FLUSH ", recs.length);
-									cb( recs );
-									recs.length = 0;
-								}
+								if ( flush(ctx, rec, recs) ) feed(recs,cb);
 
 								recs.push(rec);
 							});
 
-							if ( recs.length ) {
-								LOG("FLUSH ", recs.length);
-								cb( recs );	
-							}
+							if ( recs.length ) feed(recs,cb);
 						}
 					});
 
@@ -151,21 +154,15 @@ var JSLAB = module.exports = {  // js-engine plugins
 					JSLAB.thread( function (sql) {
 						var recs = [];
 
-						sql.each( "REG", query , [], function (rec) {
-							if ( flush(ctx, rec, recs) ) {
-								LOG("FLUSH ", recs.length);
-								cb( recs );
-								recs.length = 0;
-							}
+						sql.each( "REG", query , [], function (rec) {  // feed recs
+							if ( flush(ctx, rec, recs) ) feed(recs, cb);
 
 							recs.push(rec);
 						})
-						.on("end", function () {
-							if ( recs.length ) {
-								LOG("FLUSH ", recs.length);
-								cb( recs );
-							}
+						.on("end", function () { // done recs
+							if ( recs.length ) feed(recs, cb);
 
+							cb( null );
 							sql.release();
 						});
 					});
@@ -490,7 +487,7 @@ Return random [ {x,y,...}, ...] for ctx parameters:
 			});
 	} */
 
-	LOG("genpr ctx",ctx);
+	//LOG("genpr ctx",ctx);
 	
 	var
 		mvd = [], 	// multivariate distribution parms
@@ -513,7 +510,7 @@ Return random [ {x,y,...}, ...] for ctx parameters:
 			br: sigma0 * sigma0 / 2,
 			oo: sigma0 / sqrt(2*theta0)
 		},  		// sampler constants
-		samplers = {  // reserved sampling methods when taking wiener walks
+		samplers = {  // customize the random walk
 			na: function (u) {  // ignore
 			},
 
@@ -555,9 +552,7 @@ Return random [ {x,y,...}, ...] for ctx parameters:
 		sampler = samplers[mode], // sampler
 		states = ctx.TxPrs.length;
 
-	//sigma = mix.sigma || [ [ scalevec([0.4, 0.3, 0],dims), scalevec([0.3, 0.8, 0],dims), scalevec([0, 0, 1],dims)] ],
-		
-	LOG({mix:ctx.Mix,txprs:ctx.TxPrs,steps:ctx.Steps,batch:ctx.Batch, States:states}); //, mu:mus, sig:sigs});
+	LOG({mix:ctx.Mix,txprs:ctx.TxPrs,steps:ctx.Steps,batch:ctx.Batch, States:states}); 
 		/*
 		mix.each( function (k,mix) {  // scale mix mu,sigma to voxel dimensions
 			//LOG([k, floor(k / 20), k % 20, mix, dims]);
@@ -581,21 +576,39 @@ Return random [ {x,y,...}, ...] for ctx parameters:
 		symbols: ctx.Symbols,  // state symbols
 		nyquist: ctx.Nyquist, // oversampling factor
 		store: [], 	// provide an event store (forces a sync pipe) since we are running a web service
-		steps: 20, //ctx.Steps, // process steps
+		steps: ctx.Steps, // process steps
 		batch: ctx.Batch, // batch size in steps
 		obs: {		// emission/observation parms
 			weights: [1,1,1],  // lat,lon,alt
 			parts: [0.5,0.5,0.1],
-		},  
-		filter: function (str, ev) {  // retain selected onEvent info
+		},  	// observation parms
+		
+		//sigma = mix.sigma || [ [ scalevec([0.4, 0.3, 0],dims), scalevec([0.3, 0.8, 0],dims), scalevec([0, 0, 1],dims)] ],
+
+		filter: function (str, ev) {  // append selected events to supplied store/stream
 			switch ( ev.at ) {
 				case "config":
-					//Copy({mu: mus, sigma:sigs}, ev);
-					LOG(ev);
 					str.push(ev);
 					break;
 
-				case "step":
+				case "jump":
+					var 
+						idx = ev.idx,
+						state = ran.U[idx],
+						ys = ran.Y[idx];
+					
+					str.push({
+						at: ev.at,  // step name
+						t: ran.t, // time sampled
+						u: state,   // state occupied
+						n: idx, 	// unique identifier
+						x: ys[0],  	// lat
+						y: ys[1],  	// lon
+						z: ys[2] 	// alt
+					});
+					break;
+					
+				case "_step":
 					if (walking) {
 						var ev = { 
 								at: ev.at,
@@ -613,14 +626,13 @@ Return random [ {x,y,...}, ...] for ctx parameters:
 					}
 
 					else
-						ran.U.each( function (id, state) {
-							var ys = ran.Y[id];
-							//LOG(id,state,ran.Y.length, ys);
+						ran.U.each( function (idx, state) {
+							var ys = ran.Y[idx];
 							str.push({ 
 								at: ev.at,  // step name
 								t: ran.t, // time sampled
 								u: state,   // state occupied
-								n: id, 	// unique identifier
+								n: idx, 	// unique identifier
 								x: ys[0],  	// lat
 								y: ys[1],  	// lon
 								z: ys[2] 	// alt
@@ -634,16 +646,16 @@ Return random [ {x,y,...}, ...] for ctx parameters:
 					break;
 
 				default:
-					str.push(ev);
+					//str.push(ev);
 			}
 			
-		}  // on-event callbacks
-	});
+		}  // event saver 
+	});  // create a randpr compute thread
 	
-	ran.pipe( [], function (evs) {
+	ran.pipe( [], function (evs) {  // advance process until end reached
 		ctx.Save = evs;
 		res( ctx );
-	}); 
+	});   // run the process and save event evs results
 	
 }
 
@@ -652,39 +664,40 @@ function estpr(ctx,res) {  // learn hidden parameters of Markov process
 Return MLEs for random event process [ {x,y,...}, ...] given ctx parameters:
 	Symbols = [sym, ...] state symbols or null to generate
 	Batch = batch size in steps
-	Members = ensembe size
-	States = number of states consumed by process
-	Steps = number of time steps
+	File.Actors = ensembe size
+	File.States = number of states consumed by process
+	File.Steps = number of time steps
+	Steps = override File
 	Load = event query
 */
 	var 
 		RAN = LIBS.RAN,
 		exp = Math.exp, log = Math.log, sqrt = Math.sqrt, floor = Math.floor, rand = Math.random;
 
+	//LOG(ctx);
+	
 	var 
 		ran = new RAN({ // configure the random process generator
-			N: ctx.Members,  // ensemble size
+			N: ctx.File.Actors,  // ensemble size
 			wiener: 0,  // wiener process steps
 			sym: ctx.Symbols,  // state symbols
 			store: [], 	// use sync pipe() since we are running a web service
-			steps: ctx.Steps, // process steps
+			steps: ctx.Steps || ctx.File.Steps, // process steps
 			batch: ctx.Batch, // batch size in steps 
-			K: ctx.States,	// number of states 
-			store: [],
-			learn: function (cb) {  // event getter in learning mode with callback cb(events)
-				GET(ctx, function (evs) {
-					cb(evs);
-				});
+			K: ctx.File.States,	// number of states 
+			learn: function (cb) {  // event getter with callback cb(events) or cb(null) if end
+				GET("", ctx, cb);
 			},  
-			filter: function (str, ev) {  // retain selected onEvent info
+			filter: function (str, ev) {  // retain only end event containing last estimates
 				switch ( ev.at ) {
 					case "end":
+					case "batch":
 						str.push(ev);
 				}
 			}  // on-event callbacks
 		});
 	
-	ran.pipe( [], function (evs) {
+	ran.pipe( [], function (evs) { // sync pipe
 		ctx.Save = evs;
 		res( ctx );
 	}); 
