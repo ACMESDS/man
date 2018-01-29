@@ -203,7 +203,36 @@ var JSLAB = module.exports = {  // js-engine plugins
 		news: news,
 		estmix: estmix,
 		genpr: genpr,
-		estpr: estpr
+		estpr: estpr,
+		jsdemo1: function jsdemo(ctx, res) {
+			LOG("A="+ctx.A.length+" by "+ctx.A[0].length);
+			LOG("B="+ctx.B.length+" by "+ctx.B[0].length);
+
+			ctx.Save = [ {u: ctx.M}, {u:ctx.M+1}, {u:ctx.M+2} ];
+			res(ctx);
+
+			MAT(ctx, "D=A*A'; E=D+D*3; disp(entry); ");
+			// LOG( "D=", ctx.D, "E=", ctx.E);
+		},
+		
+		pydemo1: `
+def pydemo(ctx,os):
+	print "welcome to python you lazy bird"
+	ctx['Save'] = [ {'x':1, 'y':2, 'z':0}, {'x':3, 'y':4, 'z':10}]
+	# print ctx
+	if True:
+		sql = os['SQL0']
+		sql.execute("SELECT * from app.Htest", () )
+		for (Rec) in sql:
+			print Rec
+`, 
+
+		mademo1: `
+function mademo1(ctx,res)
+	ctx.Save = ctx.a + ctx.b;
+	res(ctx);
+end
+`
 	}
 };
 
@@ -226,7 +255,7 @@ EM.import({
 	}
 });
 
-//=========== Plugins
+//=========== Public plugins
 
 function news(ctx,res) {  
 	var 
@@ -705,4 +734,3 @@ Return MLEs for random event process [ {x,y,...}, ...] given ctx parameters:
 }
 
 // UNCLASSIFIED
-
