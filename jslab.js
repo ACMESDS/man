@@ -204,19 +204,19 @@ var JSLAB = module.exports = {  // js-engine plugins
 		estmix: estmix,
 		genpr: genpr,
 		estpr: estpr,
-		jsdemo1: function jsdemo(ctx, res) {
-			LOG("A="+ctx.A.length+" by "+ctx.A[0].length);
-			LOG("B="+ctx.B.length+" by "+ctx.B[0].length);
+		jsdemo1: function jsdemo1(ctx, res) {
+			//LOG("A="+ctx.A.length+" by "+ctx.A[0].length);
+			//LOG("B="+ctx.B.length+" by "+ctx.B[0].length);
 
 			ctx.Save = [ {u: ctx.M}, {u:ctx.M+1}, {u:ctx.M+2} ];
 			res(ctx);
 
-			MAT(ctx, "D=A*A'; E=D+D*3; disp(entry); ");
+			//MAT(ctx, "D=A*A'; E=D+D*3; disp(entry); ");
 			// LOG( "D=", ctx.D, "E=", ctx.E);
 		},
 		
 		pydemo1: `
-def pydemo(ctx,os):
+def pydemo1(ctx,os):
 	print "welcome to python you lazy bird"
 	ctx['Save'] = [ {'x':1, 'y':2, 'z':0}, {'x':3, 'y':4, 'z':10}]
 	# print ctx
@@ -348,46 +348,6 @@ Use the FLEX randpr plugin to send spoofed streaming data.
 	
 	FLEX.randpr( ctx, function (evs) {
 		res( evs );
-	});
-}
-
-function wms(ctx,res) {
-	res(  {spoof:1} );
-}
-
-function wfs(ctx,res) {
-/*
-Respond with ess-compatible image catalog to induce image-spoofing in the chipper.
-*/
-	res({
-		GetRecordsResponse: {
-			SearchResults: {
-				DatasetSummary: [{
-					"Image-Product": {
-						Image: {
-							ImageId: "spoof",
-							"Image-Sun-Characteristic": {
-								SunElevationDim: "0", 
-								SunAzimuth: "0"
-							},
-							"Image-Raster-Object-Representation": [],
-							"Image-Atmospheric-Characteristic": []
-						},
-						"Image-Restriction": {
-							Classification: "?", 
-							ClassificationSystemId: "?", 
-							LimitedDistributionCode: ["?"]
-						},
-						"Image-Country-Coverage": {
-							CountryCode: ["??"]
-						}
-					},
-					WMSUrl: "https://localhost:8080/shares/spoof.jpg?",
-					WMTSUrl: "",
-					JPIPUrl: ""
-				}]
-			}
-		}
 	});
 }
 
