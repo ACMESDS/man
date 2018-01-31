@@ -114,7 +114,7 @@ var JSLAB = module.exports = {  // js-engine plugins
 				mode = "byStep",
 				test = 1, //ctx.Job.buffer || 1,
 				flush = flushers[mode] || flushers.none,
-				query = ctx.Load;
+				query = ctx._Load;
 
 			//LOG("jslab get", query);
 			if ( query )
@@ -205,6 +205,7 @@ var JSLAB = module.exports = {  // js-engine plugins
 		genpr: genpr,
 		estpr: estpr,
 		jsdemo1: function jsdemo1(ctx, res) {
+			LOG("jsdemo1 ctx", ctx);
 			//LOG("A="+ctx.A.length+" by "+ctx.A[0].length);
 			//LOG("B="+ctx.B.length+" by "+ctx.B[0].length);
 
