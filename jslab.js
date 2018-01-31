@@ -21,6 +21,7 @@ var
 
 var 														// Totem modules
 	ENUM = require("enum"),
+	CHIP = require("chipper"),
 	Copy = ENUM.copy,
 	Each = ENUM.each;
 
@@ -200,6 +201,7 @@ var JSLAB = module.exports = {  // js-engine plugins
 	},
 	
 	plugins: {
+		voxelize: voxelize,
 		news: news,
 		estmix: estmix,
 		genpr: genpr,
@@ -693,5 +695,14 @@ Return MLEs for random event process [ {x,y,...}, ...] given ctx parameters:
 	}); 
 	
 }
+
+function voxelize (ctx,res) {
+	res("ok");
+	JSLAB.thread( function (sql) {
+		CHIP.voxelize(sql, ctx, function (chip,sql) {
+			//cb(chip, null, sql);			
+		});	
+	});
+}	
 
 // UNCLASSIFIED
