@@ -22,7 +22,8 @@ var
 var 														// Totem modules
 	ENUM = require("enum"),
 	Copy = ENUM.copy,
-	Each = ENUM.each;
+	Each = ENUM.each,
+	Log = console.log;
 
 var LAB = module.exports = {  // js-engine plugins 
 	libs: {
@@ -173,22 +174,10 @@ var LAB = module.exports = {  // js-engine plugins
 		},
 		
 		DET: {
-			runDetector: function (detName, ctx, res) {
-				res(ctx);
-
-				LAB.thread( function (sql) {
-
-					if (ctx.train) 
-						LIBS.DET.trainDetector(sql, detName, ctx);
-
-					else {
-					}
-
-				});
-			},
-
-			trainDetector: function (detName, ctx, res) { //< gen  detector-trainging ctx for client with callback to res(ctx) when completed.
-
+			train: function (ctx, res) { //< gen  detector-trainging ctx for client with callback to res(ctx) when completed.
+				
+				var detName = ctx._Plugin;
+				
 				LAB.thread( function (sql) {
 					var vers = [0]; //ctx.Overhead ? [0,90] : [0];
 					var labels = ctx.Labels.split(",");
@@ -450,7 +439,7 @@ var LAB = module.exports = {  // js-engine plugins
 		estmix: estmix,
 		genpr: genpr,
 		estpr: estpr,
-		haar: haar,
+		//haar: haar,
 		jsdemo1: function jsdemo1(ctx, res) {
 			LOG("jsdemo1 ctx", ctx);
 			//LOG("A="+ctx.A.length+" by "+ctx.A[0].length);
@@ -947,8 +936,10 @@ function aois(ctx,res) {
 	LIBS.CHIP.voxelizeAOI(SQL, ctx);
 }	
 
+/*
 function haar(ctx,res) {
 	LIBS.DET.runDetector("haar", ctx, res);
 }
+*/
 
 // UNCLASSIFIED
