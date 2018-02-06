@@ -51,7 +51,7 @@ var LAB = module.exports = {  // js-engine plugins
 			}
 		},
 		
-		CHIP: require("chipper"),
+		HACK: require("geohack"),
 		MATH: require('mathjs'),
 		LWIP: require('glwip'),
 		DSP: require('digitalsignals'),
@@ -363,8 +363,8 @@ var LAB = module.exports = {  // js-engine plugins
 										case "run":
 										case "detect":
 
-											if (FLEX.CHIP)
-											FLEX.CHIP.workflow(sql, {
+											if (FLEX.HACK)
+											FLEX.HACK.workflow(sql, {
 												detName: det.Name.replace(/ /g,"_"),
 												chanName: det.Channel,
 												size: det.Feature,
@@ -933,7 +933,7 @@ Return MLEs for random event process [ {x,y,...}, ...] given ctx parameters:
 
 function aois(ctx,res) {
 	res(ctx);
-	LIBS.CHIP.voxelizeAOI(SQL, ctx);
+	LIBS.HACK.voxelizeAOI(SQL, ctx);
 }	
 
 /*
