@@ -156,7 +156,7 @@ var LAB = module.exports = {  // js-engine plugins
 					LAB.thread( function (sql) {
 						var recs = [];
 
-						sql.each( "REG", query , [], function (rec) {  // feed recs
+						sql.getEach( "REG", query , [], function (rec) {  // feed recs
 							if ( flush(ctx, rec, recs) ) feed(recs, cb);
 
 							recs.push(rec);
@@ -805,9 +805,9 @@ Return random [ {x,y,...}, ...] for ctx parameters:
 		store: [], 	// provide an event store (forces a sync pipe) since we are running a web service
 		steps: ctx.Steps, // process steps
 		batch: ctx.Batch, // batch size in steps
-		obs: {		// emission/observation parms
+		obs: ctx.Mix || {		// emission/observation parms
 			weights: [1,1,1],  // lat,lon,alt
-			parts: [0.5,0.5,0.1],
+			parts: [0.5,0.5,0.1]
 		},  	// observation parms
 		
 		//sigma = mix.sigma || [ [ scalevec([0.4, 0.3, 0],dims), scalevec([0.3, 0.8, 0],dims), scalevec([0, 0, 1],dims)] ],
