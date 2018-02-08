@@ -118,7 +118,7 @@ var LAB = module.exports = {  // js-engine plugins
 				flush = flushers[mode] || flushers.none,
 				query = ctx._Load;
 
-			//LOG("jslab get", query);
+			LOG("jslab get", query);
 			if ( query )
 				if ( query.endsWith(".json") )
 					FS.readFile( query, function (err, buf) {
@@ -162,6 +162,8 @@ var LAB = module.exports = {  // js-engine plugins
 							recs.push(rec);
 						})
 						.on("end", function () { // done recs
+							Log("get end recs=", recs.length);
+							
 							if ( recs.length ) feed(recs, cb);
 
 							cb( null );
@@ -897,24 +899,23 @@ Return MLEs for random event process [ {x,y,...}, ...] given ctx parameters:
 	Steps = override File
 	Load = event query
 */
-	var 
-		RAN = LIBS.RAN,
-		exp = Math.exp, log = Math.log, sqrt = Math.sqrt, floor = Math.floor, rand = Math.random;
+	//var exp = Math.exp, log = Math.log, sqrt = Math.sqrt, floor = Math.floor, rand = Math.random;
 
 	//LOG(ctx);
 	
 	var 
-		ran = new RAN({ // configure the random process generator
-			N: ctx.File.Actors,  // ensemble size
+		trace = "GET",
+		ran = new LIBS.RAN({ // configure the random process generator
+			N: ctx._File.Actors,  // ensemble size
 			wiener: 0,  // wiener process steps
 			sym: ctx.Symbols,  // state symbols
 			store: [], 	// use sync pipe() since we are running a web service
-			steps: ctx.Steps || ctx.File.Steps, // process steps
+			steps: ctx.Steps || ctx._File.Steps, // process steps
 			batch: ctx.Batch, // batch size in steps 
-			K: ctx.File.States,	// number of states 
+			K: ctx._File.States,	// number of states 
 			learn: function (cb) {  // event getter with callback cb(events) or cb(null) if end
-				GET("", ctx, cb);
-			},  
+				GET(trace, ctx, cb);
+			},  // event getter when in learning mode
 			filter: function (str, ev) {  // retain only end event containing last estimates
 				switch ( ev.at ) {
 					case "end":
