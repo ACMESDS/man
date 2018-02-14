@@ -1,19 +1,22 @@
 // UNCLASSIFIED
 
 /**
- * @class ENGINE
- * @requires crypto
- * @requires glwip
- * @requires liegroup 
- * @requires mathjs
- * @requires digitalsignals
- * @requires nodehmm
- * @requires node-svd
- * @requires jsbayes
- * @requires recurrentjs
- * @requires gamma
- * @requires expectation-maximization
- * @requires multivariate-normal
+@class ENGINE
+@requires crypto
+@requires glwip
+@requires liegroup 
+@requires mathjs
+@requires digitalsignals
+@requires nodehmm
+@requires node-svd
+@requires jsbayes
+@requires recurrentjs
+@requires gamma
+@requires expectation-maximization
+@requires multivariate-normal
+ 
+@requires enum
+@requires geohack
  */
 
 var
