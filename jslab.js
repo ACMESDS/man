@@ -121,7 +121,7 @@ var LAB = module.exports = {  // js-engine plugins
 				flush = flushers[mode] || flushers.none,
 				query = ctx._Load;
 
-			LOG("jslab get", query);
+			//LOG("jslab get", query);
 			if ( query )
 				if ( query.endsWith(".json") )
 					FS.readFile( query, function (err, buf) {
@@ -159,11 +159,16 @@ var LAB = module.exports = {  // js-engine plugins
 					LAB.thread( function (sql) {
 						var recs = [];
 
-						sql.getEach( "REG", query , [], function (rec) {  // feed recs
+						sql.forEach( "REG", query , [], function (rec) {  // feed recs
 							if ( flush(ctx, rec, recs) ) feed(recs, cb);
 
 							recs.push(rec);
-						})
+						}).end( function () {
+							if ( recs.length ) feed(recs, cb);
+
+							cb( null );
+						});
+						/*
 						.on("end", function () { // done recs
 							Log("get end recs=", recs.length);
 							
@@ -171,7 +176,7 @@ var LAB = module.exports = {  // js-engine plugins
 
 							cb( null );
 							sql.release();
-						});
+						}); */
 					});
 
 			else 
