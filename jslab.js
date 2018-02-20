@@ -69,26 +69,6 @@ var LAB = module.exports = {  // js-engine plugins
 		VITA: require("nodehmm"),
 		LOG: console.log,
 		JSON: JSON,
-		PUT: function putter(trace, ctx, cb) {
-			var data = ctx.Save;
-			if ( query = ctx.Dump )   // callback cb was already issued so save results w/o callback
-				if ( query.endsWith(".json") )
-					FS.writeFile( query, JSON.stringify(data) );
-
-				else
-				if ( query.endsWith(".jpg") )
-					LWIP.write( query, data );
-
-				else
-					LAB.thread( function (sql) {
-						sql.query( query, data);
-						sql.release();
-					});
-
-			else
-				cb(ctx);
-		},
-
 		GET: function getter(trace, ctx, cb) {  // get events with callback cb(events) or cb(null) at end
 			
 			function feed(recs, cb) {
@@ -123,25 +103,6 @@ var LAB = module.exports = {  // js-engine plugins
 
 			//LOG("jslab get", query);
 			if ( query )
-				if ( query.endsWith(".json") )
-					FS.readFile( query, function (err, buf) {
-						try {
-							cb( JSON.parse( buf ) );
-							cb( null );
-						}
-						catch (err) {
-							cb( null );
-						}
-					});
-
-				else
-				if ( query.endsWith(".jpg") ) 
-					LWIP.open( query , function (err, data) {
-						if ( !err ) cb( data );
-						cb( null );
-					});
-
-				else
 				if ( query.startsWith("/") )
 					LAB.fetcher( query, function (recs) {
 						if ( recs) {
