@@ -1,7 +1,7 @@
 // UNCLASSIFIED
 
 /**
-@class ENGINE
+@class JSLAB
 @requires crypto
 @requires glwip
 @requires liegroup 
@@ -69,79 +69,96 @@ var LAB = module.exports = {  // js-engine plugins
 		VITA: require("nodehmm"),
 		LOG: console.log,
 		JSON: JSON,
-		GET: function getter(trace, ctx, cb) {  // get events with callback cb(events) or cb(null) at end
+		
+		flush: {
+			bulk: function flush(ctx,rec,recs) { 
+				return false;
+			},
+
+			discard: function flush(ctx,rec,recs) { 
+				return true;
+			},
+
+			byStep: function flush(ctx,rec,recs) { 
+				//LOG( rec.t, recs.length ? recs[0].t : -1, test);
+				return recs.length ? (rec.t - recs[0].t) >= test : false;
+			},
+
+			byDepth: function flush(ctx,rec,recs) {
+				return recs.length < test;
+			}
+		},
+		
+		get: {  // event getters
+			byStep: function (ctx,cb) {
+				LIBS.get.load(LIBS.flush.byStep, ctx, cb);
+			},
+			byDepth: function (ctx,cb) {
+				LIBS.get.load(LIBS.flush.byDepth, ctx, cb);
+			},
+			bulk: function (ctx,cb) {
+				LIBS.get.load(LIBS.flush.bulk, ctx, cb);
+			},
+			discard: function (ctx,cb) {
+				LIBS.get.load(LIBS.flush.discard, ctx, cb);
+			},
+				
+			load: function (flush, ctx, cb) {  // get events using flush method (null=bulk load) then callback cb(events) or cb(null) at end
 			
-			function feed(recs, cb) {
-				if (trace) LOG(trace, recs.length);
-				cb( recs );
-				recs.length = 0;
-			}				
-			
-			var 
-				flushers = {
-					all: function flush(ctx,rec,recs) { 
-						return false;
-					},
+				function feed(recs, cb) {
+					cb( recs );
+					recs.length = 0;
+				}				
 
-					none: function flush(ctx,rec,recs) { 
-						return true;
-					},
+				var 
+					test = 1, //ctx.Job.buffer || 1,
+					query = ctx._Load;
 
-					byStep: function flush(ctx,rec,recs) { 
-						//LOG( rec.t, recs.length ? recs[0].t : -1, test);
-						return recs.length ? (rec.t - recs[0].t) >= test : false;
-					},
+				//LOG("jslab get", query);
+				if ( query )
+					if ( query.startsWith("/") )
+						LAB.fetcher( query, function (recs) {
+							
+							if (flush)
+								if ( recs) {
+									recs.each( function (n,rec) {
+										if ( flush(ctx, rec, recs) ) feed(recs,cb);
 
-					byDepth: function flush(ctx,rec,recs) {
-						return recs.length < test;
-					}
-				},
-				mode = "byStep",
-				test = 1, //ctx.Job.buffer || 1,
-				flush = flushers[mode] || flushers.none,
-				query = ctx._Load;
+										recs.push(rec);
+									});
 
-			//LOG("jslab get", query);
-			if ( query )
-				if ( query.startsWith("/") )
-					LAB.fetcher( query, function (recs) {
-						if ( recs) {
-							recs.each( function (n,rec) {
-								if ( flush(ctx, rec, recs) ) feed(recs,cb);
+									if ( recs.length ) feed(recs,cb);
+								}
+							
+							else
+								feed(recs,cb);
+						});
 
-								recs.push(rec);
-							});
+					else 
+						LAB.thread( function (sql) {
+							var recs = [];
 
-							if ( recs.length ) feed(recs,cb);
-						}
-					});
+							if ( flush )
+								sql.forEach( "GET", query , [], function (rec) {  // feed recs
+									if ( flush(ctx, rec, recs) ) feed(recs, cb);
+
+									recs.push(rec);
+								}).onEnd( function () {
+									if ( recs.length ) feed(recs, cb);
+
+									cb( null );
+								});
+							
+							else
+								sql.forAll( "GET", query, [], function (recs) {
+									feed(recs, cb);
+								});
+							
+						});
 
 				else 
-					LAB.thread( function (sql) {
-						var recs = [];
-
-						sql.forEach( "REG", query , [], function (rec) {  // feed recs
-							if ( flush(ctx, rec, recs) ) feed(recs, cb);
-
-							recs.push(rec);
-						}).end( function () {
-							if ( recs.length ) feed(recs, cb);
-
-							cb( null );
-						});
-						/*
-						.on("end", function () { // done recs
-							Log("get end recs=", recs.length);
-							
-							if ( recs.length ) feed(recs, cb);
-
-							cb( null );
-							sql.release();
-						}); */
-					});
-
-			else 
-				cb( null );
+					cb( null );
+			}
 		},
 		
 		DET: {
@@ -449,8 +466,6 @@ end
 var 
 	SQL = null, //< defined by engine
 	LIBS = LAB.libs,
-	GET = LIBS.GET,
-	PUT = LIBS.PUT,
 	LWIP = LIBS.LWIP,
 	LOG = LIBS.LOG,
 	EM = LIBS.MATH;
@@ -873,7 +888,6 @@ Return MLEs for random event process [ {x,y,...}, ...] given ctx parameters:
 	//LOG(ctx);
 	
 	var 
-		trace = "GET",
 		ran = new LIBS.RAN({ // configure the random process generator
 			N: ctx._File.Actors,  // ensemble size
 			wiener: 0,  // wiener process steps
@@ -882,8 +896,8 @@ Return MLEs for random event process [ {x,y,...}, ...] given ctx parameters:
 			steps: ctx.Steps || ctx._File.Steps, // process steps
 			batch: ctx.Batch, // batch size in steps 
 			K: ctx._File.States,	// number of states 
-			learn: function (cb) {  // event getter with callback cb(events) or cb(null) if end
-				GET(trace, ctx, cb);
+			learn: function (cb) {  // event getter callsback cb(events) or cb(null) at end
+				LIBS.get.byStep(ctx, cb);
 			},  // event getter when in learning mode
 			filter: function (str, ev) {  // retain only end event containing last estimates
 				switch ( ev.at ) {
