@@ -117,7 +117,7 @@ var LAB = module.exports = {
 				//LOG("jslab get", query);
 				if ( query )
 					if ( query.startsWith("/") )
-						LAB.fetcher( query, function (recs) {
+						LAB.fetcher( query, null, function (recs) {
 							
 							if (flush)
 								if ( recs) {
