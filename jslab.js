@@ -157,7 +157,7 @@ var LAB = module.exports = {
 							if ( flush(ctx, rec, recs) ) feed(recs, cb);
 							recs.push(rec);
 						});
-						if ( recs.length ) feed(recs, cb);
+						feed( recs.length ? recs : null, cb);
 					}
 
 					else

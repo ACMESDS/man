@@ -16,6 +16,7 @@
     "geohack": "1.0.0",
     "glwip": "^1.0.0",
     "jsbayes": "0.0.5",
+    "lwip": "0.0.9",
     "mathjs": "^3.20.0",
     "multivariate-normal": "^0.1.1",
     "newton-raphson": "0.0.3",
