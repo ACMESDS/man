@@ -14,6 +14,7 @@
 @requires gamma
 @requires expectation-maximization
 @requires multivariate-normal
+@requires newton-raphson
  
 @requires enum
 @requires geohack
@@ -69,6 +70,7 @@ var LAB = module.exports = {
 		VITA: require("nodehmm"),
 		LOG: console.log,
 		JSON: JSON,
+		NEWRAP: require("newton-raphson"),
 		
 		FLUSH: {
 			bulk: function flush(ctx,rec,recs) { 
@@ -80,12 +82,12 @@ var LAB = module.exports = {
 			},
 
 			byStep: function flush(ctx,rec,recs) { 
-				//LOG( rec.t, recs.length ? recs[0].t : -1, test);
-				return recs.length ? (rec.t - recs[0].t) >= test : false;
+				LOG( rec.t, recs.length ? recs[0].t : -1);
+				return recs.length ? (rec.t - recs[0].t) >= 1 : false;
 			},
 
 			byDepth: function flush(ctx,rec,recs) {
-				return recs.length < test;
+				return recs.length < 1;
 			}
 		},
 		
@@ -102,36 +104,29 @@ var LAB = module.exports = {
 			discard: function (ctx,cb) {
 				LIBS.GET.load(LIBS.FLUSH.discard, ctx, cb);
 			},
-				
 			load: function (flush, ctx, cb) {  // get events using flush method (null=bulk load) then callback cb(events) or cb(null) at end
-			
+
 				function feed(recs, cb) {
 					cb( recs );
 					recs.length = 0;
 				}				
 
-				var 
-					test = 1, //ctx.Job.buffer || 1,
-					query = ctx._Load;
+				var load = ctx._Load || [];
 
-				//LOG("jslab get", query);
-				if ( query )
-					if ( query.startsWith("/") )
-						LAB.fetcher( query, null, function (recs) {
-							
-							if (flush)
-								if ( recs) {
+				if ( load.constructor == String ) {
+					if ( load.startsWith("/") )
+						LAB.fetcher( load, null, function (recs) {
+							if ( recs ) 
+								if (flush) {
 									recs.each( function (n,rec) {
 										if ( flush(ctx, rec, recs) ) feed(recs,cb);
-
 										recs.push(rec);
 									});
-
 									if ( recs.length ) feed(recs,cb);
 								}
 							
-							else
-								feed(recs,cb);
+								else
+									feed(recs,cb);
 						});
 
 					else 
@@ -139,25 +134,36 @@ var LAB = module.exports = {
 							var recs = [];
 
 							if ( flush )
-								sql.forEach( "GET", query , [], function (rec) {  // feed recs
+								sql.forEach( "GET", load , [], function (rec) {  // feed recs
 									if ( flush(ctx, rec, recs) ) feed(recs, cb);
-
 									recs.push(rec);
 								}).onEnd( function () {
 									if ( recs.length ) feed(recs, cb);
-
 									cb( null );
 								});
 							
 							else
-								sql.forAll( "GET", query, [], function (recs) {
+								sql.forAll( "GET", load, [], function (recs) {
 									feed(recs, cb);
 								});
 							
 						});
+				}
 
-				else 
-					cb( null );
+				else {
+					if ( flush ) {
+						var recs = [];			
+						load.forEach( function (rec) { // feed recs
+							if ( flush(ctx, rec, recs) ) feed(recs, cb);
+							recs.push(rec);
+						});
+						if ( recs.length ) feed(recs, cb);
+					}
+
+					else
+						feed(load, cb);
+				}
+
 			}
 		},
 		
