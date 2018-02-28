@@ -68,6 +68,7 @@ var LAB = module.exports = {
 		MLE: require("expectation-maximization"),
 		MVN: require("multivariate-normal"),
 		VITERBI: require("nodehmm"),
+		ZETA: require("math-riemann-zeta"),
 		LOG: console.log,
 		JSON: JSON,
 		NEWRAP: require("newton-raphson"),
