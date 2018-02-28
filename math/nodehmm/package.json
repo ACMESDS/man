@@ -1,0 +1,27 @@
+{
+  "name": "nodehmm",
+  "version": "0.0.3",
+  "description": "node implementaion of HMM(Hidden Markov model).",
+  "main": "index.js",
+  "scripts": {
+    "test": "./node_modules/nodeunit/bin/nodeunit tests/test*"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "uubench": "*",
+    "nodeunit": "*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/liwenzhu/nodehmm.git"
+  },
+  "keywords": [
+    "hmm"
+  ],
+  "author": "Lee Wenzhu <lee.wenzhu@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/liwenzhu/nodehmm/issues"
+  },
+  "homepage": "https://github.com/liwenzhu/nodehmm"
+}

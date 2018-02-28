@@ -58,9 +58,9 @@ var LAB = module.exports = {
 		HACK: require("geohack"),
 		MATH: require('mathjs'),
 		LWIP: require('glwip'),
+		CRYPTO: require('crypto'),
 		DSP: require('digitalsignals'),
 		GAMMA: require("gamma"),
-		CRYPTO: require('crypto'),
 		//RAN: require("randpr"),  // added by debe to avoid recursive requires
 		//SVD: require("node-svd"),
 		//RNN: require("recurrentjs"),
@@ -68,10 +68,11 @@ var LAB = module.exports = {
 		MLE: require("expectation-maximization"),
 		MVN: require("multivariate-normal"),
 		VITERBI: require("nodehmm"),
-		ZETA: require("math-riemann-zeta"),
+		ZETA: require("riemann-zeta"),
 		LOG: console.log,
 		JSON: JSON,
 		NEWRAP: require("newton-raphson"),
+			// require("./math/modified-newton-raphson"),
 		
 		FLUSH: {
 			bulk: function flush(ctx,rec,recs) { 
