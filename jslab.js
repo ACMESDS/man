@@ -55,6 +55,7 @@ var LAB = module.exports = {
 			}
 		},
 		
+		LM: require("./mljs/node_modules/ml-levenberg-marquardt"),
 		HACK: require("geohack"),
 		MATH: require('mathjs'),
 		LWIP: require('glwip'),
