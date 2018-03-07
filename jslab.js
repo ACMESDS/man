@@ -85,8 +85,8 @@ var LAB = module.exports = {
 			},
 
 			byStep: function flush(ctx,rec,recs) { 
-				LOG( rec.t, recs.length ? recs[0].t : -1);
-				return recs.length ? (rec.t - recs[0].t) >= 1 : false;
+				//LOG( rec.t, recs.length ? recs[0].t : -1);
+				return recs.length ? rec.t > recs[0].t : false;
 			},
 
 			byDepth: function flush(ctx,rec,recs) {
@@ -110,6 +110,7 @@ var LAB = module.exports = {
 			load: function (flush, ctx, cb) {  // get events using flush method (null=bulk load) then callback cb(events) or cb(null) at end
 
 				function feed(recs, cb) {
+					//Log("flushing",recs.length);
 					cb( recs );
 					recs.length = 0;
 				}				
@@ -126,10 +127,16 @@ var LAB = module.exports = {
 										recs.push(rec);
 									});
 									if ( recs.length ) feed(recs,cb);
+									cb(null);
 								}
 							
-								else
+								else {
 									feed(recs,cb);
+									cb(null);
+								}
+							
+							else
+								cb(null);
 						});
 
 					else 
@@ -148,23 +155,28 @@ var LAB = module.exports = {
 							else
 								sql.forAll( "GET", load, [], function (recs) {
 									feed(recs, cb);
+									cb( null );
 								});
 							
 						});
 				}
 
 				else {
+					//Log("loading", load.length, load.constructor);
 					if ( flush ) {
 						var recs = [];			
 						load.forEach( function (rec) { // feed recs
 							if ( flush(ctx, rec, recs) ) feed(recs, cb);
 							recs.push(rec);
 						});
-						feed( recs.length ? recs : null, cb);
+						if ( recs.length ) feed( recs, cb );
+						cb( null );
 					}
 
-					else
-						feed(load, cb);
+					else {
+						if ( load.length ) feed(load, cb);
+						cb( null );
+					}
 				}
 
 			}
