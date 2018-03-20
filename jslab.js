@@ -18,6 +18,7 @@
  
 @requires enum
 @requires geohack
+@requires atomic
  */
 
 var
@@ -25,6 +26,7 @@ var
 
 var 														// Totem modules
 	ENUM = require("enum"),
+	ATOM = require("atomic"),
 	Copy = ENUM.copy,
 	Each = ENUM.each,
 	Log = console.log;
@@ -72,7 +74,12 @@ var LAB = module.exports = {
 		ZETA: require("riemann-zeta"),
 		LOG: console.log,
 		JSON: JSON,
-		NEWRAP: require("newton-raphson"),
+		TASK: {
+			forEach: ATOM.forEach,
+			forAll: ATOM.forAll
+		},
+		
+		NRAP: require("newton-raphson"),
 			// require("./math/modified-newton-raphson"),
 		
 		FLUSH: {
