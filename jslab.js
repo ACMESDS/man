@@ -74,10 +74,7 @@ var LAB = module.exports = {
 		ZETA: require("riemann-zeta"),
 		LOG: console.log,
 		JSON: JSON,
-		TASK: {
-			forEach: ATOM.forEach,
-			forAll: ATOM.forAll
-		},
+		TASK: ATOM.forEach,
 		
 		NRAP: require("newton-raphson"),
 			// require("./math/modified-newton-raphson"),
