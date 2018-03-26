@@ -98,18 +98,18 @@ var LAB = module.exports = {
 		
 		GET: {  // event getters
 			byStep: function (ctx,cb) {
-				LIBS.GET.load(LIBS.FLUSH.byStep, ctx, cb);
+				LIBS.GET.load( ctx._Events, LIBS.FLUSH.byStep, ctx, cb);
 			},
 			byDepth: function (ctx,cb) {
-				LIBS.GET.load(LIBS.FLUSH.byDepth, ctx, cb);
+				LIBS.GET.load( ctx._Events, LIBS.FLUSH.byDepth, ctx, cb);
 			},
 			bulk: function (ctx,cb) {
-				LIBS.GET.load(LIBS.FLUSH.bulk, ctx, cb);
+				LIBS.GET.load( ctx._Events, LIBS.FLUSH.bulk, ctx, cb);
 			},
 			discard: function (ctx,cb) {
-				LIBS.GET.load(LIBS.FLUSH.discard, ctx, cb);
+				LIBS.GET.load( ctx._Events, LIBS.FLUSH.discard, ctx, cb);
 			},
-			load: function (flush, ctx, cb) {  // get events using flush method (null=bulk load) then callback cb(events) or cb(null) at end
+			load: function (evs, flush, ctx, cb) {  // get events via flush (null=bulk load) then callback cb(events) or cb(null) at end
 
 				function feed(recs, cb) {
 					//Log("flushing",recs.length);
@@ -117,9 +117,10 @@ var LAB = module.exports = {
 					recs.length = 0;
 				}				
 
-				var load = ctx._Load || [];
+				//var load = ctx._Load || [];
 
-				if ( load.constructor == String ) {
+				if ( evs.constructor == String ) 
+					/*
 					if ( load.startsWith("/") )
 						LAB.fetcher( load, null, function (recs) {
 							if ( recs ) 
@@ -142,32 +143,31 @@ var LAB = module.exports = {
 						});
 
 					else 
-						LAB.thread( function (sql) {
-							var recs = [];
+					*/
+					LAB.thread( function (sql) {
+						var recs = [];
 
-							if ( flush )
-								sql.forEach( "GET", load , [], function (rec) {  // feed recs
-									if ( flush(ctx, rec, recs) ) feed(recs, cb);
-									recs.push(rec);
-								}).onEnd( function () {
-									if ( recs.length ) feed(recs, cb);
-									cb( null );
-								});
-							
-							else
-								sql.forAll( "GET", load, [], function (recs) {
-									feed(recs, cb);
-									cb( null );
-								});
-							
-						});
-				}
+						if ( flush )
+							sql.forEach( "GET", evs , [], function (rec) {  // feed recs to flusher
+								if ( flush(ctx, rec, recs) ) feed(recs, cb);
+								recs.push(rec);
+							}).onEnd( function () {
+								if ( recs.length ) feed(recs, cb);
+								cb( null );
+							});
+
+						else
+							sql.forAll( "GET", evs, [], function (recs) {  // no flusher needed
+								feed(recs, cb);
+								cb( null );
+							});
+
+					});
 
 				else {
-					//Log("loading", load.length, load.constructor);
 					if ( flush ) {
 						var recs = [];			
-						load.forEach( function (rec) { // feed recs
+						evs.forEach( function (rec) { // feed recs
 							if ( flush(ctx, rec, recs) ) feed(recs, cb);
 							recs.push(rec);
 						});
