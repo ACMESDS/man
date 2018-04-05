@@ -36,29 +36,10 @@ var LAB = module.exports = {
 			console.log("jslab blocked package require");
 		},
 		
-		MAT: function (ctx,code) {
-			var emctx = {};
-
-			for (key in ctx) {
-				val = ctx[key];
-				emctx[key] = (val && val.constructor == Array) 
-						? emctx[key] = EM.matrix(val)
-						: val;
-			}
-
-			EM.eval(code, emctx);
-
-			for (key in emctx) {
-				val = emctx[key];
-				ctx[key] = (val && val._data)
-					? val._data
-					: val;
-			}
-		},
-		
 		LM: require("./mljs/node_modules/ml-levenberg-marquardt"),
+		ML: require("./mljs/node_modules/ml-matrix"),
 		HACK: require("geohack"),
-		MATH: require('mathjs'),
+		ME: require('mathjs'),
 		LWIP: require('glwip'),
 		CRYPTO: require('crypto'),
 		DSP: require('digitalsignals'),
@@ -453,12 +434,46 @@ var
 	LIBS = LAB.libs,
 	LWIP = LIBS.LWIP,
 	LOG = LIBS.LOG,
-	EM = LIBS.MATH;
+	ME = LIBS.ME,
+	ML = LIBS.ML;
 
-EM.import({
+ME.import({
+	exec: function (ctx,code) {
+		var emctx = {};
+
+		for (key in ctx) {
+			val = ctx[key];
+			emctx[key] = (val && val.constructor == Array) 
+					? emctx[key] = ME.matrix(val)
+					: val;
+		}
+
+		ME.eval(code, emctx);
+
+		for (key in emctx) {
+			val = emctx[key];
+			ctx[key] = (val && val._data)
+				? val._data
+				: val;
+		}
+	},
+		
 	isEqual: function (a,b) {
 		return a==b;
 	},
+	
+	svd: function (a) {
+		var svd = new ML.SVD( a._data );
+		Log(svd);
+	},
+	
+	evd: function (a) {
+		//Log("evd", a._data);
+		var evd = new ML.EVD( a._data, {assumeSymmetric: true} );
+		//Log("evd", evd.d);
+		return {values: ME.matrix(evd.d), vectors: ME.matrix(evd.V)}; 
+	},
+		
 	disp: function (a) {
 		console.log(a);
 	}
