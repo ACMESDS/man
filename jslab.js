@@ -469,7 +469,7 @@ ME.import({
 	
 	evd: function (a) {
 		//Log("evd", a._data);
-		var evd = new ML.EVD( a._data, {assumeSymmetric: true} );
+		var evd = new ML.EVD( a._data );  //, {assumeSymmetric: true}
 		//Log("evd", evd.d);
 		return {values: ME.matrix(evd.d), vectors: ME.matrix(evd.V)}; 
 	},
