@@ -47,10 +47,10 @@ var LAB = module.exports = {
 		//RAN: require("randpr"),  // added by debe to avoid recursive requires
 		//SVD: require("node-svd"),
 		//RNN: require("recurrentjs"),
-		BAYS: require("jsbayes"),
+		BAYES: require("jsbayes"),
 		MLE: require("expectation-maximization"),
 		MVN: require("multivariate-normal"),
-		VITERBI: require("nodehmm"),
+		HMM: require("nodehmm"),
 		ZETA: require("riemann-zeta"),
 		LOG: console.log,
 		JSON: JSON,
@@ -103,7 +103,7 @@ var LAB = module.exports = {
 				if ( evs.constructor == String ) 
 					/*
 					if ( load.startsWith("/") )
-						LAB.fetcher( load, null, function (recs) {
+						LAB.fetcher( load, null, null, function (recs) {
 							if ( recs ) 
 								if (flush) {
 									recs.each( function (n,rec) {
@@ -398,8 +398,8 @@ var LAB = module.exports = {
 		
 	},
 	
-	fetcher: null, //function () {},	// reserved for http fetcher
-	thread: null,
+	fetcher: () => Trace("data fetcher not configured"), //< data fetcher
+	thread: () => Trace("sql thread not configured"), //< sql threader
 	
 	config: function (opts) {
 		if (opts) Copy(opts,LAB);
@@ -468,15 +468,28 @@ ME.import({
 	},
 	
 	evd: function (a) {
-		//Log("evd", a._data);
 		var evd = new ML.EVD( a._data );  //, {assumeSymmetric: true}
-		//Log("evd", evd.d);
 		return {values: ME.matrix(evd.d), vectors: ME.matrix(evd.V)}; 
 	},
-		
+	
+	zeta: function (a) {},
+	dft: function (a) {},
+	bayin: function (a) {},
+	//gamma: function (a) {},
+	va: function (a) {},
+	mle: function (a) {},
+	mvn: function (a) {},
+	lfa: function (a) {},
+	lma: function (a) {},
+	rnn: function (a) {},
+	
 	disp: function (a) {
 		console.log(a);
 	}
 });
+
+function Trace(msg,arg) {
+	ENUM.trace("L>",msg,arg);
+}
 
 // UNCLASSIFIED
