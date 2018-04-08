@@ -1,5 +1,10 @@
 // UNCLASSIFIED
 
+/*
+To Do:
++ Extend the matlab emulator with special functions
+*/
+
 /**
 @class JSLAB
 @requires crypto
@@ -17,8 +22,6 @@
 @requires newton-raphson
  
 @requires enum
-@requires geohack
-@requires atomic
  */
 
 var
@@ -38,7 +41,7 @@ var LAB = module.exports = {
 		
 		LM: require("./mljs/node_modules/ml-levenberg-marquardt"),
 		ML: require("./mljs/node_modules/ml-matrix"),
-		HACK: require("geohack"),
+		//HACK: require("geohack"),
 		ME: require('mathjs'),
 		LWIP: require('glwip'),
 		CRYPTO: require('crypto'),
@@ -401,9 +404,10 @@ var LAB = module.exports = {
 	fetcher: () => Trace("data fetcher not configured"), //< data fetcher
 	thread: () => Trace("sql thread not configured"), //< sql threader
 	
-	config: function (opts) {
-		if (opts) Copy(opts,LAB);
+	config: function (opts, cb) {
+		if (opts) Copy(opts, LAB, ".");
 	
+		if (cb) cb(null);	
 		/*
 		if (mysql = LAB.mysql)
 			DSVAR.config({   // establish the db agnosticator 
