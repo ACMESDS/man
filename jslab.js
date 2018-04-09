@@ -82,15 +82,18 @@ var LAB = module.exports = {
 		
 		GET: {  // event getters
 			byStep: function (ctx,cb) {
+				Log("bystep");
 				LIBS.GET.load( ctx._Events, LIBS.FLUSH.byStep, ctx, cb);
 			},
 			byDepth: function (ctx,cb) {
 				LIBS.GET.load( ctx._Events, LIBS.FLUSH.byDepth, ctx, cb);
 			},
 			bulk: function (ctx,cb) {
+				Log("bybulk");
 				LIBS.GET.load( ctx._Events, LIBS.FLUSH.bulk, ctx, cb);
 			},
 			discard: function (ctx,cb) {
+				Log("bydiscard");
 				LIBS.GET.load( ctx._Events, LIBS.FLUSH.discard, ctx, cb);
 			},
 			load: function (evs, flush, ctx, cb) {  // get events via flush (null=bulk load) then callback cb(events) or cb(null) at end
@@ -102,7 +105,8 @@ var LAB = module.exports = {
 				}				
 
 				//var load = ctx._Load || [];
-
+				//Log("load", evs, ctx);
+				
 				if ( evs.constructor == String ) 
 					/*
 					if ( load.startsWith("/") )
