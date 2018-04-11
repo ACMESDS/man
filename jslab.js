@@ -61,99 +61,61 @@ var LAB = module.exports = {
 		NRAP: require("newton-raphson"),
 			// require("./math/modified-newton-raphson"),
 		
-		FLUSH: {
-			bulk: function flush(ctx,rec,recs) { 
-				return false;
-			},
-
-			discard: function flush(ctx,rec,recs) { 
-				return true;
-			},
-
-			byStep: function flush(ctx,rec,recs) { 
+		STEP: function (ctx,cb) {
+			LOAD( ctx._Events, ctx, cb, function flush(ctx,rec,recs) { 
 				//LOG( rec.t, recs.length ? recs[0].t : -1);
 				return recs.length ? rec.t > recs[0].t : false;
-			},
-
-			byDepth: function flush(ctx,rec,recs) {
-				return recs.length < 1;
-			}
+			});
 		},
-		
-		GET: {  // event getters
-			byStep: function (ctx,cb) {
-				Log("bystep");
-				LIBS.GET.load( ctx._Events, LIBS.FLUSH.byStep, ctx, cb);
-			},
-			byDepth: function (ctx,cb) {
-				LIBS.GET.load( ctx._Events, LIBS.FLUSH.byDepth, ctx, cb);
-			},
-			bulk: function (ctx,cb) {
-				Log("bybulk");
-				LIBS.GET.load( ctx._Events, LIBS.FLUSH.bulk, ctx, cb);
-			},
-			discard: function (ctx,cb) {
-				Log("bydiscard");
-				LIBS.GET.load( ctx._Events, LIBS.FLUSH.discard, ctx, cb);
-			},
-			load: function (evs, flush, ctx, cb) {  // get events via flush (null=bulk load) then callback cb(events) or cb(null) at end
+		DEPTH: function (ctx,cb) {
+			LOAD( ctx._Events, ctx, cb, function flush(ctx,rec,recs) {
+				return recs.length < 1;
+			});
+		},
+		BULK: function (ctx,cb) {
+			LOAD( ctx._Events, ctx, cb, function flush(ctx,rec,recs) { 
+				return false;
+			});
+		},
+		DROP: function (ctx,cb) {
+			LOAD( ctx._Events, ctx, cb, function flush(ctx,rec,recs) { 
+				return true;
+			});
+		}, 
+		LOAD: function (evs, ctx, cb, flush) {  // get events via flush (null=bulk load) then callback cb(events) or cb(null) at end
 
-				function feed(recs, cb) {
-					//Log("flushing",recs.length);
-					cb( recs );
-					recs.length = 0;
-				}				
+			function feed(recs, cb) {
+				//Log("flushing",recs.length);
+				cb( recs );
+				recs.length = 0;
+			}				
 
-				//var load = ctx._Load || [];
-				//Log("load", evs, ctx);
-				
-				if (evs)
-					if ( evs.constructor == String ) 
-						/*
-						if ( load.startsWith("/") )
-							LAB.fetcher( load, null, null, function (recs) {
-								if ( recs ) 
-									if (flush) {
-										recs.each( function (n,rec) {
-											if ( flush(ctx, rec, recs) ) feed(recs,cb);
-											recs.push(rec);
-										});
-										if ( recs.length ) feed(recs,cb);
-										cb(null);
-									}
+			if (evs)
+				LAB.thread( function (sql) {  
+					function save(evs) {
+						SAVE( sql, evs, ctx );
+					}
+			
+					if ( evs.constructor == String ) {  // pull recs from db
+						var recs = [];
 
-									else {
-										feed(recs,cb);
-										cb(null);
-									}
-
-								else
-									cb(null);
+						if ( flush )
+							sql.forEach( "GET", evs , [], function (rec) {  // feed db recs to flusher
+								if ( flush(ctx, rec, recs) ) feed(recs, cb);
+								recs.push(rec);
+							}).onEnd( function () {
+								if ( recs.length ) feed(recs, cb);
+								cb( null, save );
 							});
 
-						else 
-						*/
-						LAB.thread( function (sql) {
-							var recs = [];
+						else
+							sql.forAll( "GET", evs, [], function (recs) {  // feed all db recs - no flusher needed
+								feed(recs, cb);
+								cb( null, save );
+							});
+					}
 
-							if ( flush )
-								sql.forEach( "GET", evs , [], function (rec) {  // feed recs to flusher
-									if ( flush(ctx, rec, recs) ) feed(recs, cb);
-									recs.push(rec);
-								}).onEnd( function () {
-									if ( recs.length ) feed(recs, cb);
-									cb( null );
-								});
-
-							else
-								sql.forAll( "GET", evs, [], function (recs) {  // no flusher needed
-									feed(recs, cb);
-									cb( null );
-								});
-
-						});
-
-					else {
+					else {  // pull recs from supplied list
 						if ( flush ) {
 							var recs = [];			
 							evs.forEach( function (rec) { // feed recs
@@ -161,18 +123,119 @@ var LAB = module.exports = {
 								recs.push(rec);
 							});
 							if ( recs.length ) feed( recs, cb );
-							cb( null );
+							cb( null, save );
 						}
 
 						else {
 							if ( load.length ) feed(load, cb);
-							cb( null );
+							cb( null, save );
 						}
 					}
-
-			}
+				});
 		},
 		
+		SAVE: function ( sql, evs, ctx ) {  // save evs to Save, Save_KEY keys, export file, or the Ingest db as the ctx dictates
+
+			function saveKey(sql, key, save, ID) {
+				sql.query(
+					`UPDATE ??.?? SET ${key}=? WHERE ID=?`, 
+					["app",host,JSON.stringify(save) || "null",ID], 
+					function (err) {
+						Log("SAVE", key, err ? "failed" : "");
+				});
+			}
+
+			var 
+				status = "", // returned status
+				host = ctx._Host,
+				filename = `${host}.${ctx.Name}`, // export/ingest file name
+				stash = { };  // ingestable keys stash
+
+			Log("save host", host);
+
+			if (evs)
+				switch (evs.constructor.name) {
+					case "Error": 
+						return evs+"";
+						
+					case "Array":   // keys in the plugin context are used to create save stashes
+						var rem = [], stash = { remainder: rem };  // stash for saveable keys 
+
+						evs.stashify("at", "Save_", ctx, stash, function (ev, stat) {  // add {at:"KEY",...} evs to the Save_KEY stash
+
+							if (ev)
+								for (var key in stat) ev[key].push( stat[key] );
+
+							else {
+								var ev = new Object();
+								for (var key in stat) ev[key] = [ ];
+								return ev;
+							}
+
+						});
+
+						if (rem.length) {  // there is a remainder to save
+
+							Log("rem", rem.length, rem[0].at);
+							//rem.forEach( (val) => { if (val.at != "jump") Log(val); } );
+
+							if ( "Save" in ctx ) {  // dump to Save key
+								/*sql.query("UPDATE ??.?? SET ? WHERE ?", [
+									group, table, { Save: JSON.stringify(rem) || "null" }, {ID: ctx.ID}
+								]);*/
+								saveKey(sql, "Save", rem, ctx.ID);
+								status += " Saved";
+							}
+
+							if ( ctx.Export ) {   // export to ./public/stores/FILENAME
+								var
+									evidx = 0,
+									evs = rem,  // point event source to remainder
+									srcStream = new STREAM.Readable({    // establish source stream for export pipe
+										objectMode: false,
+										read: function () {  // read event source
+											if ( ev = evs[evidx++] )  // still have an event
+												this.push( JSON.stringify(ev)+"\n" );
+											else 		// signal events exhausted
+												this.push( null );
+										}
+									});
+
+								DEBE.uploadFile( "", srcStream, `stores/${filename}.${group}.${client}` );
+								status += " Exported";
+							}
+
+							if ( ctx.Ingest )  {
+								DEBE.getFile( client, `ingest/${filename}`, function (fileID) {
+									HACK.ingestList( sql, rem, fileID, function (aoi, evs) {
+										Log("INGESTED ",aoi);
+									});
+								});
+								status += " Ingested";
+							}
+						}
+
+						delete stash.remainder;	
+						break;
+						
+					case "Object":  // keys in the plugin context are used to create the stash
+						var stash = {};
+						Each(evs, function (key, val) {  // remove splits from bulk save
+							if ( key in ctx ) stash[key] = val;
+						});
+						break;
+				}
+			
+			else
+				return "empty";
+
+			status += " Saved"
+			for (var key in stash) 
+				saveKey(sql, key, stash[key], ctx.ID);
+
+			return ctx.Share ? evs : status.tag("a",{href: "/files.view"});
+		},
+			
 		DET: {
 			train: function (ctx, res) { //< gen  detector-trainging ctx for client with callback to res(ctx) when completed.
 				
@@ -441,6 +504,8 @@ var LAB = module.exports = {
 var 
 	SQL = null, //< defined by engine
 	LIBS = LAB.libs,
+	LOAD = LIBS.LOAD,
+	SAVE = LIBS.SAVE,
 	LWIP = LIBS.LWIP,
 	ME = LIBS.ME,
 	ML = LIBS.ML;
