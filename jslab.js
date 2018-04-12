@@ -93,7 +93,8 @@ var LAB = module.exports = {
 			if (evs)
 				LAB.thread( function (sql) {  
 					function save(evs) {
-						SAVE( sql, evs, ctx );
+						SAVE( sql, evs, ctx, function (evs) {  // for now, drop remaining events 
+						});
 					}
 			
 					if ( evs.constructor == String ) {  // pull recs from db
@@ -134,24 +135,21 @@ var LAB = module.exports = {
 				});
 		},
 		
-		SAVE: function ( sql, evs, ctx ) {  // save evs to Save, Save_KEY keys, export file, or the Ingest db as the ctx dictates
+		SAVE: function ( sql, evs, ctx, cb ) {  // save evs to host plugin Save_KEY with callback(remainder evs) 
 
-			function saveKey(sql, key, save, ID) {
+			function saveKey(sql, key, save, ID, host) {
 				sql.query(
 					`UPDATE ??.?? SET ${key}=? WHERE ID=?`, 
-					["app",host,JSON.stringify(save) || "null",ID], 
+					["app", host, JSON.stringify(save) || "null", ID], 
 					function (err) {
-						Log("SAVE", key, err ? "failed" : "");
+						Log(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` );
 				});
 			}
 
 			var 
-				status = "", // returned status
-				host = ctx._Host,
-				filename = `${host}.${ctx.Name}`, // export/ingest file name
 				stash = { };  // ingestable keys stash
 
-			Log("save host", host);
+			//Log("save host", ctx._Host);
 
 			if (evs)
 				switch (evs.constructor.name) {
@@ -175,44 +173,11 @@ var LAB = module.exports = {
 						});
 
 						if (rem.length) {  // there is a remainder to save
+							if (cb) cb(rem);
+						
+							Log("rem", rem.length, rem[0].at, "savein", "Save" in ctx);
 
-							Log("rem", rem.length, rem[0].at);
-							//rem.forEach( (val) => { if (val.at != "jump") Log(val); } );
-
-							if ( "Save" in ctx ) {  // dump to Save key
-								/*sql.query("UPDATE ??.?? SET ? WHERE ?", [
-									group, table, { Save: JSON.stringify(rem) || "null" }, {ID: ctx.ID}
-								]);*/
-								saveKey(sql, "Save", rem, ctx.ID);
-								status += " Saved";
-							}
-
-							if ( ctx.Export ) {   // export to ./public/stores/FILENAME
-								var
-									evidx = 0,
-									evs = rem,  // point event source to remainder
-									srcStream = new STREAM.Readable({    // establish source stream for export pipe
-										objectMode: false,
-										read: function () {  // read event source
-											if ( ev = evs[evidx++] )  // still have an event
-												this.push( JSON.stringify(ev)+"\n" );
-											else 		// signal events exhausted
-												this.push( null );
-										}
-									});
-
-								DEBE.uploadFile( "", srcStream, `stores/${filename}.${group}.${client}` );
-								status += " Exported";
-							}
-
-							if ( ctx.Ingest )  {
-								DEBE.getFile( client, `ingest/${filename}`, function (fileID) {
-									HACK.ingestList( sql, rem, fileID, function (aoi, evs) {
-										Log("INGESTED ",aoi);
-									});
-								});
-								status += " Ingested";
-							}
+							saveKey(sql, "Save", rem, ctx.ID, ctx._Host);
 						}
 
 						delete stash.remainder;	
@@ -229,11 +194,10 @@ var LAB = module.exports = {
 			else
 				return "empty";
 
-			status += " Saved"
 			for (var key in stash) 
-				saveKey(sql, key, stash[key], ctx.ID);
+				saveKey(sql, key, stash[key], ctx.ID, ctx._Host);
 
-			return ctx.Share ? evs : status.tag("a",{href: "/files.view"});
+			return ctx.Share ? evs : ("updated").tag("a",{href: "/files.view"});
 		},
 			
 		DET: {
