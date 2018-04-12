@@ -159,7 +159,7 @@ var LAB = module.exports = {
 					case "Array":   // keys in the plugin context are used to create save stashes
 						var rem = [], stash = { remainder: rem };  // stash for saveable keys 
 
-						evs.stashify("at", "Save_", ctx, stash, function (ev, stat) {  // add {at:"KEY",...} evs to the Save_KEY stash
+						Array.from(evs).stashify("at", "Save_", ctx, stash, function (ev, stat) {  // add {at:"KEY",...} evs to the Save_KEY stash
 
 							if (ev)
 								for (var key in stat) ev[key].push( stat[key] );
@@ -175,8 +175,6 @@ var LAB = module.exports = {
 						if (rem.length) {  // there is a remainder to save
 							if (cb) cb(rem);
 						
-							Log("rem", rem.length, rem[0].at, "savein", "Save" in ctx);
-
 							saveKey(sql, "Save", rem, ctx.ID, ctx._Host);
 						}
 
