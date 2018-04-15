@@ -27,11 +27,7 @@ To Do:
 var
 	FS = require("fs");
 
-var 														// Totem modules
-	ENUM = require("enum"),
-	Copy = ENUM.copy,
-	Each = ENUM.each,
-	Log = console.log;
+const { Copy,Each,Log } = require("enum");
 
 var LAB = module.exports = {  
 	libs: {
@@ -62,27 +58,27 @@ var LAB = module.exports = {
 			// require("./math/modified-newton-raphson"),
 		
 		STEP: function (ctx,cb) {
-			LOAD( ctx._Events, ctx, cb, function flush(ctx,rec,recs) { 
+			LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) { 
 				//LOG( rec.t, recs.length ? recs[0].t : -1);
 				return recs.length ? rec.t > recs[0].t : false;
 			});
 		},
 		DEPTH: function (ctx,cb) {
-			LOAD( ctx._Events, ctx, cb, function flush(ctx,rec,recs) {
+			LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) {
 				return recs.length < 1;
 			});
 		},
 		BULK: function (ctx,cb) {
-			LOAD( ctx._Events, ctx, cb, function flush(ctx,rec,recs) { 
+			LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) { 
 				return false;
 			});
 		},
 		DROP: function (ctx,cb) {
-			LOAD( ctx._Events, ctx, cb, function flush(ctx,rec,recs) { 
+			LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) { 
 				return true;
 			});
 		}, 
-		LOAD: function (evs, ctx, cb, flush) {  // get events via flush (null=bulk load) then callback cb(events) or cb(null) at end
+		LOAD: function (evs, ctx, cb, group) {  // group events with callback cb(evs,null) or cb(null,savecb) at end
 
 			function feed(recs, cb) {
 				//Log("flushing",recs.length);
@@ -92,35 +88,36 @@ var LAB = module.exports = {
 
 			if (evs)
 				LAB.thread( function (sql) {  
-					function save(evs) {
-						SAVE( sql, evs, ctx, function (evs) {  // for now, drop remaining events 
-						});
+					function save(stats) {
+						Log("feed saving", stats);
+						SAVE( sql, stats, ctx );
 					}
 			
 					if ( evs.constructor == String ) {  // pull recs from db
 						var recs = [];
 
-						if ( flush )
-							sql.forEach( "GET", evs , [], function (rec) {  // feed db recs to flusher
-								if ( flush(ctx, rec, recs) ) feed(recs, cb);
+						if ( group )
+							sql.forEach( "GET", evs , [], function (rec) {  // feed db recs to grouper
+								if ( group(ctx, rec, recs) ) feed(recs, cb);
 								recs.push(rec);
 							}).onEnd( function () {
 								if ( recs.length ) feed(recs, cb);
+								Log("feed ending");
 								cb( null, save );
 							});
 
 						else
-							sql.forAll( "GET", evs, [], function (recs) {  // feed all db recs - no flusher needed
+							sql.forAll( "GET", evs, [], function (recs) {  // feed all db recs - no grouper needed
 								feed(recs, cb);
 								cb( null, save );
 							});
 					}
 
 					else {  // pull recs from supplied list
-						if ( flush ) {
+						if ( group ) {
 							var recs = [];			
 							evs.forEach( function (rec) { // feed recs
-								if ( flush(ctx, rec, recs) ) feed(recs, cb);
+								if ( group(ctx, rec, recs) ) feed(recs, cb);
 								recs.push(rec);
 							});
 							if ( recs.length ) feed( recs, cb );
@@ -523,8 +520,8 @@ ME.import({
 	}
 });
 
-function Trace(msg,arg) {
-	ENUM.trace("L>",msg,arg);
+function Trace(msg,sql) {
+	msg.trace("L>",sql);
 }
 
 // UNCLASSIFIED
