@@ -263,7 +263,7 @@ var
 	MLE = require("expectation-maximization"),
 	MVN = require("multivariate-normal"),
 	LM = require("./mljs/node_modules/ml-levenberg-marquardt"),
-	//ML: require("./mljs/node_modules/ml-matrix"),
+	LAS = require("./mljs/node_modules/ml-matrix"),
 	ME = require('mathjs'),
 	DSP = require('digitalsignals'),
 	GAMMA = require("gamma"),
@@ -284,10 +284,29 @@ var LAB = module.exports = {
 		JSON: JSON,
 		LWIP: LWIP,
 		CRYPTO: CRYPTO,
+		// following should be removed when plugins rely only on ME
 		MLE: MLE,
 		MVN: MVN,
 		LM: LM,
+		//LAS: LAS,
 		GAMMA: GAMMA,
+		
+		/**
+		Each event-plugin interface EVIF(ctx,cb) = STEP | DEPTH | BULK |  DROP will route an ingested
+		event stream ievs (as specified by a plugin's context ctx = {_Events, ...}) to a cb(ievs,sink) callback, 
+		where the sink(oevs) provided by the interface will save an output event list oevs to the plugin's
+		context.
+		
+			EVIF(ctx, function cb(ievs, sink) {  // sink the plugin's ingested ievs
+				if (ievs) 
+					ievs.forEach( ev) { // process input event ev
+					});
+				
+				else 
+					sink([ {...}, {...} ]);  // respond with oevs to be saved by the plugin  
+			});
+		*/
+		
 		STEP: function (ctx, cb) {
 			LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) { 
 				return recs.length ? rec.t > recs[0].t : false;
@@ -319,7 +338,6 @@ var LAB = module.exports = {
 			if (evs)
 				LAB.thread( function (sql) {  
 					function save(stats) {
-						Log("feed saving", stats);
 						SAVE( sql, stats, ctx );
 					}
 			
@@ -332,7 +350,6 @@ var LAB = module.exports = {
 								recs.push(rec);
 							}).onEnd( function () {
 								if ( recs.length ) feed(recs, cb);
-								Log("feed ending");
 								cb( null, save );
 							});
 
@@ -363,7 +380,7 @@ var LAB = module.exports = {
 		},		
 		SAVE: function ( sql, evs, ctx, cb ) {  // save evs to host plugin Save_KEY with callback(remainder evs) 
 
-			function saveKey(sql, key, save, ID, host) {
+			function saveKey(sql, key, save, ID, host) {				
 				sql.query(
 					`UPDATE ??.?? SET ${key}=? WHERE ID=?`, 
 					["app", host, JSON.stringify(save) || "null", ID], 
@@ -418,9 +435,28 @@ var LAB = module.exports = {
 			else
 				return "empty";
 
+			if ( done = stash.Save_done ) {
+				var save = {}, set=false, _File = ctx._File;
+				Each( done, function (idx, vals) {
+					var val = vals[0];
+					if ( idx in _File) {
+						//Log("file save", idx);
+						save[ set = idx] = (typeof val == "object") 
+							? JSON.stringify( val )
+							: val;
+					}
+				});
+				if (set)
+					sql.query(
+						"UPDATE app.files SET ? WHERE ?",
+						  [save, {ID: _File.ID}],
+						(err) => Log( err || "SAVE files")
+					);
+			}
+							
 			for (var key in stash) 
 				saveKey(sql, key, stash[key], ctx.ID, ctx._Host);
-
+							
 			return ctx.Share ? evs : ("updated").tag("a",{href: "/files.view"});
 		}
 
@@ -464,7 +500,7 @@ var
 	LOAD = LIBS.LOAD,
 	SAVE = LIBS.SAVE,
 	LWIP = LIBS.LWIP,
-	ML = LIBS.ML;
+	LAS = LIBS.LAS;
 
 ME.import({
 	exec: function (code,ctx,cb) {
@@ -486,7 +522,7 @@ ME.import({
 				: val;
 		}
 		
-		cb(vmctx);
+		if (cb) cb(vmctx);
 	},
 		
 	isEqual: function (a,b) {
@@ -494,12 +530,12 @@ ME.import({
 	},
 	
 	svd: function (a) {
-		var svd = new ML.SVD( a._data );
+		var svd = new LAS.SVD( a._data );
 		Log(svd);
 	},
 	
 	evd: function (a) {
-		var evd = new ML.EVD( a._data );  //, {assumeSymmetric: true}
+		var evd = new LAS.EVD( a._data );  //, {assumeSymmetric: true}
 		return {values: ME.matrix(evd.d), vectors: ME.matrix(evd.V)}; 
 	},
 	
