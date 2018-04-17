@@ -292,7 +292,7 @@ var LAB = module.exports = {
 		GAMMA: GAMMA,
 		
 		/**
-		Each event-plugin interface EVIF(ctx,cb) = STEP | DEPTH | BULK |  DROP will route an ingested
+		Each event-plugin interface EVIF = STEP | DEPTH | BULK |  DROP will route an ingested
 		event stream ievs (as specified by a plugin's context ctx = {_Events, ...}) to a cb(ievs,sink) callback, 
 		where the sink(oevs) provided by the interface will save an output event list oevs to the plugin's
 		context.
