@@ -276,7 +276,7 @@ var
 	ZETA = require("riemann-zeta"),
 	NRAP = require("newton-raphson");
 
-const { Copy,Each,Log } = ENUM;
+const { Copy,Each,Log,$,$$ } = ENUM;
 
 var LAB = module.exports = {  
 	libs: {
@@ -539,6 +539,45 @@ ME.import({
 		return {values: ME.matrix(evd.d), vectors: ME.matrix(evd.V)}; 
 	},
 	
+	dht: function (f) {  // discrete Hilbert transform
+		var 
+			f = f._data, N = f.length, a = 2/Math.PI;
+		
+		return ME.matrix( $(N, (n,g) => {
+			if (n % 2) // odd n even k 
+				for (var sum=0,k=0; k<N; k+=2) sum += f[k] / (n - k);
+			else  // even n odd k
+				for (var sum=0,k=1; k<N; k+=2) sum += f[k] / (n - k);
+		
+			g[n] = a*sum;
+		}) );
+	},
+		
+	pwrem: function (nu, z) {
+		var 
+			N = z.length,
+			ctx = {
+				nu: nu,
+				rem: ME.matrix( $( nu.length, (n,R) => R[n] = 0 ) )
+			};
+		
+		for (var n=0; n<N; n++) {
+			ctx.z = z[n];
+			ME.eval("rem = rem + arg( (nu - z) ./ (nu - conj(z)) );", ctx);
+		}
+		
+		return ME.rem;
+	},
+	
+	pwt: function (H, z, T) { // pauly-weiner transform
+		var 
+			N = H.length,
+			ctx = {fs: N/T, H: H, z: z};
+
+		ME.eval( "nu = -pi: 2*pi/(N-1) : pi; alpha = dht( log( abs(H) ) ) + pwrem(nu, z);", ctx );
+		return ctx.alpha;
+	},
+	
 	zeta: function (a) {},
 	dft: function (a) {},
 	bayin: function (a) {},
@@ -559,6 +598,16 @@ Copy(ENUM, LAB.libs);
 
 function Trace(msg,sql) {
 	msg.trace("L>",sql);
+}
+
+switch (2) {
+	case 1:
+		Log( ME.eval( "dht( [0,1,2,1,0] )" ) );
+		break;
+		
+	case 2:
+		Log( ME.eval( "dht( [0,0,0,1e10,0,0,0] )" ) );
+		break;
 }
 
 // UNCLASSIFIED
