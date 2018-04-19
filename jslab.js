@@ -541,13 +541,15 @@ ME.import({
 	
 	dht: function (f) {  // discrete Hilbert transform
 		var 
-			f = f._data, N = f.length, a = 2/Math.PI;
+			f = f._data, N = f.length, a = 2/Math.PI, N0 = (N-1)/2, isOdd = N0 % 2, isEven = isOdd ? 0 : 1;
 		
-		return ME.matrix( $(N, (n,g) => {
-			if (n % 2) // odd n even k 
-				for (var sum=0,k=0; k<N; k+=2) sum += f[k] / (n - k);
-			else  // even n odd k
-				for (var sum=0,k=1; k<N; k+=2) sum += f[k] / (n - k);
+		return ME.matrix( $(N, (n,g) => { 
+			var n0 = n - N0;
+			if ( n0 % 2) // odd n so use even k 
+				for (var sum=0,k=isOdd, k0=k-N0; k<N; k+=2,k0+=2) sum += f[k] / (n0 - k0);
+			
+			else  // even n so use odd k
+				for (var sum=0,k=isEven, k0=k-N0; k<N; k+=2,k0+=2) sum += f[k] / (n0 - k0);
 		
 			g[n] = a*sum;
 		}) );
@@ -555,10 +557,11 @@ ME.import({
 		
 	pwrem: function (nu, z) {
 		var 
+			z = z._data,
 			N = z.length,
 			ctx = {
 				nu: nu,
-				rem: ME.matrix( $( nu.length, (n,R) => R[n] = 0 ) )
+				rem: ME.matrix( $( nu._data.length, (n,R) => R[n] = 0 ) )
 			};
 		
 		for (var n=0; n<N; n++) {
@@ -566,15 +569,15 @@ ME.import({
 			ME.eval("rem = rem + arg( (nu - z) ./ (nu - conj(z)) );", ctx);
 		}
 		
-		return ME.rem;
+		return ctx.rem;
 	},
 	
-	pwt: function (H, z, T) { // pauly-weiner transform
+	pwt: function (H, z) { // pauly-weiner transform
 		var 
-			N = H.length,
-			ctx = {fs: N/T, H: H, z: z};
+			N = H._data.length,
+			ctx = {N: N, H: H, z: z};
 
-		ME.eval( "nu = -pi: 2*pi/(N-1) : pi; alpha = dht( log( abs(H) ) ) + pwrem(nu, z);", ctx );
+		ME.eval( "nu = -pi: 2*pi/(N-1) : pi; alpha = dht( log( abs(H) ) ) + pwrem(nu, z);", ctx ); 
 		return ctx.alpha;
 	},
 	
@@ -590,7 +593,7 @@ ME.import({
 	rnn: function (a) {},
 	
 	disp: function (a) {
-		console.log(a);
+		Log(a._data);
 	}
 });
 
@@ -606,7 +609,15 @@ switch (2) {
 		break;
 		
 	case 2:
-		Log( ME.eval( "dht( [0,0,0,1e10,0,0,0] )" ) );
+		Log( ME.eval( "dht( [0,0,0,1,0,0,0] )" ) );
+		break;
+		
+	case 2.1:
+		Log( ME.eval( "dht(dht( [0,0,0,1,0,0,0] ))" ) );
+		break;
+		
+	case 3:
+		Log( ME.eval( "pwt( [0,0,0,1e10,0,0,0], [] )" ) );
 		break;
 }
 
