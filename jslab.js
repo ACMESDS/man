@@ -385,7 +385,7 @@ var LAB = module.exports = {
 					`UPDATE ??.?? SET ${key}=? WHERE ID=?`, 
 					["app", host, JSON.stringify(save) || "null", ID], 
 					function (err) {
-						Log(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` );
+						Trace(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` );
 				});
 			}
 
@@ -469,25 +469,6 @@ var LAB = module.exports = {
 		if (opts) Copy(opts, LAB, ".");
 	
 		if (cb) cb(null);	
-		/*
-		if (mysql = LAB.mysql)
-			DSVAR.config({   // establish the db agnosticator 
-				mysql: Copy({ 
-					opts: {
-						host: mysql.host,   // hostname 
-						user: mysql.user, 	// username
-						password : mysql.pass,				// passphrase
-						connectionLimit : mysql.sessions || 100, 		// max simultaneous connections
-						//acquireTimeout : 10000, 			// connection acquire timer
-						queueLimit: 0,  						// max concections to queue (0=unlimited)
-						waitForConnections: true			// allow connection requests to be queued
-					}
-				}, mysql)
-			}, function (sql) {
-				LOG("jslan est mysql");
-				sql.release();
-			});
-		*/
 	}
 	
 };
@@ -603,7 +584,9 @@ function Trace(msg,sql) {
 	msg.trace("L>",sql);
 }
 
-switch (2) {
+//===================== unit testing
+
+switch (0) {
 	case 1:
 		Log( ME.eval( "dht( [0,1,2,1,0] )" ) );
 		break;
@@ -619,6 +602,102 @@ switch (2) {
 	case 3:
 		Log( ME.eval( "pwt( [0,0,0,1e10,0,0,0], [] )" ) );
 		break;
+		
+	case 6.1:  // LMA/LFA convergence
+		
+		function sinFunction([a, b]) {
+		  return (t) => a * Math.sin(b * t);
+		}
+		
+		function quadFunction([a, b]) {
+			Log(a,b);
+		  return (t) => a + b * t**2;
+		}
+
+		var len = 20;
+		var data = {
+		  x: new Array(len),
+		  y: new Array(len)
+		};
+		var sampleFunction = quadFunction([2, 4]);
+		var sampleFunction2 = quadFunction([2, 4.1]);
+		for (var i = 0; i < len; i++) {
+		  data.x[i] = i;
+		  data.y[i] = (i % 2) ? sampleFunction(i) : sampleFunction(i);
+		}
+		var options = {
+			damping: 0.1,
+			maxIterations: 1e2,
+			//gradientDifference: 1,
+			initialValues: [-3, 16]
+		};
+
+		var ans = LM(data, quadFunction, options);
+		Log(ans);	
+		break;
+		
+	case 6.2:
+		var len = 150,x = 75, a = 36;
+		
+		var logGamma = $(len*2 , (k, logG) =>
+			logG[k] = (k<3) ? 0 : GAMMA.log(k)
+		);
+		
+		var p0map = function ([a]) {
+			 Log(a,x);
+			return (k) => _logp0(a,k,x);
+		};
+		var data = {
+		  x: new Array(len),
+		  y: new Array(len)
+		};
+		var sampleFunction = p0map([75]);
+		for (var i = 0; i < len; i++) {
+		  data.x[i] = i;
+		  data.y[i] = sampleFunction(i) ;
+		}
+		var options = {
+		  damping: 0.1,
+		//gradientDifference: 1,	
+		maxIterations: 1e1,
+		  initialValues: [120]
+		};
+
+		var ans = LM(data, p0map, options);
+		Log(ans);	
+		break;	
+		
+	case 6.3:
+		var len = 150,x = 75, a = 36;
+		
+		var logGamma = $(len*2 , (k, logG) =>
+			logG[k] = (k<3) ? 0 : GAMMA.log(k)
+		);
+		
+		var p0map = function ([a,x]) {
+			 Log(a,x);
+			return (k) => _logp0(a,k,x);
+		};
+		var data = {
+		  x: new Array(len),
+		  y: new Array(len)
+		};
+		var sampleFunction = p0map([36,75]);
+		for (var i = 0; i < len; i++) {
+		  data.x[i] = i;
+		  data.y[i] = sampleFunction(i) ;
+		}
+		var options = {
+		  damping: 0.1,
+		//gradientDifference: 1,	
+		maxIterations: 1e1,
+		  initialValues: [15,120]
+		};
+
+		var ans = LM(data, p0map, options);
+		Log(ans);	
+		break;
+		
 }
 
 // UNCLASSIFIED
