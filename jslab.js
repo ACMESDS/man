@@ -520,6 +520,18 @@ ME.import({
 		return {values: ME.matrix(evd.d), vectors: ME.matrix(evd.V)}; 
 	},
 	
+	rng: function (min,max,N) { 
+		var
+			del = (max-min) / N;
+		
+		return ME.matrix( $( N, (n,R) => { R[n] = min; min+=del; } ) );
+	},
+	
+	sinc: function (t) {
+		var sin = Math.sin, t = t._data, N = t.length;
+		return ME.matrix( $( N, (n, sinc) => sinc[n] = t[n] ? sin(t[n]) / t[n] : 1) );
+	},
+	
 	dht: function (f) {  // discrete Hilbert transform
 		var 
 			f = f._data, N = f.length, a = 2/Math.PI, N0 = (N-1)/2, isOdd = N0 % 2, isEven = isOdd ? 0 : 1;
@@ -527,10 +539,10 @@ ME.import({
 		return ME.matrix( $(N, (n,g) => { 
 			var n0 = n - N0;
 			if ( n0 % 2) // odd n so use even k 
-				for (var sum=0,k=isOdd, k0=k-N0; k<N; k+=2,k0+=2) sum += f[k] / (n0 - k0);
+				for (var sum=0,k=isOdd, k0=k-N0; k<N; k+=2,k0+=2) sum += f[k] / (n0 - k0); // Log( n0, k0, f[k], n0-k0, sum += f[k] / (n0 - k0) );  //
 			
 			else  // even n so use odd k
-				for (var sum=0,k=isEven, k0=k-N0; k<N; k+=2,k0+=2) sum += f[k] / (n0 - k0);
+				for (var sum=0,k=isEven, k0=k-N0; k<N; k+=2,k0+=2) sum += f[k] / (n0 - k0); // Log( n0, k0, f[k], n0-k0, sum += f[k] / (n0 - k0) );
 		
 			g[n] = a*sum;
 		}) );
@@ -553,13 +565,13 @@ ME.import({
 		return ctx.rem;
 	},
 	
-	pwt: function (H, z) { // pauly-weiner transform
+	pwt: function (modH, z) { // pauly-weiner transform
 		var 
-			N = H._data.length,
-			ctx = {N: N, H: H, z: z};
+			N = modH._data.length,
+			ctx = {N: N, modH: modH, z: z};
 
-		ME.eval( "nu = -pi: 2*pi/(N-1) : pi; alpha = dht( log( abs(H) ) ) + pwrem(nu, z);", ctx ); 
-		return ctx.alpha;
+		ME.eval( "nu = -pi: 2*pi/(N-1) : pi; argH = dht( log( modH ) ) + pwrem(nu, z); H = modH .* exp(i*argH); ", ctx ); 
+		return ctx.H;
 	},
 	
 	zeta: function (a) {},
@@ -586,21 +598,32 @@ function Trace(msg,sql) {
 
 //===================== unit testing
 
-switch (0) {
+switch (3) {
 	case 1:
-		Log( ME.eval( "dht( [0,1,2,1,0] )" ) );
-		break;
-		
-	case 2:
-		Log( ME.eval( "dht( [0,0,0,1,0,0,0] )" ) );
+		ME.eval( "disp( dht( [0,1,2,1,0] ) )" );
 		break;
 		
 	case 2.1:
-		Log( ME.eval( "dht(dht( [0,0,0,1,0,0,0] ))" ) );
+		ME.eval( "disp( dht( [0,0,0,1e99,0,0,0] ) )" );
 		break;
 		
+	case 2.2:
+		ME.eval( "disp( dht(dht( [0,0,0,1e99,0,0,0] )) )" );
+		break;
+		
+	case 2.3:  // sinc(t) = sin(t)/t =>  (1 - cos(t)) / t
+		//ME.eval( "disp( rng(-pi,pi,21) )" );
+		//ME.eval( "disp( sinc( rng(-pi,pi,21) ) )" );
+		ME.eval( "disp( dht( sinc( rng(-pi,pi,21) ) ) )" );
+		break;
+		
+	case 2.4:  // dht(dht(f)) => -f  tho there is a dt missing somewhere in this argument
+		ME.eval( "disp( dht( dht( rng(-1,1,51)  ) ) )" );
+		//ME.eval( "disp( dht( dht( sinc( -pi:(2*pi)/20:pi ) ) ) )" );
+		break;
+
 	case 3:
-		Log( ME.eval( "pwt( [0,0,0,1e10,0,0,0], [] )" ) );
+		ME.eval( " disp( pwt( abs(sinc( rng(-4*pi,4*pi,511)) ) , [] ) )" );
 		break;
 		
 	case 6.1:  // LMA/LFA convergence
