@@ -517,6 +517,7 @@ var
 	LAS = LIBS.LAS;
 
 const { $, $$ } = LIBS;
+const {random} = Math;
 
 ME.import({
 	exec: function (code,ctx,cb) {
@@ -629,6 +630,76 @@ ME.import({
 		return ME.matrix( $(N, (n,H) => H[n] = (n<N1) ? ME.complex( re[n], im[n] ) : 0 ) );
 	},
 		  
+	psd: function (t,nu,T) {
+		var
+			t = t._data,
+			K = t.length,
+			ctx = {
+				T: T,
+				K: K,
+				f: ME.eval("i*2*pi*nu", {nu: nu}),
+				Gu: 0
+			};
+		
+		for (var i=0; i<K; i++) 
+			for (var j=0; j<K; j++) {
+				ctx.ti = t[i];
+				ctx.tj = t[j];
+				ME.eval("Gu = Gu + exp(f*(ti-tj))", ctx);
+			}
+		
+		ME.eval("Gu = re(Gu)/T", ctx);
+		return ctx.Gu;
+	},
+
+	evpsd: function (evs,nu,T,idKey,tKey) {
+		var
+			evs = evs._data.sort( function (a,b) {
+				return ( a[idKey] > b[idKey] ) ? 1 : -1;
+			}),
+			ctx = {
+				T: T,
+				nu: nu,
+				Gu: 0
+			};
+		
+		for (var ids=0, N=evs.length, n=0; n<N; ids++) {
+			var 
+				t = ctx.t = ME.matrix([]), 
+				t = t._data,
+				ev = evs[n], 
+				id = ctx.id = ev[idKey], K = 0;
+			
+			while ( ev && ev[idKey] == id ) {
+				t.push( ev[tKey] );
+				ev = evs[++n];
+				K++;
+			}
+			Log( id, K );
+			ME.eval(" Gu = Gu + psd(t, nu, T) ", ctx);
+		}
+		ctx.ids = ids;
+		Log("ids=", ctx.ids);
+		//ME.eval(" Gu = Gu/ids ", ctx);
+		return ctx.Gu;
+	},
+	
+	udev: function (N,a) {
+		return ME.matrix( $(N, (n,R) => R[n] = a*random() ) );
+	},
+	
+	expdev: function (N,a) {
+		return ME.eval( "-a*log( udev(N,1) )" , {a:a, N:N} );
+	},
+
+	cumsum: function (x) {
+		var
+			x = x._data,
+			N = x.length;
+		
+		return ME.matrix( $(N, (n,X) => X[n] = n ? X[n-1] + x[n] : x[0] ) );
+	},
+						 
 	zeta: function (a) {},
 	dft: function (a) {},
 	bayin: function (a) {},
@@ -693,6 +764,32 @@ switch (0) {
 
 	case 3:
 		ME.eval( " disp( pwt( abs(sinc( rng(-4*pi,4*pi,511)) ) , [] ) )" );
+		break;
+		
+	case 4.1:
+		var ctx = {
+			N:1, t0: 0.2, evs: ME.matrix( [] )
+		};
+		
+		//ME.eval(" disp( urand(10,1) )");
+		//ME.eval("disp( expdev(5,1) )");
+		ME.eval("lambda0 = 1/t0; t = cumsum(expdev(100, t0)); T = max(t); K0 = lambda0 * T; nu = rng(-N*pi, N*pi, 51); ", ctx);
+		//ME.eval(" disp( psd( udev(100,T), rng(-N*pi, N*pi, 51) )/T )", {T:T, N:N});
+		//ME.eval(" disp( cumsum( [1,2,3,4] ) )" );
+		Log(ctx.T, ctx.lambda0, ctx.K0);
+		//ME.eval(" disp( psd( t, nu,T ) )", ctx);
+		var 
+			evs = ctx.evs._data,
+			t = ctx.t._data,
+			N = t.length,
+			M = 5,
+			NM = N/M;
+		
+		for (var k=0, id=0; id<M; id++) for (var n=0; n<NM; n++ ) evs.push({t: t[k++], id:id });
+		ME.eval(' Gu = evpsd(evs, nu, T, "id", "t") ', ctx);
+		
+		for (var nu = ctx.nu._data,	Gu = ctx.Gu._data, n=0; n<51; n++)  Log(nu[n].toFixed(4), Gu[n].toFixed(4));
+					
 		break;
 		
 	case 6.1:  // LMA/LFA convergence
