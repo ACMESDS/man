@@ -1,10 +1,5 @@
 // UNCLASSIFIED
 
-/*
-To Do:
-+ Extend the matlab emulator with special functions
-*/
-
 /**
 @class JSLAB
 @requires crypto
@@ -276,14 +271,52 @@ var
 	ZETA = require("riemann-zeta"),
 	NRAP = require("newton-raphson");
 
-const { Copy,Each,Log,$,$$ } = ENUM;
+[
+	function use(cb) {	// use vector A with callback cb(idx,A)
+		var A = this, N = A.length;
+
+		if (A.rows) {
+			var M = A.rows, N = A.columns;
+
+			for (var m=0; m<M; m++) for (var n=0, Am = A[m]; n<N; n++) cb(m,n,A,Am);
+			return A;
+		}
+
+		else
+			for (var n=0,N=A.length; n<N; n++) cb(n,A);
+
+		return A;
+	}	
+].extend(Array);
+
+const { Copy,Each,Log } = ENUM;
 
 var LAB = module.exports = {  
-	libs: {
+	libs: {  // libraries made available to plugin context
 		ME: ME,
 		JSON: JSON,
 		LWIP: LWIP,
 		CRYPTO: CRYPTO,
+		Copy: Copy,
+		Each: Each,
+		Log: Log,
+		
+		// lightweight matrix and array creators
+		$$: (M,N,cb) => {  // create matrix A with callback cb(m,n,A,A[m])
+			var A = new Array(M);
+
+			A.rows = M;
+			A.columns = N;
+			for (var m=0; m<M; m++) A[m] = new Array(N);
+
+			return cb ? A.use(cb) : A;
+		},
+
+		$: (N,cb) => {  // create vector A with callback cb(idx,A)
+			var A = new Array(N);
+			return cb ? A.use(cb) : A;
+		},
+		
 		// following should be removed when plugins rely only on ME
 		MLE: MLE,
 		MVN: MVN,
@@ -292,12 +325,12 @@ var LAB = module.exports = {
 		GAMMA: GAMMA,
 		
 		/**
-		Each event-plugin interface EVIF = STEP | DEPTH | BULK |  DROP will route an ingested
+		Each event-plugin interface BUFFER = STEP | DEPTH | BULK |  DROP will route an ingested
 		event stream ievs (as specified by a plugin's context ctx = {_Events, ...}) to a cb(ievs,sink) callback, 
 		where the sink(oevs) provided by the interface will save an output event list oevs to the plugin's
 		context.
 		
-			EVIF(ctx, function cb(ievs, sink) {  // sink the plugin's ingested ievs
+			BUFFER(ctx, function cb(ievs, sink) {  // sink the plugin's ingested ievs
 				if (ievs) 
 					ievs.forEach( ev) { // process input event ev
 					});
@@ -483,6 +516,8 @@ var
 	LWIP = LIBS.LWIP,
 	LAS = LIBS.LAS;
 
+const { $, $$ } = LIBS;
+
 ME.import({
 	exec: function (code,ctx,cb) {
 		var vmctx = {};
@@ -574,6 +609,26 @@ ME.import({
 		return ctx.H;
 	},
 	
+	dft: function (h) {  // len(h) = 2^K + 1
+		var 
+			h = h._data,
+			N = h.length,
+			N1 = N-1,
+			fft = new DSP.FFT(N1);
+	
+		for (var n=0; n<N1; n+=2) h[n] = -h[n];
+	
+		fft.forward(h);
+
+		var re = fft.real, im = fft.imag;
+		for (var n=0; n<N1; n+=2) {
+			re[n] = -re[n];
+			im[n] = -im[n];
+		}
+
+		return ME.matrix( $(N, (n,H) => H[n] = (n<N1) ? ME.complex( re[n], im[n] ) : 0 ) );
+	},
+		  
 	zeta: function (a) {},
 	dft: function (a) {},
 	bayin: function (a) {},
@@ -590,15 +645,29 @@ ME.import({
 	}
 });
 
-Copy(ENUM, LAB.libs);
-
 function Trace(msg,sql) {
 	msg.trace("L>",sql);
 }
 
 //===================== unit testing
 
-switch (3) {
+function _logp0(a,k,x) {  // for case 6.x testing
+	var
+		ax1 =  1 + a/x,
+		xa1 = 1 + x/a,
+		logGx = GAMMA.log(x),
+		logGkx = GAMMA.log(k+x), 
+		logGk1 = GAMMA.log(k+1),
+		//logGx = logGamma[ floor(x) ],
+		//logGkx = logGamma[ floor(k + x) ],
+		//logGk1 = logGamma[ floor(k + 1) ],
+		logp0 = logGkx - logGk1 - logGx  - k*log(xa1) - x*log(ax1);
+
+	Log(a,k,x, logp0);
+	return logp0;
+}
+
+switch (0) {
 	case 1:
 		ME.eval( "disp( dht( [0,1,2,1,0] ) )" );
 		break;
