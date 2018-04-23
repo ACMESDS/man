@@ -1,0 +1,160 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/local/nodejs-5.5.0/bin/node',
+1 verbose cli   '/local/nodejs/bin/npm',
+1 verbose cli   'install',
+1 verbose cli   'newton-raphson',
+1 verbose cli   '--save' ]
+2 info using npm@3.3.12
+3 info using node@v5.5.0
+4 silly loadCurrentTree Starting
+5 silly install loadCurrentTree
+6 silly install readLocalPackageData
+7 silly fetchPackageMetaData newton-raphson@0.0.3
+8 silly fetchNamedPackageData newton-raphson
+9 silly mapToRegistry name newton-raphson
+10 silly mapToRegistry using default registry
+11 silly mapToRegistry registry https://registry.npmjs.org/
+12 silly mapToRegistry uri https://registry.npmjs.org/newton-raphson
+13 verbose request uri https://registry.npmjs.org/newton-raphson
+14 verbose request no auth needed
+15 info attempt registry request try #1 at 8:37:20 AM
+16 verbose request id 2887d22a52a2e1d8
+17 verbose etag "549a43a9-e42"
+18 verbose lastModified Wed, 24 Dec 2014 4:40:09 GMT
+19 http request GET https://registry.npmjs.org/newton-raphson
+20 http 304 https://registry.npmjs.org/newton-raphson
+21 verbose headers { date: 'Mon, 26 Feb 2018 14:39:14 GMT',
+21 verbose headers   via: '1.1 varnish',
+21 verbose headers   'cache-control': 'max-age=300',
+21 verbose headers   etag: '"549a43a9-e42"',
+21 verbose headers   age: '56',
+21 verbose headers   connection: 'keep-alive',
+21 verbose headers   'x-served-by': 'cache-mdw17336-MDW',
+21 verbose headers   'x-cache': 'HIT',
+21 verbose headers   'x-cache-hits': '1',
+21 verbose headers   'x-timer': 'S1519655955.881975,VS0,VE1',
+21 verbose headers   vary: 'Accept-Encoding, Accept' }
+22 silly get cb [ 304,
+22 silly get   { date: 'Mon, 26 Feb 2018 14:39:14 GMT',
+22 silly get     via: '1.1 varnish',
+22 silly get     'cache-control': 'max-age=300',
+22 silly get     etag: '"549a43a9-e42"',
+22 silly get     age: '56',
+22 silly get     connection: 'keep-alive',
+22 silly get     'x-served-by': 'cache-mdw17336-MDW',
+22 silly get     'x-cache': 'HIT',
+22 silly get     'x-cache-hits': '1',
+22 silly get     'x-timer': 'S1519655955.881975,VS0,VE1',
+22 silly get     vary: 'Accept-Encoding, Accept' } ]
+23 verbose etag https://registry.npmjs.org/newton-raphson from cache
+24 verbose get saving newton-raphson to /home/jamesbd/.npm/registry.npmjs.org/newton-raphson/.cache.json
+25 silly install normalizeTree
+26 silly loadCurrentTree Finishing
+27 silly loadIdealTree Starting
+28 silly install loadIdealTree
+29 silly cloneCurrentTree Starting
+30 silly install cloneCurrentTreeToIdealTree
+31 silly cloneCurrentTree Finishing
+32 silly loadShrinkwrap Starting
+33 silly install loadShrinkwrap
+34 silly loadShrinkwrap Finishing
+35 silly loadAllDepsIntoIdealTree Starting
+36 silly install loadAllDepsIntoIdealTree
+37 silly resolveWithNewModule newton-raphson@0.0.3 checking installable status
+38 silly cache add args [ 'newton-raphson@0.0.3', null ]
+39 verbose cache add spec newton-raphson@0.0.3
+40 silly cache add parsed spec Result {
+40 silly cache add   raw: 'newton-raphson@0.0.3',
+40 silly cache add   scope: null,
+40 silly cache add   name: 'newton-raphson',
+40 silly cache add   rawSpec: '0.0.3',
+40 silly cache add   spec: '0.0.3',
+40 silly cache add   type: 'version' }
+41 silly addNamed newton-raphson@0.0.3
+42 verbose addNamed "0.0.3" is a plain semver version for newton-raphson
+43 silly mapToRegistry name newton-raphson
+44 silly mapToRegistry using default registry
+45 silly mapToRegistry registry https://registry.npmjs.org/
+46 silly mapToRegistry uri https://registry.npmjs.org/newton-raphson
+47 verbose addNameVersion registry:https://registry.npmjs.org/newton-raphson not in flight; fetching
+48 verbose get https://registry.npmjs.org/newton-raphson not expired, no request
+49 silly cache afterAdd newton-raphson@0.0.3
+50 verbose afterAdd /home/jamesbd/.npm/newton-raphson/0.0.3/package/package.json not in flight; writing
+51 verbose afterAdd /home/jamesbd/.npm/newton-raphson/0.0.3/package/package.json written
+52 silly fetchNamedPackageData jslab
+53 silly mapToRegistry name jslab
+54 silly mapToRegistry using default registry
+55 silly mapToRegistry registry https://registry.npmjs.org/
+56 silly mapToRegistry uri https://registry.npmjs.org/jslab
+57 verbose request uri https://registry.npmjs.org/jslab
+58 verbose request no auth needed
+59 info attempt registry request try #1 at 8:37:20 AM
+60 verbose etag "56fa0328-e25"
+61 verbose lastModified Tue, 29 Mar 2016 4:23:04 GMT
+62 http request GET https://registry.npmjs.org/jslab
+63 http 304 https://registry.npmjs.org/jslab
+64 verbose headers { date: 'Mon, 26 Feb 2018 14:39:15 GMT',
+64 verbose headers   via: '1.1 varnish',
+64 verbose headers   'cache-control': 'max-age=300',
+64 verbose headers   etag: '"56fa0328-e25"',
+64 verbose headers   age: '56',
+64 verbose headers   connection: 'keep-alive',
+64 verbose headers   'x-served-by': 'cache-mdw17329-MDW',
+64 verbose headers   'x-cache': 'HIT',
+64 verbose headers   'x-cache-hits': '1',
+64 verbose headers   'x-timer': 'S1519655955.096967,VS0,VE0',
+64 verbose headers   vary: 'Accept-Encoding, Accept' }
+65 silly get cb [ 304,
+65 silly get   { date: 'Mon, 26 Feb 2018 14:39:15 GMT',
+65 silly get     via: '1.1 varnish',
+65 silly get     'cache-control': 'max-age=300',
+65 silly get     etag: '"56fa0328-e25"',
+65 silly get     age: '56',
+65 silly get     connection: 'keep-alive',
+65 silly get     'x-served-by': 'cache-mdw17329-MDW',
+65 silly get     'x-cache': 'HIT',
+65 silly get     'x-cache-hits': '1',
+65 silly get     'x-timer': 'S1519655955.096967,VS0,VE0',
+65 silly get     vary: 'Accept-Encoding, Accept' } ]
+66 verbose etag https://registry.npmjs.org/jslab from cache
+67 verbose get saving jslab to /home/jamesbd/.npm/registry.npmjs.org/jslab/.cache.json
+68 silly fetchPackageMetaData Error: No compatible version found: jslab@^1.0.0
+68 silly fetchPackageMetaData Valid install targets:
+68 silly fetchPackageMetaData 0.0.2, 0.0.1
+68 silly fetchPackageMetaData
+68 silly fetchPackageMetaData     at pickVersionFromRegistryDocument (/local/nodejs-5.5.0/lib/node_modules/npm/lib/fetch-package-metadata.js:156:16)
+68 silly fetchPackageMetaData     at /local/nodejs-5.5.0/lib/node_modules/npm/node_modules/iferr/index.js:13:50
+68 silly fetchPackageMetaData     at /local/nodejs-5.5.0/lib/node_modules/npm/lib/utils/pulse-till-done.js:19:8
+68 silly fetchPackageMetaData     at saved (/local/nodejs-5.5.0/lib/node_modules/npm/lib/cache/caching-client.js:168:7)
+68 silly fetchPackageMetaData     at /local/nodejs-5.5.0/lib/node_modules/npm/node_modules/graceful-fs/polyfills.js:210:7
+68 silly fetchPackageMetaData     at FSReqWrap.oncomplete (fs.js:82:15)
+68 silly fetchPackageMetaData  error for jslab@^1.0.0 [Error: No compatible version found: jslab@^1.0.0
+68 silly fetchPackageMetaData Valid install targets:
+68 silly fetchPackageMetaData 0.0.2, 0.0.1
+68 silly fetchPackageMetaData ]
+69 silly rollbackFailedOptional Starting
+70 silly rollbackFailedOptional Finishing
+71 silly runTopLevelLifecycles Starting
+72 silly runTopLevelLifecycles Finishing
+73 silly install printInstalled
+74 verbose stack Error: No compatible version found: jslab@^1.0.0
+74 verbose stack Valid install targets:
+74 verbose stack 0.0.2, 0.0.1
+74 verbose stack
+74 verbose stack     at pickVersionFromRegistryDocument (/local/nodejs-5.5.0/lib/node_modules/npm/lib/fetch-package-metadata.js:156:16)
+74 verbose stack     at /local/nodejs-5.5.0/lib/node_modules/npm/node_modules/iferr/index.js:13:50
+74 verbose stack     at /local/nodejs-5.5.0/lib/node_modules/npm/lib/utils/pulse-till-done.js:19:8
+74 verbose stack     at saved (/local/nodejs-5.5.0/lib/node_modules/npm/lib/cache/caching-client.js:168:7)
+74 verbose stack     at /local/nodejs-5.5.0/lib/node_modules/npm/node_modules/graceful-fs/polyfills.js:210:7
+74 verbose stack     at FSReqWrap.oncomplete (fs.js:82:15)
+75 verbose cwd /local/service-8/jslab
+76 error Linux 3.10.0-514.10.2.el7.x86_64
+77 error argv "/local/nodejs-5.5.0/bin/node" "/local/nodejs/bin/npm" "install" "newton-raphson" "--save"
+78 error node v5.5.0
+79 error npm  v3.3.12
+80 error No compatible version found: jslab@^1.0.0
+80 error Valid install targets:
+80 error 0.0.2, 0.0.1
+81 error If you need help, you may report this error at:
+81 error     <https://github.com/npm/npm/issues>
+82 verbose exit [ 1, true ]
