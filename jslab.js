@@ -537,7 +537,7 @@ var
 	LAS = LIBS.LAS;
 
 const { $, $$ } = LIBS;
-const {random, sin, cos, exp, log, PI, floor} = Math;
+const {random, sin, cos, exp, log, PI, floor, abs} = Math;
 
 ME.import({
 	exec: function (code,ctx,cb) {
@@ -583,30 +583,6 @@ ME.import({
 		return ME.matrix( $( N, (n,R) => { R[n] = min; min+=del; } ) );
 	},
 
-	/*
-	Xsinc: function ( N, M ) {
-		var 
-			T = 1,
-			Tc = T/M,
-			fs = (N-1)/T,
-			dt = 1/fs,
-			dx =  PI * dt / Tc; 
-
-		return ME.matrix( $$( N, N, (m,n,A) => {
-			if ( m == n ) 
-				A[m][n] = 1;
-			else
-			if ( n > m ) {
-				var x = dx * (n-m);
-				A[m][n] = sin( x ) / x;
-				//Log(m,n-m,x,A[m][n]);
-			}
-			else
-				A[m][n] = A[n][m];
-		}) );
-	},
-	*/
-	
 	xmatrix: function ( ccf ) {
 		var 
 			ccf = ccf._data,
@@ -671,9 +647,13 @@ ME.import({
 		
 		var 
 			N = modH._data.length,
-			ctx = {N: N, modH: modH, z: z};
+			ctx = {
+				N: N, 
+				modH: modH, 
+				z: z
+			};
 
-		ME.eval( "nu = -pi: 2*pi/(N-1) : pi; argH = dht( log( modH ) ) + pwrem(nu, z); H = modH .* exp(i*argH); ", ctx ); 
+		ME.eval( "nu = rng(-fs/2, fs/2, N); argH = dht( log( modH ) ) + pwrem(nu, z); H = modH .* exp(i*argH); ", ctx ); 
 		return ctx.H;
 	},
 	
@@ -692,14 +672,13 @@ ME.import({
 			}),
 			g = DSP.ifft(G);
 
-		g.push([0,0]);
-		
-		g.use( (n,g) => {  // alt signs to complete dft 
+		g.use( (n) => {  // alt signs to complete dft 
 			var gn = g[n];
 			g[n] = (n % 2) ? ME.complex(-gn[0], -gn[1]) : ME.complex(gn[0], gn[1]);
 		});
-			
-		return ME.matrix( g );
+
+		g.push( ME.complex(0,0) );
+		return ME.matrix(g);
 	},
 	
 	wkpsd: function (ccf, T) {  // weiner-kinchine psd of odd len(h) = 2^K + 1 complex coor func ccf
@@ -707,15 +686,16 @@ ME.import({
 			ccf = ccf._data,
 			N = ccf.length,
 			N0 = floor( (N-1)/2 ),
-			fs = (N-1)/T,
+			fs = N/T,
+			f0 = fs/2,
 			isReal = ccf[0].constructor == Number,
 			ctx = {
 				c0: isReal ? ccf[N0] : ccf[N0].re,  // [Hz^2]
-				df: 2*fs/N,  // [Hz]
+				df: 2*f0/N,  // [Hz]
 				ccf: ME.matrix(ccf)  // [Hz^2]
 			};
 
-		ME.eval( "psd = re(dft( ccf )); psd = psd * c0 / sum(psd) / df;", ctx);
+		ME.eval( "psd = abs(dft( ccf )); psd = psd * c0 / sum(psd) / df;", ctx);
 		return ctx.psd;
 /*
 		ccf.use( (n,c) => {  // make ccf complex and alt signs to make dft
@@ -772,18 +752,21 @@ ME.import({
 			ctx = {
 				T: T,
 				K: K,
-				f: ME.eval("i*2*pi*nu", {nu: nu}),
+				dt: T/N,
+				s: ME.eval("i*2*pi*nu", {nu: nu}),
 				Gu: 0
 			};
 		
 		for (var i=0; i<K; i++) 
 			for (var j=0; j<K; j++) {
-				ctx.ti = t[i];
+				ctx.ti = t[i],
 				ctx.tj = t[j];
-				ME.eval("Gu = Gu + exp(f*(ti-tj))", ctx);
+				
+				//if ( abs( ti - tj ) < T/2 ) 
+				ME.eval("Gu = Gu + exp( s*(ti-tj) )", ctx);
 			}
 		
-		ME.eval("Gu = re(Gu)/T", ctx);
+		ME.eval("Gu = Gu/(2*T)", ctx);
 		return ctx.Gu;
 	},
 
@@ -816,7 +799,7 @@ ME.import({
 		}
 		ctx.ids = ids;
 		Log("ids=", ctx.ids);
-		//ME.eval(" Gu = Gu/ids ", ctx);
+		ME.eval(" Gu = abs(Gu)/ids ", ctx);  // /ids or /2 ? 
 		return ctx.Gu;
 	},
 	
@@ -912,7 +895,7 @@ switch (0) {
 		//ME.eval(" disp( cumsum( [1,2,3,4] ) )" );
 		//ME.eval(" disp( psd( t, nu,T ) )", ctx);
 		
-		ME.eval("lambda0 = 1/t0; t = cumsum(expdev(100, t0)); T = max(t); K0 = lambda0 * T; fs=(N-1)/T; nu = rng(-fs, fs, N); ", ctx);
+		ME.eval("lambda0 = 1/t0; t = cumsum(expdev(100, t0)); T = max(t); K0 = lambda0 * T; fs=(N-1)/T; nu = rng(-fs/2, fs/2, N); ", ctx);
 		Log(ctx.T, ctx.lambda0, ctx.K0);
 		var 
 			evs = ctx.evs._data,
@@ -930,15 +913,16 @@ switch (0) {
 		
 	case 4.2:
 		var ctx = {};
-		ME.eval(" N=9; T=1; fs = (N-1)/T; nu = rng(-fs/2,fs/2,N); Gu = wkpsd([0,1,2,3,4,3,2,1,0], T); Xu = xmatrix(Gu); " , ctx); 
-		// tri(t/t0), fs = 8; t0 = 4/fs = 0.5; sinc^2(nu*t0) has zero at nu= +/- 2, +/- 4, ....
+		ME.eval(" N=17; T=1; fs = (N-1)/T; nu = rng(-fs/2,fs/2,N); Gu = wkpsd([0,0,0,0,0,1,2,3,4,3,2,1,0,0,0,0,0], T); df = fs/(N-1); Pu = sum(Gu)*df; Xu = xmatrix(Gu); " , ctx); 
+		Log("power check", ctx.Pu);
+		// tri(t/t0), fs = 16; t0 = 4/fs -> 0.25; sinc^2(nu*t0) has zero at nu= +/- 4, +/- 8, ....
 		
 		//ME.eval(" N=9; T=1; fs = (N-1)/T; nu = rng(-fs/2,fs/2,N); Gu = wkpsd([0,0,0,1,2,1,0,0,0], T); Xu = xmatrix(Gu); " , ctx); 
-		// tri(t/t0), fs = 8; t0 = 2/fs = 0.25; sinc^2(nu*t0) has zero at nu=4
+		// tri(t/t0), fs = 8; t0 = 2/fs = 0.25; sinc^2(nu*t0) has zero at nu= +/- 4, ...
 
 		//Log(ctx);
-		for (var nu = ctx.nu._data,	Gu = ctx.Gu._data, n=0; n<9; n++)  Log(nu[n].toFixed(4), Gu[n].toFixed(4));
-		Log(ctx.Xu._data);
+		for (var nu = ctx.nu._data,	Gu = ctx.Gu._data, n=0; n<ctx.N; n++)  Log(nu[n].toFixed(4), Gu[n].toFixed(4));
+		//Log(ctx.Xu._data);
 		break;
 		
 	case 6.1:  // LMA/LFA convergence
