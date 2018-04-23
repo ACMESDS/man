@@ -677,10 +677,7 @@ ME.import({
 		return ctx.H;
 	},
 	
-	ddft: function (F) {
-		
-		Log(">>>>>>>>>>>>>>>dft");
-		Log("dft", F);
+	dft: function (F) {
 		
 		var 
 			F = F._data,
@@ -689,13 +686,13 @@ ME.import({
 			isReal = F[0].constructor == Number,
 			G = $( N-1, (n,G) => {  // alt signs to setup dft and trunc array to N-1 = 2^int
 				var Fn = F[n];
-				Log(n, isReal, Fn);
-				G[n] = (n % 2) 	?  isReal ? [-Fn, 0] : [-Fn.re, -Fn.im] : [Fn.re, Fn.im];
+				G[n] = (n % 2) 	
+					? isReal ? [-Fn, 0] : [-Fn.re, -Fn.im] 
+					: isReal ? [Fn,0] : [Fn.re, Fn.im];
 			}),
 			g = DSP.ifft(G);
 
-		Log(">>>>>", N0, isReal, g);
-		g.push(0);
+		g.push([0,0]);
 		
 		g.use( (n,g) => {  // alt signs to complete dft 
 			var gn = g[n];
@@ -713,12 +710,12 @@ ME.import({
 			fs = (N-1)/T,
 			isReal = ccf[0].constructor == Number,
 			ctx = {
-				c0: isReal ? ccf[N0] : ccf[N0].re,
-				df: 2*fs/N,
-				ccf: ME.matrix(ccf)
+				c0: isReal ? ccf[N0] : ccf[N0].re,  // [Hz^2]
+				df: 2*fs/N,  // [Hz]
+				ccf: ME.matrix(ccf)  // [Hz^2]
 			};
 
-		ME.eval( "psd = re(ddft( ccf )); psd = psd * c0 / sum(psd) / df;", ctx);
+		ME.eval( "psd = re(dft( ccf )); psd = psd * c0 / sum(psd) / df;", ctx);
 		return ctx.psd;
 /*
 		ccf.use( (n,c) => {  // make ccf complex and alt signs to make dft
@@ -840,7 +837,6 @@ ME.import({
 	},
 						 
 	zeta: function (a) {},
-	dft: function (a) {},
 	bayin: function (a) {},
 	//gamma: function (a) {},
 	va: function (a) {},
@@ -877,7 +873,7 @@ function _logp0(a,k,x) {  // for case 6.x testing
 	return logp0;
 }
 
-switch (4.2) {
+switch (0) {
 	case 1:
 		ME.eval( "disp( dht( [0,1,2,1,0] ) )" );
 		break;
@@ -935,7 +931,7 @@ switch (4.2) {
 	case 4.2:
 		var ctx = {};
 		ME.eval(" N=9; T=1; fs = (N-1)/T; nu = rng(-fs/2,fs/2,N); Gu = wkpsd([0,1,2,3,4,3,2,1,0], T); Xu = xmatrix(Gu); " , ctx); 
-		// tri(t/t0), fs = 8; t0 = 4/fs = 0.5; sinc^2(nu*t0) has zero at nu=2
+		// tri(t/t0), fs = 8; t0 = 4/fs = 0.5; sinc^2(nu*t0) has zero at nu= +/- 2, +/- 4, ....
 		
 		//ME.eval(" N=9; T=1; fs = (N-1)/T; nu = rng(-fs/2,fs/2,N); Gu = wkpsd([0,0,0,1,2,1,0,0,0], T); Xu = xmatrix(Gu); " , ctx); 
 		// tri(t/t0), fs = 8; t0 = 2/fs = 0.25; sinc^2(nu*t0) has zero at nu=4
