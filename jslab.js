@@ -260,8 +260,9 @@ var
 	LM = require("./mljs/node_modules/ml-levenberg-marquardt"),
 	LAS = require("./mljs/node_modules/ml-matrix"),
 	ME = require('mathjs'),
-	DSP = require('digitalsignals'),
+	//DSP = require('digitalsignals'),
 	GAMMA = require("gamma"),
+	DSP = require("fft-js"),
 	//HACK: require("geohack"),
 	//RAN: require("randpr"),  // added by debe to avoid recursive requires
 	//SVD: require("node-svd"),
@@ -270,6 +271,8 @@ var
 	HMM = require("nodehmm"),
 	ZETA = require("riemann-zeta"),
 	NRAP = require("newton-raphson");
+
+//console.log("jslab las=", LAS);
 
 [
 	function use(cb) {	// use vector A with callback cb(idx,A)
@@ -297,6 +300,7 @@ var LAB = module.exports = {
 		JSON: JSON,
 		LWIP: LWIP,
 		CRYPTO: CRYPTO,
+		LAS: LAS,
 		Copy: Copy,
 		Each: Each,
 		Log: Log,
@@ -324,8 +328,9 @@ var LAB = module.exports = {
 		//LAS: LAS,
 		GAMMA: GAMMA,
 		
+		GET: {
 		/**
-		Each event-plugin interface BUFFER = STEP | DEPTH | BULK |  DROP will route an ingested
+		Each event-plugin interface BUFFER = forBatch | forEach | forAll |  forDrop will route an ingested
 		event stream ievs (as specified by a plugin's context ctx = {_Events, ...}) to a cb(ievs,sink) callback, 
 		where the sink(oevs) provided by the interface will save an output event list oevs to the plugin's
 		context.
@@ -340,26 +345,28 @@ var LAB = module.exports = {
 			});
 		*/
 		
-		STEP: function (ctx, cb) {
-			LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) { 
-				return recs.length ? rec.t > recs[0].t : false;
-			});
+			forBatch: function (ctx, cb) {
+				LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) { 
+					return recs.length ? rec.t > recs[0].t : false;
+				});
+			},
+			forEach: function (ctx, cb) {
+				LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) {
+					return recs.length < 1;
+				});
+			},
+			forAll: function (ctx, cb) {
+				LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) { 
+					return false;
+				});
+			},
+			forDrop: function (ctx, cb) {
+				LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) { 
+					return true;
+				});
+			}
 		},
-		DEPTH: function (ctx, cb) {
-			LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) {
-				return recs.length < 1;
-			});
-		},
-		BULK: function (ctx, cb) {
-			LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) { 
-				return false;
-			});
-		},
-		DROP: function (ctx, cb) {
-			LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) { 
-				return true;
-			});
-		}, 
+		
 		LOAD: function (evs, ctx, cb, group) {  // group events with callback cb(evs,null) or cb(null,savecb) at end
 
 			function feed(recs, cb) {
@@ -517,7 +524,7 @@ var
 	LAS = LIBS.LAS;
 
 const { $, $$ } = LIBS;
-const {random} = Math;
+const {random, sin, cos, exp, log, PI} = Math;
 
 ME.import({
 	exec: function (code,ctx,cb) {
@@ -558,14 +565,56 @@ ME.import({
 	
 	rng: function (min,max,N) { 
 		var
-			del = (max-min) / N;
+			del = (max-min) / (N-1);
 		
 		return ME.matrix( $( N, (n,R) => { R[n] = min; min+=del; } ) );
 	},
+
+	/*
+	Xsinc: function ( N, M ) {
+		var 
+			T = 1,
+			Tc = T/M,
+			fs = (N-1)/T,
+			dt = 1/fs,
+			dx =  PI * dt / Tc; 
+
+		return ME.matrix( $$( N, N, (m,n,A) => {
+			if ( m == n ) 
+				A[m][n] = 1;
+			else
+			if ( n > m ) {
+				var x = dx * (n-m);
+				A[m][n] = sin( x ) / x;
+				//Log(m,n-m,x,A[m][n]);
+			}
+			else
+				A[m][n] = A[n][m];
+		}) );
+	},
+	*/
 	
-	sinc: function (t) {
-		var sin = Math.sin, t = t._data, N = t.length;
-		return ME.matrix( $( N, (n, sinc) => sinc[n] = t[n] ? sin(t[n]) / t[n] : 1) );
+	xmatrix: function ( ccf ) {
+		var 
+			ccf = ccf._data,
+			N = ccf.length,
+			N0 = (N-1)/2,
+			X = $$( N, N, (m,n,X) => X[m][n] = 0 );
+
+		for (var n = N0; n<N; n++) 
+			for (var m = N0; m<N; m++) {
+				Log(m,n,(m-n)+N0,N0);
+				X[m][n] = ccf[ (m-n)+N0 ];
+				X[n][m] = X[m][n];    // assume ccf real for now
+			}
+		
+		Log(X);
+		return ME.matrix( X );
+	},
+	
+	sinc: function (x) {
+		var x = x._data, N = x.length;
+		return ME.matrix( $( N, (n, sinc) => sinc[n] = x[n] ? sin( PI*x[n] ) / (PI*x[n]) : 1) );
 	},
 	
 	dht: function (f) {  // discrete Hilbert transform
@@ -585,6 +634,7 @@ ME.import({
 	},
 		
 	pwrem: function (nu, z) {
+	// pauly-weiner remainder given zeros z in complex UHP
 		var 
 			z = z._data,
 			N = z.length,
@@ -601,7 +651,9 @@ ME.import({
 		return ctx.rem;
 	},
 	
-	pwt: function (modH, z) { // pauly-weiner transform
+	pwt: function (modH, z) { 
+	// pauly-weiner recovery of H(nu) = |H(nu)| exp( j*argH(nu) ) given its zeros z=[z1,...] in complex UHP
+		
 		var 
 			N = modH._data.length,
 			ctx = {N: N, modH: modH, z: z};
@@ -610,16 +662,54 @@ ME.import({
 		return ctx.H;
 	},
 	
-	dft: function (h) {  // len(h) = 2^K + 1
+	dft: function (F, T) {
+		return wkpsd(F, T);
+	},
+	
+	wkpsd: function (ccf, T) {  // weiner-kinchine psd of odd len(h) = 2^K + 1 complex coor func ccf
 		var 
-			h = h._data,
-			N = h.length,
+			ccf = ccf._data,
+			N = ccf.length,
 			N1 = N-1,
-			fft = new DSP.FFT(N1);
+			N0 = (N-1)/2,
+			fs = N1/T,
+			dt = 1/fs,
+			df = 2*fs/N1,	
+			isReal = ccf[0].constructor == Number,
+			c0 = isReal ? ccf[N0] : ccf[N0][0];
+		
+		//Log(isReal, isReal, ccf[0].constructor );
+		
+		ccf.use( (n,c) => {  // make ccf complex and alt signs to make dft
+			if (n % 2) 
+				c[n] = isReal ? [-c[n],0] : [-c[n].re, -c[n].im];
+			else
+				c[n] = isReal ? [c[n],0] : [c[n].re, c[n].im];
+		});
+		
+		//Log(ccf);
+		ccf.pop();
+		var psd = DSP.ifft(ccf), sum = 0;
+
+		psd.use( (n,p) => {  // make psd real and alt signs to complete dft
+			p[n] = (n % 2) ? -p[n][0] : p[n][0];
+			sum += p[n];
+		});
+			
+		var a = c0 / (sum*df);
+		
+		//Log(a,c0,sum,df);
+		
+		psd.use( (n,p) => p[n] *= a );  // normalize so int(psd*df) = ccf(0)
+		
+		psd.push(0);
+		return ME.matrix( psd );
+/*		
+		var fft = new DSP.FFT(N1);
 	
-		for (var n=0; n<N1; n+=2) h[n] = -h[n];
+		for (var n=0; n<N1; n+=2) cf[n] = -cf[n];
 	
-		fft.forward(h);
+		fft.forward(cf);
 
 		var re = fft.real, im = fft.imag;
 		for (var n=0; n<N1; n+=2) {
@@ -627,10 +717,16 @@ ME.import({
 			im[n] = -im[n];
 		}
 
-		return ME.matrix( $(N, (n,H) => H[n] = (n<N1) ? ME.complex( re[n], im[n] ) : 0 ) );
+		var 
+			psd = $(N, (n,psd) => psd[n] = (n<N1) ? ME.complex( re[n], im[n] ) : 0 );
+		
+		return ME.matrix(  );
+		*/
+		
 	},
 		  
-	psd: function (t,nu,T) {
+	psd: function (t,nu,T) {  
+	// power spectral density of event series at times [t1,t2,...] over interval T at freqs [nu1, ...] 
 		var
 			t = t._data,
 			K = t.length,
@@ -653,6 +749,7 @@ ME.import({
 	},
 
 	evpsd: function (evs,nu,T,idKey,tKey) {
+	// psd of event serive [{t: t1,id: id}, {t: t2, id: id}, ... ] where id is ensemble index
 		var
 			evs = evs._data.sort( function (a,b) {
 				return ( a[idKey] > b[idKey] ) ? 1 : -1;
@@ -684,11 +781,11 @@ ME.import({
 		return ctx.Gu;
 	},
 	
-	udev: function (N,a) {
+	udev: function (N,a) {  // uniform random deviate on [0...a]
 		return ME.matrix( $(N, (n,R) => R[n] = a*random() ) );
 	},
 	
-	expdev: function (N,a) {
+	expdev: function (N,a) {  // exp random deviate with mean a
 		return ME.eval( "-a*log( udev(N,1) )" , {a:a, N:N} );
 	},
 
@@ -751,7 +848,7 @@ switch (0) {
 		ME.eval( "disp( dht(dht( [0,0,0,1e99,0,0,0] )) )" );
 		break;
 		
-	case 2.3:  // sinc(t) = sin(t)/t =>  (1 - cos(t)) / t
+	case 2.3:  // sinc(x) = sin(x)/x =>  (1 - cos(x)) / x
 		//ME.eval( "disp( rng(-pi,pi,21) )" );
 		//ME.eval( "disp( sinc( rng(-pi,pi,21) ) )" );
 		ME.eval( "disp( dht( sinc( rng(-pi,pi,21) ) ) )" );
@@ -790,6 +887,17 @@ switch (0) {
 		
 		for (var nu = ctx.nu._data,	Gu = ctx.Gu._data, n=0; n<51; n++)  Log(nu[n].toFixed(4), Gu[n].toFixed(4));
 					
+		break;
+		
+	case 4.2:
+		var ctx = {};
+		//ME.eval(" N=9; T=1; fs = (N-1)/T; nu = rng(-fs/2,fs/2,N); Gu = wkpsd([0,1,2,3,4,3,2,1,0], T) " , ctx); 
+		// tri(t/t0), fs = 8; t0 = 4/fs = 0.5; sinc^2(nu*t0) has zero at nu=2
+		ME.eval(" N=9; T=1; fs = (N-1)/T; nu = rng(-fs/2,fs/2,N); Gu = wkpsd([0,0,0,1,2,1,0,0,0], T) " , ctx); 
+		// tri(t/t0), fs = 8; t0 = 2/fs = 0.25; sinc^2(nu*t0) has zero at nu=4
+
+		Log(ctx);
+		for (var nu = ctx.nu._data,	Gu = ctx.Gu._data, n=0; n<9; n++)  Log(nu[n].toFixed(4), Gu[n].toFixed(4));
 		break;
 		
 	case 6.1:  // LMA/LFA convergence
