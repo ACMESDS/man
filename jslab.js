@@ -429,6 +429,27 @@ var LAB = module.exports = {
 				});
 			}
 
+			function updateFile( file, stats) {
+				stats.forEach( function (stat) {
+					var save = {}, set=false;
+					Each( stat, function (idx, val) {
+						if ( idx in file) {
+							save[ set = idx] = (typeof val == "object") 
+								? JSON.stringify( val )
+								: val;
+						}
+					});
+
+					if (set)
+						sql.query(
+							"UPDATE app.files SET ? WHERE ?",
+							  [save, {ID: file.ID}],
+							(err) => Log( err || "UPDATE "+file.Name)
+						);
+				});
+							
+			}
+			
 			var 
 				stash = { };  // ingestable keys stash
 
@@ -475,25 +496,17 @@ var LAB = module.exports = {
 			else
 				return "empty";
 
-			if ( done = stash.Save_done ) {
-				var save = {}, set=false, _File = ctx._File;
-				Each( done, function (idx, vals) {
-					var val = vals[0];
-					if ( idx in _File) {
-						//Log("file save", idx);
-						save[ set = idx] = (typeof val == "object") 
-							? JSON.stringify( val )
-							: val;
-					}
-				});
-				if (set)
-					sql.query(
-						"UPDATE app.files SET ? WHERE ?",
-						  [save, {ID: _File.ID}],
-						(err) => Log( err || "SAVE files")
-					);
-			}
-							
+			if ( stash.Save_end ) 
+				if ( stats = stash.Save_end.stats )
+					if ( _File = ctx._File )
+						updateFile(_File, stats);
+			
+					else
+						sql.forFirst( "", "SELECT *,count(ID) FROM app.files WHERE ?", {Name: ctx._Host+"."+ctx.Name}, function (file) {
+							if (file) 
+								updateFile(file, stats);
+						});
+			
 			for (var key in stash) 
 				saveKey(sql, key, stash[key], ctx.ID, ctx._Host);
 							
@@ -524,7 +537,7 @@ var
 	LAS = LIBS.LAS;
 
 const { $, $$ } = LIBS;
-const {random, sin, cos, exp, log, PI} = Math;
+const {random, sin, cos, exp, log, PI, floor} = Math;
 
 ME.import({
 	exec: function (code,ctx,cb) {
@@ -598,17 +611,19 @@ ME.import({
 		var 
 			ccf = ccf._data,
 			N = ccf.length,
-			N0 = (N-1)/2,
+			N0 = floor( (N-1)/2 ),
 			X = $$( N, N, (m,n,X) => X[m][n] = 0 );
 
-		for (var n = N0; n<N; n++) 
-			for (var m = N0; m<N; m++) {
-				Log(m,n,(m-n)+N0,N0);
-				X[m][n] = ccf[ (m-n)+N0 ];
-				X[n][m] = X[m][n];    // assume ccf real for now
+		for (var n = -N0; n<=N0; n++) 
+			for (var m = -N0; m<=N0; m++) {
+				var k = m-n;
+				if ( k>=-N0 && k<=N0 ) {
+					X[m+N0][n+N0] = ccf[ k+N0 ];
+					//Log(N0, m, n, k, ccf[k+N0]);
+				}
 			}
 		
-		Log(X);
+		//Log(X);
 		return ME.matrix( X );
 	},
 	
@@ -619,7 +634,7 @@ ME.import({
 	
 	dht: function (f) {  // discrete Hilbert transform
 		var 
-			f = f._data, N = f.length, a = 2/Math.PI, N0 = (N-1)/2, isOdd = N0 % 2, isEven = isOdd ? 0 : 1;
+			f = f._data, N = f.length, a = 2/Math.PI, N0 = floor( (N-1)/2 ), isOdd = N0 % 2, isEven = isOdd ? 0 : 1;
 		
 		return ME.matrix( $(N, (n,g) => { 
 			var n0 = n - N0;
@@ -662,24 +677,50 @@ ME.import({
 		return ctx.H;
 	},
 	
-	dft: function (F, T) {
-		return wkpsd(F, T);
+	ddft: function (F) {
+		
+		Log(">>>>>>>>>>>>>>>dft");
+		Log("dft", F);
+		
+		var 
+			F = F._data,
+			N = F.length,
+			N0 = floor( (N-1)/2 ),
+			isReal = F[0].constructor == Number,
+			G = $( N-1, (n,G) => {  // alt signs to setup dft and trunc array to N-1 = 2^int
+				var Fn = F[n];
+				Log(n, isReal, Fn);
+				G[n] = (n % 2) 	?  isReal ? [-Fn, 0] : [-Fn.re, -Fn.im] : [Fn.re, Fn.im];
+			}),
+			g = DSP.ifft(G);
+
+		Log(">>>>>", N0, isReal, g);
+		g.push(0);
+		
+		g.use( (n,g) => {  // alt signs to complete dft 
+			var gn = g[n];
+			g[n] = (n % 2) ? ME.complex(-gn[0], -gn[1]) : ME.complex(gn[0], gn[1]);
+		});
+			
+		return ME.matrix( g );
 	},
 	
 	wkpsd: function (ccf, T) {  // weiner-kinchine psd of odd len(h) = 2^K + 1 complex coor func ccf
 		var 
 			ccf = ccf._data,
 			N = ccf.length,
-			N1 = N-1,
-			N0 = (N-1)/2,
-			fs = N1/T,
-			dt = 1/fs,
-			df = 2*fs/N1,	
+			N0 = floor( (N-1)/2 ),
+			fs = (N-1)/T,
 			isReal = ccf[0].constructor == Number,
-			c0 = isReal ? ccf[N0] : ccf[N0][0];
-		
-		//Log(isReal, isReal, ccf[0].constructor );
-		
+			ctx = {
+				c0: isReal ? ccf[N0] : ccf[N0].re,
+				df: 2*fs/N,
+				ccf: ME.matrix(ccf)
+			};
+
+		ME.eval( "psd = re(ddft( ccf )); psd = psd * c0 / sum(psd) / df;", ctx);
+		return ctx.psd;
+/*
 		ccf.use( (n,c) => {  // make ccf complex and alt signs to make dft
 			if (n % 2) 
 				c[n] = isReal ? [-c[n],0] : [-c[n].re, -c[n].im];
@@ -704,6 +745,7 @@ ME.import({
 		
 		psd.push(0);
 		return ME.matrix( psd );
+		*/
 /*		
 		var fft = new DSP.FFT(N1);
 	
@@ -809,7 +851,7 @@ ME.import({
 	rnn: function (a) {},
 	
 	disp: function (a) {
-		Log(a._data);
+		Log( a._data ? a._data : a );
 	}
 });
 
@@ -835,7 +877,7 @@ function _logp0(a,k,x) {  // for case 6.x testing
 	return logp0;
 }
 
-switch (0) {
+switch (4.2) {
 	case 1:
 		ME.eval( "disp( dht( [0,1,2,1,0] ) )" );
 		break;
@@ -865,16 +907,17 @@ switch (0) {
 		
 	case 4.1:
 		var ctx = {
-			N:1, t0: 0.2, evs: ME.matrix( [] )
+			N:51, t0: 0.2, evs: ME.matrix( [] )
 		};
 		
 		//ME.eval(" disp( urand(10,1) )");
 		//ME.eval("disp( expdev(5,1) )");
-		ME.eval("lambda0 = 1/t0; t = cumsum(expdev(100, t0)); T = max(t); K0 = lambda0 * T; nu = rng(-N*pi, N*pi, 51); ", ctx);
-		//ME.eval(" disp( psd( udev(100,T), rng(-N*pi, N*pi, 51) )/T )", {T:T, N:N});
+		//ME.eval(" disp( psd( udev(100,T), rng(-pi, pi, N) )/T )", {T:T, N:N});
 		//ME.eval(" disp( cumsum( [1,2,3,4] ) )" );
-		Log(ctx.T, ctx.lambda0, ctx.K0);
 		//ME.eval(" disp( psd( t, nu,T ) )", ctx);
+		
+		ME.eval("lambda0 = 1/t0; t = cumsum(expdev(100, t0)); T = max(t); K0 = lambda0 * T; fs=(N-1)/T; nu = rng(-fs, fs, N); ", ctx);
+		Log(ctx.T, ctx.lambda0, ctx.K0);
 		var 
 			evs = ctx.evs._data,
 			t = ctx.t._data,
@@ -891,13 +934,15 @@ switch (0) {
 		
 	case 4.2:
 		var ctx = {};
-		//ME.eval(" N=9; T=1; fs = (N-1)/T; nu = rng(-fs/2,fs/2,N); Gu = wkpsd([0,1,2,3,4,3,2,1,0], T) " , ctx); 
+		ME.eval(" N=9; T=1; fs = (N-1)/T; nu = rng(-fs/2,fs/2,N); Gu = wkpsd([0,1,2,3,4,3,2,1,0], T); Xu = xmatrix(Gu); " , ctx); 
 		// tri(t/t0), fs = 8; t0 = 4/fs = 0.5; sinc^2(nu*t0) has zero at nu=2
-		ME.eval(" N=9; T=1; fs = (N-1)/T; nu = rng(-fs/2,fs/2,N); Gu = wkpsd([0,0,0,1,2,1,0,0,0], T) " , ctx); 
+		
+		//ME.eval(" N=9; T=1; fs = (N-1)/T; nu = rng(-fs/2,fs/2,N); Gu = wkpsd([0,0,0,1,2,1,0,0,0], T); Xu = xmatrix(Gu); " , ctx); 
 		// tri(t/t0), fs = 8; t0 = 2/fs = 0.25; sinc^2(nu*t0) has zero at nu=4
 
-		Log(ctx);
+		//Log(ctx);
 		for (var nu = ctx.nu._data,	Gu = ctx.Gu._data, n=0; n<9; n++)  Log(nu[n].toFixed(4), Gu[n].toFixed(4));
+		Log(ctx.Xu._data);
 		break;
 		
 	case 6.1:  // LMA/LFA convergence
