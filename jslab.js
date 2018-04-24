@@ -6,7 +6,7 @@
 @requires glwip
 @requires liegroup 
 @requires mathjs
-@requires digitalsignals
+@requires fft-js
 @requires nodehmm
 @requires node-svd
 @requires jsbayes
@@ -260,7 +260,6 @@ var
 	LM = require("./mljs/node_modules/ml-levenberg-marquardt"),
 	LAS = require("./mljs/node_modules/ml-matrix"),
 	ME = require('mathjs'),
-	//DSP = require('digitalsignals'),
 	GAMMA = require("gamma"),
 	DSP = require("fft-js"),
 	//HACK: require("geohack"),
@@ -300,10 +299,12 @@ var LAB = module.exports = {
 		JSON: JSON,
 		LWIP: LWIP,
 		CRYPTO: CRYPTO,
-		LAS: LAS,
+		
+		// basic enumerators
 		Copy: Copy,
 		Each: Each,
 		Log: Log,
+		console: console,
 		
 		// lightweight matrix and array creators
 		$$: (M,N,cb) => {  // create matrix A with callback cb(m,n,A,A[m])
@@ -322,10 +323,10 @@ var LAB = module.exports = {
 		},
 		
 		// following should be removed when plugins rely only on ME
+		LAS: LAS,
 		MLE: MLE,
 		MVN: MVN,
 		LM: LM,
-		//LAS: LAS,
 		GAMMA: GAMMA,
 		
 		GET: {
@@ -367,6 +368,7 @@ var LAB = module.exports = {
 			}
 		},
 		
+		// event loader and saver
 		LOAD: function (evs, ctx, cb, group) {  // group events with callback cb(evs,null) or cb(null,savecb) at end
 
 			function feed(recs, cb) {
@@ -418,6 +420,7 @@ var LAB = module.exports = {
 					}
 				});
 		},		
+		
 		SAVE: function ( sql, evs, ctx, cb ) {  // save evs to host plugin Save_KEY with callback(remainder evs) 
 
 			function saveKey(sql, key, save, ID, host) {				
@@ -529,12 +532,9 @@ var LAB = module.exports = {
 //=========== Extend matlab emulator
 
 var 
-	SQL = null, //< defined by engine
 	LIBS = LAB.libs,
 	LOAD = LIBS.LOAD,
-	SAVE = LIBS.SAVE,
-	LWIP = LIBS.LWIP,
-	LAS = LIBS.LAS;
+	SAVE = LIBS.SAVE;
 
 const { $, $$ } = LIBS;
 const {random, sin, cos, exp, log, PI, floor, abs} = Math;
@@ -583,7 +583,7 @@ ME.import({
 		return ME.matrix( $( N, (n,R) => { R[n] = min; min+=del; } ) );
 	},
 
-	xmatrix: function ( ccf ) {
+	xmatrix: function ( ccf ) {  // construct NxN corr matrix X given Nx1 ccf
 		var 
 			ccf = ccf._data,
 			N = ccf.length,
@@ -592,11 +592,8 @@ ME.import({
 
 		for (var n = -N0; n<=N0; n++) 
 			for (var m = -N0; m<=N0; m++) {
-				var k = m-n;
-				if ( k>=-N0 && k<=N0 ) {
-					X[m+N0][n+N0] = ccf[ k+N0 ];
-					//Log(N0, m, n, k, ccf[k+N0]);
-				}
+				var k = m - n;
+				if ( k>=-N0 && k<=N0 ) X[m+N0][n+N0] = ccf[ k+N0 ];
 			}
 		
 		//Log(X);
@@ -625,7 +622,7 @@ ME.import({
 	},
 		
 	pwrem: function (nu, z) {
-	// pauly-weiner remainder given zeros z in complex UHP
+	// paley-weiner remainder given zeros z in complex UHP
 		var 
 			z = z._data,
 			N = z.length,
@@ -643,7 +640,7 @@ ME.import({
 	},
 	
 	pwt: function (modH, z) { 
-	// pauly-weiner recovery of H(nu) = |H(nu)| exp( j*argH(nu) ) given its zeros z=[z1,...] in complex UHP
+	// paley-weiner recovery of H(nu) = |H(nu)| exp( j*argH(nu) ) given its zeros z=[z1,...] in complex UHP
 		
 		var 
 			N = modH._data.length,
@@ -681,7 +678,7 @@ ME.import({
 		return ME.matrix(g);
 	},
 	
-	wkpsd: function (ccf, T) {  // weiner-kinchine psd of odd len(h) = 2^K + 1 complex coor func ccf
+	wkpsd: function (ccf, T) {  // weiner-kinchine psd complex corr func ccf of len 2^K + 1 
 		var 
 			ccf = ccf._data,
 			N = ccf.length,
@@ -697,51 +694,6 @@ ME.import({
 
 		ME.eval( "psd = abs(dft( ccf )); psd = psd * c0 / sum(psd) / df;", ctx);
 		return ctx.psd;
-/*
-		ccf.use( (n,c) => {  // make ccf complex and alt signs to make dft
-			if (n % 2) 
-				c[n] = isReal ? [-c[n],0] : [-c[n].re, -c[n].im];
-			else
-				c[n] = isReal ? [c[n],0] : [c[n].re, c[n].im];
-		});
-		
-		//Log(ccf);
-		ccf.pop();
-		var psd = DSP.ifft(ccf), sum = 0;
-
-		psd.use( (n,p) => {  // make psd real and alt signs to complete dft
-			p[n] = (n % 2) ? -p[n][0] : p[n][0];
-			sum += p[n];
-		});
-			
-		var a = c0 / (sum*df);
-		
-		//Log(a,c0,sum,df);
-		
-		psd.use( (n,p) => p[n] *= a );  // normalize so int(psd*df) = ccf(0)
-		
-		psd.push(0);
-		return ME.matrix( psd );
-		*/
-/*		
-		var fft = new DSP.FFT(N1);
-	
-		for (var n=0; n<N1; n+=2) cf[n] = -cf[n];
-	
-		fft.forward(cf);
-
-		var re = fft.real, im = fft.imag;
-		for (var n=0; n<N1; n+=2) {
-			re[n] = -re[n];
-			im[n] = -im[n];
-		}
-
-		var 
-			psd = $(N, (n,psd) => psd[n] = (n<N1) ? ME.complex( re[n], im[n] ) : 0 );
-		
-		return ME.matrix(  );
-		*/
-		
 	},
 		  
 	psd: function (t,nu,T) {  
@@ -766,7 +718,7 @@ ME.import({
 				ME.eval("Gu = Gu + exp( s*(ti-tj) )", ctx);
 			}
 		
-		ME.eval("Gu = Gu/(2*T)", ctx);
+		ME.eval("Gu = Gu/T", ctx);
 		return ctx.Gu;
 	},
 
@@ -799,7 +751,7 @@ ME.import({
 		}
 		ctx.ids = ids;
 		Log("ids=", ctx.ids);
-		ME.eval(" Gu = abs(Gu)/ids ", ctx);  // /ids or /2 ? 
+		ME.eval(" Gu = re(Gu)/ids ", ctx); 
 		return ctx.Gu;
 	},
 	
@@ -820,7 +772,7 @@ ME.import({
 	},
 						 
 	zeta: function (a) {},
-	bayin: function (a) {},
+	bayinfer: function (a) {},
 	//gamma: function (a) {},
 	va: function (a) {},
 	mle: function (a) {},
@@ -885,29 +837,32 @@ switch (0) {
 		break;
 		
 	case 4.1:
-		var ctx = {
-			N:51, t0: 0.2, evs: ME.matrix( [] )
-		};
+		var 
+			evs = [],
+			M = 50,
+			ctx = {
+				N:65, t0: 0.2, evs: ME.matrix( evs )
+			};
 		
 		//ME.eval(" disp( urand(10,1) )");
-		//ME.eval("disp( expdev(5,1) )");
+		//ME.eval(" disp( expdev(5,1) )");
 		//ME.eval(" disp( psd( udev(100,T), rng(-pi, pi, N) )/T )", {T:T, N:N});
 		//ME.eval(" disp( cumsum( [1,2,3,4] ) )" );
 		//ME.eval(" disp( psd( t, nu,T ) )", ctx);
+
+		for (var m=0; m<M; m++) {
+			ME.eval("lambda0 = 1/t0; t = cumsum(expdev(100, t0)); T = max(t); K0 = lambda0 * T; fs=(N-1)/T; nu = rng(-fs/2, fs/2, N); ", ctx);
+			Log(ctx.K0, ctx.T, ctx.lambda0, ctx.K0/ctx.T)
+
+			var 
+				t = ctx.t._data,
+				N = t.length;
+
+			for (var n=0; n<N; n++) evs.push({t: t[n], id:m });
+		}
 		
-		ME.eval("lambda0 = 1/t0; t = cumsum(expdev(100, t0)); T = max(t); K0 = lambda0 * T; fs=(N-1)/T; nu = rng(-fs/2, fs/2, N); ", ctx);
-		Log(ctx.T, ctx.lambda0, ctx.K0);
-		var 
-			evs = ctx.evs._data,
-			t = ctx.t._data,
-			N = t.length,
-			M = 5,
-			NM = N/M;
-		
-		for (var k=0, id=0; id<M; id++) for (var n=0; n<NM; n++ ) evs.push({t: t[k++], id:id });
 		ME.eval(' Gu = evpsd(evs, nu, T, "id", "t") ', ctx);
-		
-		for (var nu = ctx.nu._data,	Gu = ctx.Gu._data, n=0; n<51; n++)  Log(nu[n].toFixed(4), Gu[n].toFixed(4));
+		for (var nu = ctx.nu._data,	Gu = ctx.Gu._data, N=ctx.N, n=0; n<N; n++)  Log(nu[n].toFixed(4), Gu[n].toFixed(4));
 					
 		break;
 		
