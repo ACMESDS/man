@@ -605,6 +605,26 @@ ME.import({
 		return ME.matrix( $( N, (n, sinc) => sinc[n] = x[n] ? sin( PI*x[n] ) / (PI*x[n]) : 1) );
 	},
 	
+	rect: function (x) {
+		var x = x._data, N = x.length;
+		return ME.matrix( $( N, (n, rect) => rect[n] = (abs(x[n])<=0.5) ? 1 : 0) );
+	},
+
+	tri: function (x) {
+		var x = x._data, N = x.length;
+		return ME.matrix( $( N, (n, tri) => tri[n] = (abs(x[n])<=1) ? 1-x[n] : 0) );
+	},
+	
+	negexp: function (x) {
+		var x = x._data, N = x.length;
+		return ME.matrix( $( N, (n, neg) => neg[n] = (x[n] > 0) ? exp(-x[n]) : 0) );
+	},
+		
+	lorenzian: function (x) {
+		var x = x._data, N = x.length;
+		return ME.matrix( $( N, (n, lor) => lor[n] = 2 / (1 + (2*pi*x[n]**2)) ));
+	},
+	
 	dht: function (f) {  // discrete Hilbert transform
 		var 
 			f = f._data, N = f.length, a = 2/Math.PI, N0 = floor( (N-1)/2 ), isOdd = N0 % 2, isEven = isOdd ? 0 : 1;
@@ -731,8 +751,10 @@ ME.import({
 			ctx = {
 				T: T,
 				nu: nu,
-				Gu: 0
-			};
+				Gu: 0,
+				Ks: []
+			},
+			Ks = ctx.Ks;
 		
 		for (var ids=0, N=evs.length, n=0; n<N; ids++) {
 			var 
@@ -747,12 +769,12 @@ ME.import({
 				K++;
 			}
 			Log( id, K );
+			Ks.push(K);
 			ME.eval(" Gu = Gu + psd(t, nu, T) ", ctx);
 		}
 		ctx.ids = ids;
 		Log("ids=", ctx.ids);
-		ME.eval(" Gu = re(Gu)/ids ", ctx); 
-		return ctx.Gu;
+		return ME.eval(" {psd: re(Gu)/ids, meanRate:  mean(Ks)/T } ", ctx); 
 	},
 	
 	udev: function (N,a) {  // uniform random deviate on [0...a]
