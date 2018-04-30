@@ -573,7 +573,10 @@ ME.import({
 	
 	evd: function (a) {
 		var evd = new LAS.EVD( a._data );  //, {assumeSymmetric: true}
-		return {values: ME.matrix(evd.d), vectors: ME.matrix(evd.V)}; 
+		return {
+			values: ME.matrix(evd.d), 
+			vectors: ME.matrix(evd.V)
+		}; 
 	},
 	
 	rng: function (min,max,N) { 
@@ -583,21 +586,28 @@ ME.import({
 		return ME.matrix( $( N, (n,R) => { R[n] = min; min+=del; } ) );
 	},
 
-	xmatrix: function ( ccf ) {  // construct NxN corr matrix X given Nx1 ccf
+	xmatrix: function ( xccf ) { 
+	/* 
+	return N x N complex corr matrix Xccf [unitless] given its 2N+1 dim complex corr function xccf [unitless].
+	*/
+		
 		var 
-			ccf = ccf._data,
-			N = ccf.length,
+			xccf = xccf._data,
+			N = xccf.length,
 			N0 = floor( (N-1)/2 ),
-			X = $$( N, N, (m,n,X) => X[m][n] = 0 );
+			M0 = floor( (N0-1)/2 ),
+			Xccf = $$( N0, N0, (m,n,X) => X[m][n] = 0 );
 
-		for (var n = -N0; n<=N0; n++) 
-			for (var m = -N0; m<=N0; m++) {
+		Log(N,N0,M0);
+		
+		for (var n = -M0; n<=M0; n++) 
+			for (var m = -M0; m<=M0; m++) {
 				var k = m - n;
-				if ( k>=-N0 && k<=N0 ) X[m+N0][n+N0] = ccf[ k+N0 ];
+				if ( k>=-N0 && k<=N0 ) Xccf[m+M0][n+M0] = xccf[ k+N0 ];
 			}
 		
-		//Log(X);
-		return ME.matrix( X );
+		//Log(Xccf);
+		return ME.matrix( Xccf );
 	},
 	
 	sinc: function (x) {
@@ -698,7 +708,12 @@ ME.import({
 		return ME.matrix(g);
 	},
 	
-	wkpsd: function (ccf, T) {  // weiner-kinchine psd complex corr func ccf of len 2^K + 1 
+	wkpsd: function (ccf, T) {  
+	/* 
+	return weiner-kinchine psd [Hz] at frequencies nu [Hz] = [-f0 ... +f0] of a complex corr func 
+	ccf [Hz^2] of len N = 2^K + 1 defined overan interval T [1/Hz], where the cutoff f0 is 1/2 the implied
+	sampling rate N/T.
+	*/
 		var 
 			ccf = ccf._data,
 			N = ccf.length,
@@ -717,7 +732,10 @@ ME.import({
 	},
 		  
 	psd: function (t,nu,T) {  
-	// power spectral density of event series at times [t1,t2,...] over interval T at freqs [nu1, ...] 
+	/*
+	return power spectral density [Hz] of events at times [t1,t2,...] over interval T [1/Hz] at the
+	specified frequencies nu [Hz].
+	*/
 		var
 			t = t._data,
 			K = t.length,
@@ -743,7 +761,11 @@ ME.import({
 	},
 
 	evpsd: function (evs,nu,T,idKey,tKey) {
-	// psd of event serive [{t: t1,id: id}, {t: t2, id: id}, ... ] where id is ensemble index
+	/* 
+	return psd [Hz] at the specified frequencies nu [Hz], and te mean event rate [Hz] given 
+	events [{tKey: t1,idKey: id}, {tKey: t2, idKey: id}, ... ] over an observation interval  T [1/Hz].
+	*/
+		
 		var
 			evs = evs._data.sort( function (a,b) {
 				return ( a[idKey] > b[idKey] ) ? 1 : -1;
