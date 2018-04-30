@@ -817,7 +817,6 @@ ME.import({
 						 
 	zeta: function (a) {},
 	bayinfer: function (a) {},
-	//gamma: function (a) {},
 	va: function (a) {},
 	mle: function (a) {},
 	mvn: function (a) {},
