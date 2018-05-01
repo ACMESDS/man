@@ -332,7 +332,7 @@ var LAB = module.exports = {
 		GET: {
 		/**
 		Each event-plugin interface BUFFER = forBatch | forEach | forAll |  forDrop will route an ingested
-		event stream ievs (as specified by a plugin's context ctx = {_Events, ...}) to a cb(ievs,sink) callback, 
+		event stream ievs (as specified by a plugin's context ctx = {Events, ...}) to a cb(ievs,sink) callback, 
 		where the sink(oevs) provided by the interface will save an output event list oevs to the plugin's
 		context.
 		
@@ -347,22 +347,22 @@ var LAB = module.exports = {
 		*/
 		
 			forBatch: function (ctx, cb) {
-				LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) { 
+				LOAD( ctx.Events, ctx, cb, function (ctx,rec,recs) { 
 					return recs.length ? rec.t > recs[0].t : false;
 				});
 			},
 			forEach: function (ctx, cb) {
-				LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) {
+				LOAD( ctx.Events, ctx, cb, function (ctx,rec,recs) {
 					return recs.length < 1;
 				});
 			},
 			forAll: function (ctx, cb) {
-				LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) { 
+				LOAD( ctx.Events, ctx, cb, function (ctx,rec,recs) { 
 					return false;
 				});
 			},
 			forDrop: function (ctx, cb) {
-				LOAD( ctx._Events, ctx, cb, function (ctx,rec,recs) { 
+				LOAD( ctx.Events, ctx, cb, function (ctx,rec,recs) { 
 					return true;
 				});
 			}
