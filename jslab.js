@@ -594,16 +594,18 @@ ME.import({
 		var 
 			xccf = xccf._data,
 			N = xccf.length,
-			N0 = floor( (N-1)/2 ),
+			N0 = floor( (N+1)/2 ),
 			M0 = floor( (N0-1)/2 ),
+			K0 = N0-1,
 			Xccf = $$( N0, N0, (m,n,X) => X[m][n] = 0 );
 
-		Log(N,N0,M0);
+		Log("xmatrix",N,N0,M0);
 		
 		for (var n = -M0; n<=M0; n++) 
 			for (var m = -M0; m<=M0; m++) {
 				var k = m - n;
-				if ( k>=-N0 && k<=N0 ) Xccf[m+M0][n+M0] = xccf[ k+N0 ];
+				Xccf[m+M0][n+M0] = xccf[ k+K0 ];
+				//Log(n,m,k);
 			}
 		
 		//Log(Xccf);
@@ -825,7 +827,14 @@ ME.import({
 	rnn: function (a) {},
 	
 	disp: function (a) {
-		Log( a._data ? a._data : a );
+		if (a.constructor == Object)
+			for (var key in a) {
+				var val = a[key];
+				Log(key, val._data ? val._data : val);
+			}
+		
+		else
+			Log( a._data ? a._data : a );
 	}
 });
 
