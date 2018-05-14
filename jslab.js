@@ -593,10 +593,10 @@ ME.import({
 		
 		var 
 			xccf = xccf._data,
-			N = xccf.length,
-			N0 = floor( (N+1)/2 ),
-			M0 = floor( (N0-1)/2 ),
-			K0 = N0-1,
+			N = xccf.length,   	//  eg N = 9 = 2*(5-1) + 1
+			N0 = floor( (N+1)/2 ),		// eg N0 = 5
+			M0 = floor( (N0-1)/2 ),		// eq M0 = 2 for 5x5 Xccf
+			K0 = N0-1,	// 0-based index to 0-lag
 			Xccf = $$( N0, N0, (m,n,X) => X[m][n] = 0 );
 
 		Log("xmatrix",N,N0,M0);
@@ -639,7 +639,11 @@ ME.import({
 	
 	dht: function (f) {  // discrete Hilbert transform
 		var 
-			f = f._data, N = f.length, a = 2/Math.PI, N0 = floor( (N-1)/2 ), isOdd = N0 % 2, isEven = isOdd ? 0 : 1;
+			f = f._data, 
+			N = f.length, 
+			a = 2/Math.PI, 
+			N0 = floor( (N-1)/2 ),   // 0-based index to 0-lag
+			isOdd = N0 % 2, isEven = isOdd ? 0 : 1;
 		
 		return ME.matrix( $(N, (n,g) => { 
 			var n0 = n - N0;
@@ -682,8 +686,8 @@ ME.import({
 				z: z
 			};
 
-		ME.eval( "nu = rng(-fs/2, fs/2, N); argH = dht( log( modH ) ) + pwrem(nu, z); H = modH .* exp(i*argH); ", ctx ); 
-		return ctx.H;
+		ME.eval( "nu = rng(-fs/2, fs/2, N); argH = dht( log( modH ) ) + pwrem(nu, z); ", ctx ); 
+		return ctx.argH;
 	},
 	
 	dft: function (F) {
@@ -691,7 +695,6 @@ ME.import({
 		var 
 			F = F._data,
 			N = F.length,
-			N0 = floor( (N-1)/2 ),
 			isReal = F[0].constructor == Number,
 			G = $( N-1, (n,G) => {  // alt signs to setup dft and trunc array to N-1 = 2^int
 				var Fn = F[n];
@@ -718,18 +721,19 @@ ME.import({
 	*/
 		var 
 			ccf = ccf._data,
-			N = ccf.length,
-			N0 = floor( (N-1)/2 ),
-			fs = N/T,
-			f0 = fs/2,
-			isReal = ccf[0].constructor == Number,
 			ctx = {
-				c0: isReal ? ccf[N0] : ccf[N0].re,  // [Hz^2]
-				df: 2*f0/N,  // [Hz]
+				N: ccf.length,
+				T: T,
 				ccf: ME.matrix(ccf)  // [Hz^2]
 			};
 
-		ME.eval( "psd = abs(dft( ccf )); psd = psd * c0 / sum(psd) / df;", ctx);
+		ME.eval( `
+N0 = fix( (N+1)/2 );
+fs = (N-1)/T;
+f0 = fs/2;
+df = fs/N;
+psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df; 
+`, ctx);
 		return ctx.psd;
 	},
 		  
@@ -797,7 +801,7 @@ ME.import({
 			ME.eval(" Gu = Gu + psd(t, nu, T) ", ctx);
 		}
 		ctx.ids = ids;
-		Log("ids=", ctx.ids);
+		Log("evpsd ids=", ctx.ids);
 		return ME.eval(" {psd: re(Gu)/ids, meanRate:  mean(Ks)/T } ", ctx); 
 	},
 	
