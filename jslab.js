@@ -802,7 +802,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		}
 		ctx.ids = ids;
 		Log("evpsd ids=", ctx.ids);
-		return ME.eval(" {psd: re(Gu)/ids, meanRate:  mean(Ks)/T } ", ctx); 
+		return ME.eval(" {psd: re(Gu)/ids, rate:  mean(Ks)/T } ", ctx); 
 	},
 	
 	udev: function (N,a) {  // uniform random deviate on [0...a]
