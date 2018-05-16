@@ -450,9 +450,29 @@ var LAB = module.exports = {
 							(err) => Log( err || "UPDATE "+file.Name)
 						);
 				});
-							
 			}
 			
+			function updateStats( stats ) {
+				var saveKeys = LAB.saveKeys;
+				
+				stats.forEach( function (stat) {
+					var save = {}, set=false;
+					Each( stat, function (key, val) {
+						if ( key in saveKeys) 
+							save[ set = key] = (typeof val == "object") 
+								? JSON.stringify( val )
+								: val;
+					});
+
+					if (set)
+						sql.query(
+							"INSERT INTO app.stats SET ? ON DUPLICATE KEY UPDATE ?",
+							  [save, save],
+							(err) => Log( err || "UPDATE "+stats.fileID + "." + stats.voxelID)
+						);
+				});
+			}
+
 			var 
 				stash = { };  // ingestable keys stash
 
@@ -500,15 +520,27 @@ var LAB = module.exports = {
 				return "empty";
 
 			if ( stash.Save_end ) 
-				if ( stats = stash.Save_end.stats )
-					if ( _File = ctx._File )
-						updateFile(_File, stats);
-			
+				if ( stats = stash.Save_end.stats ) {
+					Log(stats, LAB.saveKeys, ctx.File, ctx.Voxel);
+					if ( File = ctx.File )
+						if ( Voxel = ctx.Voxel ) {
+							stats.fileID = File.ID;
+							stats.voxelID = Voxel.ID;
+							Log(stats, LAB.saveKeys);
+							updateStats(stats);
+						}
+				}
+					
+					/*
+					if ( File = ctx.File )
+						updateFile(File, stats);
+
 					else
-						sql.forFirst( "", "SELECT *,count(ID) FROM app.files WHERE ?", {Name: ctx.Host+"."+ctx.Name}, function (file) {
-							if (file) 
-								updateFile(file, stats);
+						sql.forFirst( "", "SELECT * FROM app.files WHERE ? LIMIT 1", {Name: ctx.Host+"."+ctx.Name}, function (File) {
+							if (File) 
+								updateFile(File, stats);
 						});
+						*/
 			
 			for (var key in stash) 
 				saveKey(sql, key, stash[key], ctx.ID, ctx.Host);
@@ -521,9 +553,25 @@ var LAB = module.exports = {
 	fetcher: () => Trace("data fetcher not configured"), //< data fetcher
 	thread: () => Trace("sql thread not configured"), //< sql threader
 	
+	saveKeys: { //< reserved for plugin SAVE keys determined at config
+	},
+		
 	config: function (opts, cb) {
 		if (opts) Copy(opts, LAB, ".");
+
+		var
+			saveKeys = LAB.saveKeys;
+
+		LAB.thread( function (sql) {
 	
+			sql.getFields("app.stats", null, [], function (keys) {
+				keys.forEach(function (key) {
+					saveKeys[key] = true;
+				});
+			});
+	
+		});
+
 		if (cb) cb(null);	
 	}
 	
