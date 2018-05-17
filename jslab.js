@@ -452,7 +452,7 @@ var LAB = module.exports = {
 				});
 			}
 			
-			function updateStats( fileID, voxelID, stats ) {
+			function updateStats( fileID, voxelID, stats ) {  // save relevant stats 
 				var saveKeys = LAB.saveKeys;
 				
 				stats.forEach( function (stat) {
@@ -471,7 +471,7 @@ var LAB = module.exports = {
 						sql.query(
 							"INSERT INTO app.stats SET ? ON DUPLICATE KEY UPDATE ?",
 							  [save, save],
-							(err) => Log( err || "UPDATE "+stats.fileID + "." + stats.voxelID)
+							(err) => Log( "STATS " + (err ? "FAILED" : "UPDATED") )
 						);
 				});
 			}
@@ -523,13 +523,12 @@ var LAB = module.exports = {
 				return "empty";
 
 			if ( stash.Save_end ) 
-				if ( stats = stash.Save_end.stats ) {
-					Log(stats, LAB.saveKeys, ctx.File, ctx.Voxel);
+				if ( stats = stash.Save_end.stats ) {   // there are stats that may need to be updated
 					var
 						file = ctx.File || {ID: 0},
 						voxel = ctx.Voxel || {ID: 0};
 					
-					updateStats(fileID, voxelID, stats);
+					updateStats(file.ID, voxel.ID, stats);
 				}
 					
 				/*
