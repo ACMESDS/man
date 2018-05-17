@@ -452,7 +452,7 @@ var LAB = module.exports = {
 				});
 			}
 			
-			function updateStats( stats ) {
+			function updateStats( fileID, voxelID, stats ) {
 				var saveKeys = LAB.saveKeys;
 				
 				stats.forEach( function (stat) {
@@ -464,6 +464,9 @@ var LAB = module.exports = {
 								: val;
 					});
 
+					save.fileID = fileID;
+					save.voxelID = voxelID;
+					
 					if (set)
 						sql.query(
 							"INSERT INTO app.stats SET ? ON DUPLICATE KEY UPDATE ?",
@@ -522,25 +525,23 @@ var LAB = module.exports = {
 			if ( stash.Save_end ) 
 				if ( stats = stash.Save_end.stats ) {
 					Log(stats, LAB.saveKeys, ctx.File, ctx.Voxel);
-					if ( File = ctx.File )
-						if ( Voxel = ctx.Voxel ) {
-							stats.fileID = File.ID;
-							stats.voxelID = Voxel.ID;
-							Log(stats, LAB.saveKeys);
-							updateStats(stats);
-						}
+					var
+						file = ctx.File || {ID: 0},
+						voxel = ctx.Voxel || {ID: 0};
+					
+					updateStats(fileID, voxelID, stats);
 				}
 					
-					/*
-					if ( File = ctx.File )
-						updateFile(File, stats);
+				/*
+				if ( File = ctx.File )
+					updateFile(File, stats);
 
-					else
-						sql.forFirst( "", "SELECT * FROM app.files WHERE ? LIMIT 1", {Name: ctx.Host+"."+ctx.Name}, function (File) {
-							if (File) 
-								updateFile(File, stats);
-						});
-						*/
+				else
+					sql.forFirst( "", "SELECT * FROM app.files WHERE ? LIMIT 1", {Name: ctx.Host+"."+ctx.Name}, function (File) {
+						if (File) 
+							updateFile(File, stats);
+					});
+					*/
 			
 			for (var key in stash) 
 				saveKey(sql, key, stash[key], ctx.ID, ctx.Host);
