@@ -464,15 +464,20 @@ var LAB = module.exports = {
 								: val;
 					});
 
-					save.fileID = fileID;
-					save.voxelID = voxelID;
-					
-					if (set)
-						sql.query(
-							"INSERT INTO app.stats SET ? ON DUPLICATE KEY UPDATE ?",
-							  [save, save],
-							(err) => Log( "STATS " + (err ? "FAILED" : "UPDATED") )
-						);
+					if (set) 
+						if (true) {
+							save.fileID = fileID;
+							save.voxelID = voxelID;					
+							sql.query(
+								"INSERT INTO app.stats SET ? ON DUPLICATE KEY UPDATE ?",
+								  [save, save],
+								(err) => Log( "STATS " + (err ? "FAILED" : "UPDATED") )
+							);
+						}
+						
+						else
+							sql.query( "UPDATE app.files SET ? WHERE ?", [save, {ID: fileID}] );
+							
 				});
 			}
 
