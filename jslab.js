@@ -329,14 +329,14 @@ var LAB = module.exports = {
 		LM: LM,
 		GAMMA: GAMMA,
 		
-		GET: {
+		FLOW: {  // event workflowers
 		/**
-		Each event-plugin interface BUFFER = forBatch | forEach | forAll |  forDrop will route an ingested
-		event stream ievs (as specified by a plugin's context ctx = {Events, ...}) to a cb(ievs,sink) callback, 
+		Each event-plugin interface FLOW = batch | each | all |  none will flow an ingested
+		event stream ievs (specified by the plugin's context ctx.Events to a cb(ievs,sink) callback, 
 		where the sink(oevs) provided by the interface will save an output event list oevs to the plugin's
 		context.
 		
-			BUFFER(ctx, function cb(ievs, sink) {  // sink the plugin's ingested ievs
+			FLOW(ctx, function cb(ievs, sink) {  // sink the plugin's ingested ievs
 				if (ievs) 
 					ievs.forEach( ev) { // process input event ev
 					});
@@ -346,22 +346,22 @@ var LAB = module.exports = {
 			});
 		*/
 		
-			forBatch: function (ctx, cb) {
+			batch: function (ctx, cb) {
 				LOAD( ctx.Events, ctx, cb, function (ctx,rec,recs) { 
 					return recs.length ? rec.t > recs[0].t : false;
 				});
 			},
-			forEach: function (ctx, cb) {
+			each: function (ctx, cb) {
 				LOAD( ctx.Events, ctx, cb, function (ctx,rec,recs) {
 					return recs.length < 1;
 				});
 			},
-			forAll: function (ctx, cb) {
+			all: function (ctx, cb) {
 				LOAD( ctx.Events, ctx, cb, function (ctx,rec,recs) { 
 					return false;
 				});
 			},
-			forDrop: function (ctx, cb) {
+			none: function (ctx, cb) {
 				LOAD( ctx.Events, ctx, cb, function (ctx,rec,recs) { 
 					return true;
 				});
@@ -369,61 +369,62 @@ var LAB = module.exports = {
 		},
 		
 		// event loader and saver
-		LOAD: function (evs, ctx, cb, group) {  // group events with callback cb(evs,null) or cb(null,savecb) at end
+		
+		LOAD: function (evs, ctx, cb, groupcb) {  // load events evs (query or list) using cb(evs,null) then cb(null,savecb) at end
 
-			function feed(recs, cb) {
-				//Log("flushing",recs.length);
-				cb( recs );
-				recs.length = 0;
-			}				
-
+			function feedEvents(evs, cb) {  // feed evs event buffer to callback cb(evs) then flush the buffer
+				//Log("flushing",evs.length);
+				if (evs.length) cb( evs );
+				evs.length = 0;
+			}
+			
+			function saveEvents(evs) {  // save evs buffer to plugin's context
+				SAVE( evs, ctx );
+			}
+			
 			if (evs)
 				LAB.thread( function (sql) {  
-					function save(stats) {
-						SAVE( sql, stats, ctx );
-					}
-			
-					if ( evs.constructor == String ) {  // pull recs from db
+					if ( evs.constructor == String ) {  // pull event records from db using supplied evs query
 						var recs = [];
 
-						if ( group )
-							sql.forEach( "GET", evs , [], function (rec) {  // feed db recs to grouper
-								if ( group(ctx, rec, recs) ) feed(recs, cb);
+						if ( groupcb )  // feed grouped events
+							sql.forEach( "GET", evs , [], function (rec) {  // feed db events to grouper
+								if ( groupcb(ctx, rec, recs) ) feedEvents(recs, cb);
 								recs.push(rec);
 							}).onEnd( function () {
-								if ( recs.length ) feed(recs, cb);
-								cb( null, save );
+								feedEvents(recs, cb);
+								cb( null, saveEvents );   // signal end-of-events
 							});
 
 						else
-							sql.forAll( "GET", evs, [], function (recs) {  // feed all db recs - no grouper needed
-								feed(recs, cb);
-								cb( null, save );
+							sql.forAll( "GET", evs, [], function (recs) {  // feed all db events w/o a grouper
+								feedEvents(recs, cb);
+								cb( null, saveEvents );  // signal end-of-events
 							});
 					}
 
-					else {  // pull recs from supplied list
-						if ( group ) {
+					else {  // pull event recs from supplied using supplied evs list
+						if ( groupcb ) {
 							var recs = [];			
 							evs.forEach( function (rec) { // feed recs
-								if ( group(ctx, rec, recs) ) feed(recs, cb);
+								if ( groupcb(ctx, rec, recs) ) feed(recs, cb);
 								recs.push(rec);
 							});
-							if ( recs.length ) feed( recs, cb );
-							cb( null, save );
+							feedEvents( recs, cb );
+							cb( null, saveEvents );   // signal end-of-events
 						}
 
 						else {
-							if ( load.length ) feed(load, cb);
-							cb( null, save );
+							feedEvents(evs, cb);
+							cb( null, saveEvents );   // signal end-of-events
 						}
 					}
 				});
 		},		
 		
-		SAVE: function ( sql, evs, ctx, cb ) {  // save evs to host plugin Save_KEY with callback(remainder evs) 
+		SAVE: function ( evs, ctx, cb ) {  // save evs to host plugin Save_KEY with callback(remainder evs) 
 
-			function saveKey(sql, key, save, ID, host) {				
+			function saveKey( sql, key, save, ID, host ) {				
 				sql.query(
 					`UPDATE ??.?? SET ${key}=? WHERE ID=?`, 
 					["app", host, JSON.stringify(save) || "null", ID], 
@@ -432,7 +433,7 @@ var LAB = module.exports = {
 				});
 			}
 
-			function updateFile( file, stats) {
+			function updateFile( sql, file, stats ) {
 				stats.forEach( function (stat) {
 					var save = {}, set=false;
 					Each( stat, function (idx, val) {
@@ -452,7 +453,7 @@ var LAB = module.exports = {
 				});
 			}
 			
-			function updateStats( fileID, voxelID, stats ) {  // save relevant stats 
+			function updateStats( sql, fileID, voxelID, stats ) {  // save relevant stats 
 				var saveKeys = LAB.saveKeys;
 				
 				stats.forEach( function (stat) {
@@ -481,76 +482,80 @@ var LAB = module.exports = {
 				});
 			}
 
-			var 
-				stash = { };  // ingestable keys stash
-
 			//Log("save host", ctx.Host);
 
-			if (evs)
-				switch (evs.constructor.name) {
-					case "Error": 
-						return evs+"";
-						
-					case "Array":   // keys in the plugin context are used to create save stashes
-						var rem = [], stash = { remainder: rem };  // stash for saveable keys 
+			if (evs) {
+				LAB.thread( function (sql) {
+					var 
+						stash = { };  // ingestable keys stash
 
-						Array.from(evs).stashify("at", "Save_", ctx, stash, function (ev, stat) {  // add {at:"KEY",...} evs to the Save_KEY stash
+					switch (evs.constructor.name) {
+						case "Error": 
+							return evs+"";
 
-							if (ev)
-								for (var key in stat) ev[key].push( stat[key] );
+						case "Array":   // keys in the plugin context are used to create save stashes
+							var rem = [], stash = { remainder: rem };  // stash for saveable keys 
 
-							else {
-								var ev = new Object();
-								for (var key in stat) ev[key] = [ ];
-								return ev;
+							Array.from(evs).stashify("at", "Save_", ctx, stash, function (ev, stat) {  // add {at:"KEY",...} evs to the Save_KEY stash
+
+								if (ev)
+									for (var key in stat) ev[key].push( stat[key] );
+
+								else {
+									var ev = new Object();
+									for (var key in stat) ev[key] = [ ];
+									return ev;
+								}
+
+							});
+
+							if (rem.length) {  // there is a remainder to save
+								if (cb) cb(rem);
+
+								saveKey(sql, "Save", rem, ctx.ID, ctx.Host);
 							}
 
-						});
+							delete stash.remainder;	
+							break;
 
-						if (rem.length) {  // there is a remainder to save
-							if (cb) cb(rem);
-						
-							saveKey(sql, "Save", rem, ctx.ID, ctx.Host);
+						case "Object":  // keys in the plugin context are used to create the stash
+							var stash = {};
+							Each(evs, function (key, val) {  // remove splits from bulk save
+								if ( key in ctx ) stash[key] = val;
+							});
+							break;
+					}
+
+					if ( stash.Save_end ) 
+						if ( stats = stash.Save_end.stats ) {   // there are stats that may need to be updated
+							var
+								file = ctx.File || {ID: 0},
+								voxel = ctx.Voxel || {ID: 0};
+
+							updateStats(sql, file.ID, voxel.ID, stats);
 						}
 
-						delete stash.remainder;	
-						break;
-						
-					case "Object":  // keys in the plugin context are used to create the stash
-						var stash = {};
-						Each(evs, function (key, val) {  // remove splits from bulk save
-							if ( key in ctx ) stash[key] = val;
-						});
-						break;
-				}
+						/*
+						if ( File = ctx.File )
+							updateFile( sql, File, stats);
+
+						else
+							sql.forFirst( "", "SELECT * FROM app.files WHERE ? LIMIT 1", {Name: ctx.Host+"."+ctx.Name}, function (File) {
+								if (File) 
+									updateFile(sql, File, stats);
+							});
+							*/
+
+					for (var key in stash) 
+						saveKey(sql, key, stash[key], ctx.ID, ctx.Host);
+				});
+			
+				return ctx.Share ? evs : ("updated").tag("a",{href: "/files.view"});
+			}
 			
 			else
 				return "empty";
 
-			if ( stash.Save_end ) 
-				if ( stats = stash.Save_end.stats ) {   // there are stats that may need to be updated
-					var
-						file = ctx.File || {ID: 0},
-						voxel = ctx.Voxel || {ID: 0};
-					
-					updateStats(file.ID, voxel.ID, stats);
-				}
-					
-				/*
-				if ( File = ctx.File )
-					updateFile(File, stats);
-
-				else
-					sql.forFirst( "", "SELECT * FROM app.files WHERE ? LIMIT 1", {Name: ctx.Host+"."+ctx.Name}, function (File) {
-						if (File) 
-							updateFile(File, stats);
-					});
-					*/
-			
-			for (var key in stash) 
-				saveKey(sql, key, stash[key], ctx.ID, ctx.Host);
-							
-			return ctx.Share ? evs : ("updated").tag("a",{href: "/files.view"});
 		}
 
 	},
@@ -558,7 +563,7 @@ var LAB = module.exports = {
 	fetcher: () => Trace("data fetcher not configured"), //< data fetcher
 	thread: () => Trace("sql thread not configured"), //< sql threader
 	
-	saveKeys: { //< reserved for plugin SAVE keys determined at config
+	saveKeys: { //< reserved for plugin save-keys determined at config
 	},
 		
 	config: function (opts, cb) {
