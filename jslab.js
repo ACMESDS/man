@@ -426,8 +426,8 @@ var LAB = module.exports = {
 
 			function saveKey( sql, key, save, ID, host ) {				
 				sql.query(
-					`UPDATE ??.?? SET ${key}=? WHERE ID=?`, 
-					["app", host, JSON.stringify(save) || "null", ID], 
+					`UPDATE ?? SET ${key}=? WHERE ID=?`, 
+					[host, JSON.stringify(save) || "null", ID], 
 					function (err) {
 						Trace(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` );
 				});
