@@ -499,7 +499,12 @@ var LAB = module.exports = {
 							Array.from(evs).stashify("at", "Save_", ctx, stash, function (ev, stat) {  // add {at:"KEY",...} evs to the Save_KEY stash
 
 								if (ev)
-									for (var key in stat) ev[key].push( stat[key] );
+									try {
+										for (var key in stat) ev[key].push( stat[key] );
+									}
+									catch (err) {
+										ev[key] = [ stat[key] ];
+									}
 
 								else {
 									var ev = new Object();
