@@ -430,6 +430,7 @@ var LAB = module.exports = {
 					[host, JSON.stringify(save) || "null", ID], 
 					function (err) {
 						Trace(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` );
+						//Log(err);
 				});
 			}
 
@@ -471,8 +472,8 @@ var LAB = module.exports = {
 							save.voxelID = voxelID;					
 							sql.query(
 								"INSERT INTO app.stats SET ? ON DUPLICATE KEY UPDATE ?",
-								  [save, save],
-								(err) => Log( "STATS " + (err ? "FAILED" : "UPDATED") )
+								  [save, save] 
+								// , (err) => Log( "STATS " + (err ? "FAILED" : "UPDATED") )
 							);
 						}
 						
