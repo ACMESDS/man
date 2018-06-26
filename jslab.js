@@ -255,7 +255,7 @@ var
 	},
 	LWIP = require('glwip'),
 	CRYPTO = require('crypto'),
-	MLE = require("expectation-maximization"),
+	EM = require("expectation-maximization"),
 	MVN = require("multivariate-normal"),
 	LM = require("./mljs/node_modules/ml-levenberg-marquardt"),
 	LAS = require("./mljs/node_modules/ml-matrix"),
@@ -324,7 +324,7 @@ var LAB = module.exports = {
 		
 		// following should be removed when plugins rely only on ME
 		LAS: LAS,
-		MLE: MLE,
+		EM: EM,
 		MVN: MVN,
 		LM: LM,
 		GAMMA: GAMMA,
