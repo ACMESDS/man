@@ -912,9 +912,7 @@ function Trace(msg,sql) {
 	msg.trace("L>",sql);
 }
 
-//===================== unit testing
-
-function _logp0(a,k,x) {  // for case 6.x testing
+function _logp0(a,k,x) {  // for case 6.x unit testing
 	var
 		ax1 =  1 + a/x,
 		xa1 = 1 + x/a,
@@ -930,35 +928,35 @@ function _logp0(a,k,x) {  // for case 6.x testing
 	return logp0;
 }
 
-switch (0) {
-	case 1:
+switch (process.argv[2]) { //< unit tests
+	case "L1":
 		ME.eval( "disp( dht( [0,1,2,1,0] ) )" );
 		break;
 		
-	case 2.1:
+	case "L2.1":
 		ME.eval( "disp( dht( [0,0,0,1e99,0,0,0] ) )" );
 		break;
 		
-	case 2.2:
+	case "L2.2":
 		ME.eval( "disp( dht(dht( [0,0,0,1e99,0,0,0] )) )" );
 		break;
 		
-	case 2.3:  // sinc(x) = sin(x)/x =>  (1 - cos(x)) / x
+	case "L2.3":  // sinc(x) = sin(x)/x =>  (1 - cos(x)) / x
 		//ME.eval( "disp( rng(-pi,pi,21) )" );
 		//ME.eval( "disp( sinc( rng(-pi,pi,21) ) )" );
 		ME.eval( "disp( dht( sinc( rng(-pi,pi,21) ) ) )" );
 		break;
 		
-	case 2.4:  // dht(dht(f)) => -f  tho there is a dt missing somewhere in this argument
+	case "L2.4":  // dht(dht(f)) => -f  tho there is a dt missing somewhere in this argument
 		ME.eval( "disp( dht( dht( rng(-1,1,51)  ) ) )" );
 		//ME.eval( "disp( dht( dht( sinc( -pi:(2*pi)/20:pi ) ) ) )" );
 		break;
 
-	case 3:
+	case "L3":
 		ME.eval( " disp( pwt( abs(sinc( rng(-4*pi,4*pi,511)) ) , [] ) )" );
 		break;
 		
-	case 4.1:
+	case "L4.1":
 		var 
 			evs = [],
 			M = 50,
@@ -988,7 +986,7 @@ switch (0) {
 					
 		break;
 		
-	case 4.2:
+	case "L4.2":
 		var ctx = {};
 		ME.eval(" N=17; T=1; fs = (N-1)/T; nu = rng(-fs/2,fs/2,N); Gu = wkpsd([0,0,0,0,0,1,2,3,4,3,2,1,0,0,0,0,0], T); df = fs/(N-1); Pu = sum(Gu)*df; Xu = xmatrix(Gu); " , ctx); 
 		Log("power check", ctx.Pu);
@@ -1002,7 +1000,7 @@ switch (0) {
 		//Log(ctx.Xu._data);
 		break;
 		
-	case 6.1:  // LMA/LFA convergence
+	case "L6.1":  // LMA/LFA convergence
 		
 		function sinFunction([a, b]) {
 		  return (t) => a * Math.sin(b * t);
@@ -1035,7 +1033,7 @@ switch (0) {
 		Log(ans);	
 		break;
 		
-	case 6.2:
+	case "L6.2":
 		var len = 150,x = 75, a = 36;
 		
 		var logGamma = $(len*2 , (k, logG) =>
@@ -1066,7 +1064,7 @@ switch (0) {
 		Log(ans);	
 		break;	
 		
-	case 6.3:
+	case "L6.3":
 		var len = 150,x = 75, a = 36;
 		
 		var logGamma = $(len*2 , (k, logG) =>
