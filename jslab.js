@@ -256,7 +256,7 @@ var
 	LWIP = require('glwip'),
 	CRYPTO = require('crypto'),
 	EM = require("expectation-maximization"),
-	MVN = require("multivariate-normal"),
+	MVN = require("multivariate-normal").default,
 	LM = require("./mljs/node_modules/ml-levenberg-marquardt"),
 	LAS = require("./mljs/node_modules/ml-matrix"),
 	ME = require('mathjs'),
