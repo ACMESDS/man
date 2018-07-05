@@ -428,7 +428,7 @@ var LAB = module.exports = {
 				sql.query(
 					`UPDATE ?? SET ${key}=? WHERE ID=?`, 
 					[host, JSON.stringify(save) || "null", ID], 
-					function (err) {
+					function (err) {  // will fail if key does not exist or mysql server buffer too small (see my.cnf)
 						Trace(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` );
 						//Log(err);
 				});
