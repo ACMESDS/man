@@ -20,9 +20,18 @@
  */
 
 var
+	// globals
+	TRACE = "L>",
+
+	// node modules
 	FS = require("fs"),
+	CRYPTO = require('crypto'),
+		
+	// totem modules
+	LWIP = require('glwip'),
+		
+	// 3rd party modules
 	ME = require("mathjs"),
-	ENUM = require("enum"),
 	DET = {
 		train: function (ctx, res) { //< gen  detector-trainging ctx for client with callback to res(ctx) when completed.
 
@@ -253,8 +262,6 @@ var
 			}); ///sql thread
 		}
 	},
-	LWIP = require('glwip'),
-	CRYPTO = require('crypto'),
 	EM = require("expectation-maximization"),
 	MVN = require("multivariate-normal").default,
 	LM = require("./mljs/node_modules/ml-levenberg-marquardt"),
@@ -291,7 +298,7 @@ var
 	}	
 ].extend(Array);
 
-const { Copy,Each,Log } = ENUM;
+const { Copy,Each,Log } = require("enum");
 
 var LAB = module.exports = {  
 	libs: {  // libraries made available to plugin context
@@ -388,7 +395,7 @@ var LAB = module.exports = {
 						var recs = [];
 
 						if ( groupcb )  // feed grouped events
-							sql.forEach( "L>", evs , [], function (rec) {  // feed db events to grouper
+							sql.forEach( TRACE, evs , [], function (rec) {  // feed db events to grouper
 								if ( groupcb(ctx, rec, recs) ) feedEvents(recs, cb);
 								recs.push(rec);
 							}).onEnd( function () {
@@ -397,7 +404,7 @@ var LAB = module.exports = {
 							});
 
 						else
-							sql.forAll( "L>", evs, [], function (recs) {  // feed all db events w/o a grouper
+							sql.forAll( TRACE, evs, [], function (recs) {  // feed all db events w/o a grouper
 								feedEvents(recs, cb);
 								cb( null, saveEvents );  // signal end-of-events
 							});
@@ -909,7 +916,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 });
 
 function Trace(msg,sql) {
-	msg.trace("L>",sql);
+	TRACE.trace(msg,sql);
 }
 
 function _logp0(a,k,x) {  // for case 6.x unit testing
