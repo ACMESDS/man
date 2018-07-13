@@ -388,7 +388,7 @@ var LAB = module.exports = {
 						var recs = [];
 
 						if ( groupcb )  // feed grouped events
-							sql.forEach( "GET", evs , [], function (rec) {  // feed db events to grouper
+							sql.forEach( "L>", evs , [], function (rec) {  // feed db events to grouper
 								if ( groupcb(ctx, rec, recs) ) feedEvents(recs, cb);
 								recs.push(rec);
 							}).onEnd( function () {
@@ -397,7 +397,7 @@ var LAB = module.exports = {
 							});
 
 						else
-							sql.forAll( "GET", evs, [], function (recs) {  // feed all db events w/o a grouper
+							sql.forAll( "L>", evs, [], function (recs) {  // feed all db events w/o a grouper
 								feedEvents(recs, cb);
 								cb( null, saveEvents );  // signal end-of-events
 							});
