@@ -407,7 +407,7 @@ var LAB = module.exports = {
 						if ( groupcb ) {
 							var recs = [];			
 							evs.forEach( function (rec) { // feed recs
-								if ( groupcb(ctx, rec, recs) ) feed(recs, cb);
+								if ( groupcb(ctx, rec, recs) ) feedEvents(recs, cb);
 								recs.push(rec);
 							});
 							feedEvents( recs, cb );
