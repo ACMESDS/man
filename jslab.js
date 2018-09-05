@@ -336,7 +336,7 @@ var LAB = module.exports = {
 		LM: LM,
 		GAMMA: GAMMA,
 		
-		FLOW: {  // event workflowers
+		FLOW: {  // event workflows
 		/**
 		Each event-plugin interface FLOW = batch | each | all |  none will flow an ingested
 		event stream ievs (specified by the plugin's context ctx.Events to a cb(ievs,sink) callback, 
@@ -353,22 +353,22 @@ var LAB = module.exports = {
 			});
 		*/
 		
-			batch: function (ctx, cb) {
+			getBatch: function (ctx, cb) {
 				LOAD( ctx.Events, ctx, cb, function (ctx,rec,recs) { 
 					return recs.length ? rec.t > recs[0].t : false;
 				});
 			},
-			each: function (ctx, cb) {
+			getEach: function (ctx, cb) {
 				LOAD( ctx.Events, ctx, cb, function (ctx,rec,recs) {
 					return recs.length < 1;
 				});
 			},
-			all: function (ctx, cb) {
+			getAll: function (ctx, cb) {
 				LOAD( ctx.Events, ctx, cb, function (ctx,rec,recs) { 
 					return false;
 				});
 			},
-			none: function (ctx, cb) {
+			getDrop: function (ctx, cb) {
 				LOAD( ctx.Events, ctx, cb, function (ctx,rec,recs) { 
 					return true;
 				});
@@ -478,7 +478,7 @@ var LAB = module.exports = {
 							save.fileID = fileID;
 							save.voxelID = voxelID;					
 							sql.query(
-								"INSERT INTO app.stats SET ? ON DUPLICATE KEY UPDATE ?",
+								"INSERT INTO app._stats SET ? ON DUPLICATE KEY UPDATE ?",
 								  [save, save] 
 								// , (err) => Log( "STATS " + (err ? "FAILED" : "UPDATED") )
 							);
@@ -589,7 +589,7 @@ var LAB = module.exports = {
 
 		LAB.thread( function (sql) {
 	
-			sql.getFields("app.stats", null, [], function (keys) {
+			sql.getFields("app._stats", null, [], function (keys) {
 				keys.forEach(function (key) {
 					saveKeys[key] = true;
 				});
