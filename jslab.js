@@ -398,7 +398,8 @@ var LAB = module.exports = {
 							sql.forEach( TRACE, evs , [], function (rec) {  // feed db events to grouper
 								if ( groupcb(ctx, rec, recs) ) feedEvents(recs, cb);
 								recs.push(rec);
-							}).onEnd( function () {
+							})
+							.on("end", () => {
 								feedEvents(recs, cb);
 								cb( null, saveEvents );   // signal end-of-events
 							});
@@ -426,6 +427,8 @@ var LAB = module.exports = {
 							cb( null, saveEvents );   // signal end-of-events
 						}
 					}
+					
+					sql.release();	
 				});
 		},		
 		
@@ -563,6 +566,8 @@ var LAB = module.exports = {
 
 					for (var key in stash) 
 						saveKey(sql, key, stash[key], ctx.ID, ctx.Host);
+					
+					sql.release();
 				});
 			
 				return ctx.Share ? evs : ("updated").tag("a",{href: "/files.view"});
@@ -594,7 +599,7 @@ var LAB = module.exports = {
 					saveKeys[key] = true;
 				});
 			});
-	
+			sql.release();
 		});
 
 		if (cb) cb(null);	
