@@ -377,7 +377,7 @@ var LAB = module.exports = {
 		
 		// event loader and saver
 		
-		LOAD: function (evs, ctx, cb, groupcb) {  // load events evs (query or list) using cb(evs,null) then cb(null,savecb) at end
+		LOAD: function (evs, ctx, cb, groupcb) {  // load events evs = query string || event list || null using cb(evs,null) at fetch, then cb(null,savecb) at end
 
 			function feedEvents(evs, cb) {  // feed evs event buffer to callback cb(evs) then flush the buffer
 				//Log("flushing",evs.length);
@@ -430,6 +430,9 @@ var LAB = module.exports = {
 					
 					sql.release();	
 				});
+			
+			else
+				cb(null, saveEvents);  // signal end-of-events
 		},		
 		
 		SAVE: function ( evs, ctx, cb ) {  // save evs to host plugin Save_KEY with callback(remainder evs) 
