@@ -336,7 +336,7 @@ var LAB = module.exports = {
 		LM: LM,
 		GAMMA: GAMMA,
 		
-		EVENTS: { // event loader and saver
+		FLOW: { // event loader and saver
 			get: function (evs, grouping, cb) {  // get events from evs = query string || event list || null using cb(evs) at fetch then cb(null) at end
 
 				function groupEvents (rec,recs) { 
