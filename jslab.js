@@ -336,213 +336,215 @@ var LAB = module.exports = {
 		LM: LM,
 		GAMMA: GAMMA,
 		
-		getEvents: function (evs, grouping, cb) {  // get events from evs = query string || event list || null using cb(evs) at fetch then cb(null) at end
+		EVENTS: { // event loader and saver
+			get: function (evs, grouping, cb) {  // get events from evs = query string || event list || null using cb(evs) at fetch then cb(null) at end
 
-			function groupEvents (rec,recs) { 
-				return recs.length ? rec.t > recs[0].t : false;
-			}
-			
-			function feedEvents (evs, cb) {  // feed evs event buffer to callback cb(evs) then flush the buffer
-				//Log("feed ",evs.length);
-				if (evs.length) cb( evs );
-				evs.length = 0;
-			}
+				function groupEvents (rec,recs) { 
+					return recs.length ? rec.t > recs[0].t : false;
+				}
 
-			/*
-			function saveEvents(evs) {  // save evs buffer to plugin's context
-				putEvents( evs, ctx );
-			} */
+				function feedEvents (evs, cb) {  // feed evs event buffer to callback cb(evs) then flush the buffer
+					//Log("feed ",evs.length);
+					if (evs.length) cb( evs );
+					evs.length = 0;
+				}
 
-			if (evs)
-				LAB.thread( function (sql) {  
-					if ( evs.constructor == String ) {  // pull event records from db using supplied evs query
-						var recs = [];
+				/*
+				function saveEvents(evs) {  // save evs buffer to plugin's context
+					putEvents( evs, ctx );
+				} */
 
-						if ( grouping )  // feed grouped events
-							sql.forEach( TRACE, evs , [], function (rec) {  // feed db events to grouper
-								if ( groupEvents(rec, recs) ) feedEvents(recs, cb);
-								recs.push(rec);
-							})
-							.on("end", () => {
-								feedEvents(recs, cb);
+				if (evs)
+					LAB.thread( function (sql) {  
+						if ( evs.constructor == String ) {  // pull event records from db using supplied evs query
+							var recs = [];
+
+							if ( grouping )  // feed grouped events
+								sql.forEach( TRACE, evs , [], function (rec) {  // feed db events to grouper
+									if ( groupEvents(rec, recs) ) feedEvents(recs, cb);
+									recs.push(rec);
+								})
+								.on("end", () => {
+									feedEvents(recs, cb);
+									cb( null );   // signal end-of-events
+								});
+
+							else
+								sql.forAll( TRACE, evs, [], function (recs) {  // feed all db events w/o a grouper
+									feedEvents(recs, cb);
+									cb( null );  // signal end-of-events
+								});
+						}
+
+						else {  // pull event recs from supplied using supplied evs list
+							if ( grouping ) {
+								var recs = [];			
+								evs.forEach( function (rec) { // feed recs
+									if ( groupEvents(rec, recs) ) feedEvents(recs, cb);
+									recs.push(rec);
+								});
+								feedEvents( recs, cb );
 								cb( null );   // signal end-of-events
-							});
-
-						else
-							sql.forAll( TRACE, evs, [], function (recs) {  // feed all db events w/o a grouper
-								feedEvents(recs, cb);
-								cb( null );  // signal end-of-events
-							});
-					}
-
-					else {  // pull event recs from supplied using supplied evs list
-						if ( grouping ) {
-							var recs = [];			
-							evs.forEach( function (rec) { // feed recs
-								if ( groupEvents(rec, recs) ) feedEvents(recs, cb);
-								recs.push(rec);
-							});
-							feedEvents( recs, cb );
-							cb( null );   // signal end-of-events
-						}
-
-						else {
-							feedEvents(evs, cb);
-							cb( null );   // signal end-of-events
-						}
-					}
-
-					sql.release();	
-				});
-
-			else
-				cb( null );  // signal end-of-events
-		},		
-
-		putEvents: function ( evs, ctx, cb ) {  // save evs to host plugin Save_KEY with callback(remainder evs) 
-
-			function saveKey( sql, key, save, ID, host ) {				
-				sql.query(
-					`UPDATE ?? SET ${key}=? WHERE ID=?`, 
-					[host, JSON.stringify(save) || "null", ID], 
-					function (err) {  // will fail if key does not exist or mysql server buffer too small (see my.cnf)
-						Trace(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` );
-						//Log(err);
-				});
-			}
-
-			function updateFile( sql, file, stats ) {
-				stats.forEach( function (stat) {
-					var save = {}, set=false;
-					Each( stat, function (idx, val) {
-						if ( idx in file) {
-							save[ set = idx] = (typeof val == "object") 
-								? JSON.stringify( val )
-								: val;
-						}
-					});
-
-					if (set)
-						sql.query(
-							"UPDATE app.files SET ? WHERE ?",
-							  [save, {ID: file.ID}],
-							(err) => Log( err || "UPDATE "+file.Name)
-						);
-				});
-			}
-
-			function updateStats( sql, fileID, voxelID, stats ) {  // save relevant stats 
-				var saveKeys = LAB.saveKeys;
-
-				stats.forEach( function (stat) {
-					var save = {}, set=false;
-					Each( stat, function (key, val) {
-						if ( key in saveKeys) 
-							save[ set = key] = (typeof val == "object") 
-								? JSON.stringify( val )
-								: val;
-					});
-
-					if (set) 
-						if (true) {
-							save.fileID = fileID;
-							save.voxelID = voxelID;					
-							sql.query(
-								"INSERT INTO app._stats SET ? ON DUPLICATE KEY UPDATE ?",
-								  [save, save] 
-								// , (err) => Log( "STATS " + (err ? "FAILED" : "UPDATED") )
-							);
-						}
-
-						else
-							sql.query( "UPDATE app.files SET ? WHERE ?", [save, {ID: fileID}] );
-
-				});
-			}
-
-			//Log("save host", ctx.Host);
-
-			if (evs) {
-				LAB.thread( function (sql) {
-					var 
-						stash = { };  // ingestable keys stash
-
-					switch (evs.constructor.name) {
-						case "Error": 
-							return evs+"";
-
-						case "Array":   // keys in the plugin context are used to create save stashes
-							var 
-								stash = { remainder: [] },  // stash for aggregated keys 
-								rem = stash.remainder;
-
-							Array.from(evs).stashify("at", "Save_", ctx, stash, function (ev, stat) {  // add {at:"KEY",...} evs to the Save_KEY stash
-
-								if (ev)
-									try {
-										for (var key in stat) ev[key].push( stat[key] );
-									}
-									catch (err) {
-										ev[key] = [ stat[key] ];
-									}
-
-								else {
-									var ev = new Object();
-									for (var key in stat) ev[key] = [ ];
-									return ev;
-								}
-
-							});
-
-							if (rem.length) {  // there is a remainder to save
-								if (cb) cb(rem, sql);
-
-								saveKey(sql, "Save", rem, ctx.ID, ctx.Host);
 							}
 
-							delete stash.remainder;	
-							break;
-
-						case "Object":  // keys in the plugin context are used to create the stash
-							var stash = {};
-							Each(evs, function (key, val) {  // remove splits from bulk save
-								if ( key in ctx ) stash[key] = val;
-							});
-							break;
-					}
-
-					if ( stash.Save_end ) 
-						if ( stats = stash.Save_end.stats ) {   // there are stats that may need to be updated
-							var
-								file = ctx.File || {ID: 0},
-								voxel = ctx.Voxel || {ID: 0};
-
-							updateStats(sql, file.ID, voxel.ID, stats);
+							else {
+								feedEvents(evs, cb);
+								cb( null );   // signal end-of-events
+							}
 						}
 
-						/*
-						if ( File = ctx.File )
-							updateFile( sql, File, stats);
+						sql.release();	
+					});
 
-						else
-							sql.forFirst( "", "SELECT * FROM app.files WHERE ? LIMIT 1", {Name: ctx.Host+"."+ctx.Name}, function (File) {
-								if (File) 
-									updateFile(sql, File, stats);
-							});
-							*/
+				else
+					cb( null );  // signal end-of-events
+			},		
 
-					for (var key in stash) 
-						saveKey(sql, key, stash[key], ctx.ID, ctx.Host);
+			put: function ( evs, ctx, cb ) {  // save evs to host plugin Save_KEY with callback(remainder evs) 
 
-					sql.release();
-				});
+				function saveKey( sql, key, save, ID, host ) {				
+					sql.query(
+						`UPDATE ?? SET ${key}=? WHERE ID=?`, 
+						[host, JSON.stringify(save) || "null", ID], 
+						function (err) {  // will fail if key does not exist or mysql server buffer too small (see my.cnf)
+							Trace(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` );
+							//Log(err);
+					});
+				}
 
-				return ctx.Share ? evs : ("updated").tag("a",{href: "/files.view"});
+				function updateFile( sql, file, stats ) {
+					stats.forEach( function (stat) {
+						var save = {}, set=false;
+						Each( stat, function (idx, val) {
+							if ( idx in file) {
+								save[ set = idx] = (typeof val == "object") 
+									? JSON.stringify( val )
+									: val;
+							}
+						});
+
+						if (set)
+							sql.query(
+								"UPDATE app.files SET ? WHERE ?",
+								  [save, {ID: file.ID}],
+								(err) => Log( err || "UPDATE "+file.Name)
+							);
+					});
+				}
+
+				function updateStats( sql, fileID, voxelID, stats ) {  // save relevant stats 
+					var saveKeys = LAB.saveKeys;
+
+					stats.forEach( function (stat) {
+						var save = {}, set=false;
+						Each( stat, function (key, val) {
+							if ( key in saveKeys) 
+								save[ set = key] = (typeof val == "object") 
+									? JSON.stringify( val )
+									: val;
+						});
+
+						if (set) 
+							if (true) {
+								save.fileID = fileID;
+								save.voxelID = voxelID;					
+								sql.query(
+									"INSERT INTO app._stats SET ? ON DUPLICATE KEY UPDATE ?",
+									  [save, save] 
+									// , (err) => Log( "STATS " + (err ? "FAILED" : "UPDATED") )
+								);
+							}
+
+							else
+								sql.query( "UPDATE app.files SET ? WHERE ?", [save, {ID: fileID}] );
+
+					});
+				}
+
+				//Log("save host", ctx.Host);
+
+				if (evs) {
+					LAB.thread( function (sql) {
+						var 
+							stash = { };  // ingestable keys stash
+
+						switch (evs.constructor.name) {
+							case "Error": 
+								return evs+"";
+
+							case "Array":   // keys in the plugin context are used to create save stashes
+								var 
+									stash = { remainder: [] },  // stash for aggregated keys 
+									rem = stash.remainder;
+
+								Array.from(evs).stashify("at", "Save_", ctx, stash, function (ev, stat) {  // add {at:"KEY",...} evs to the Save_KEY stash
+
+									if (ev)
+										try {
+											for (var key in stat) ev[key].push( stat[key] );
+										}
+										catch (err) {
+											ev[key] = [ stat[key] ];
+										}
+
+									else {
+										var ev = new Object();
+										for (var key in stat) ev[key] = [ ];
+										return ev;
+									}
+
+								});
+
+								if (rem.length) {  // there is a remainder to save
+									if (cb) cb(rem, sql);
+
+									saveKey(sql, "Save", rem, ctx.ID, ctx.Host);
+								}
+
+								delete stash.remainder;	
+								break;
+
+							case "Object":  // keys in the plugin context are used to create the stash
+								var stash = {};
+								Each(evs, function (key, val) {  // remove splits from bulk save
+									if ( key in ctx ) stash[key] = val;
+								});
+								break;
+						}
+
+						if ( stash.Save_end ) 
+							if ( stats = stash.Save_end.stats ) {   // there are stats that may need to be updated
+								var
+									file = ctx.File || {ID: 0},
+									voxel = ctx.Voxel || {ID: 0};
+
+								updateStats(sql, file.ID, voxel.ID, stats);
+							}
+
+							/*
+							if ( File = ctx.File )
+								updateFile( sql, File, stats);
+
+							else
+								sql.forFirst( "", "SELECT * FROM app.files WHERE ? LIMIT 1", {Name: ctx.Host+"."+ctx.Name}, function (File) {
+									if (File) 
+										updateFile(sql, File, stats);
+								});
+								*/
+
+						for (var key in stash) 
+							saveKey(sql, key, stash[key], ctx.ID, ctx.Host);
+
+						sql.release();
+					});
+
+					return ctx.Share ? evs : ("updated").tag("a",{href: "/files.view"});
+				}
+
+				else
+					return "empty";
+
 			}
-
-			else
-				return "empty";
-
 		}
 		
 		/*
@@ -830,7 +832,7 @@ var
 	SAVE = LIBS.SAVE;
 */
 
-const { $, $$, getEvents, putEvents } = LAB.libs;
+const { $, $$ } = LAB.libs;
 const {random, sin, cos, exp, log, PI, floor, abs} = Math;
 
 ME.import({
