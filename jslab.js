@@ -1080,6 +1080,8 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 			},
 			Ks = ctx.Ks;
 		
+		//Log("evpsd", idKey, tKey, evs[0]);
+		
 		for (var ids=0, N=evs.length, n=0; n<N; ids++) {
 			var 
 				t = ctx.t = ME.matrix([]), 
