@@ -280,6 +280,8 @@ var
 
 //console.log("jslab las=", LAS);
 
+const { Copy,Each,Log } = require("enum");
+
 [
 	function use(cb) {	// use vector A with callback cb(idx,A)
 		var A = this, N = A.length;
@@ -297,8 +299,6 @@ var
 		return A;
 	}	
 ].extend(Array);
-
-const { Copy,Each,Log } = require("enum");
 
 var LAB = module.exports = {  
 	libs: {  // libraries made available to plugin context
@@ -349,14 +349,9 @@ var LAB = module.exports = {
 					evs.length = 0;
 				}
 
-				/*
-				function saveEvents(evs) {  // save evs buffer to plugin's context
-					putEvents( evs, ctx );
-				} */
-
 				if (evs)
-					LAB.thread( function (sql) {  
-						if ( evs.constructor == String ) {  // pull event records from db using supplied evs query
+					if ( evs.constructor == String )   // pull event records from db using supplied evs query
+						LAB.thread( (sql) => {  
 							var recs = [];
 
 							if ( grouping )  // feed grouped events
@@ -374,27 +369,26 @@ var LAB = module.exports = {
 									feedEvents(recs, cb);
 									cb( null );  // signal end-of-events
 								});
+							
+							sql.release();	
+						});
+
+					else {  // pull event recs from supplied using supplied evs list
+						if ( grouping ) {
+							var recs = [];			
+							evs.forEach( function (rec) { // feed recs
+								if ( groupEvents(rec, recs) ) feedEvents(recs, cb);
+								recs.push(rec);
+							});
+							feedEvents( recs, cb );
+							cb( null );   // signal end-of-events
 						}
 
-						else {  // pull event recs from supplied using supplied evs list
-							if ( grouping ) {
-								var recs = [];			
-								evs.forEach( function (rec) { // feed recs
-									if ( groupEvents(rec, recs) ) feedEvents(recs, cb);
-									recs.push(rec);
-								});
-								feedEvents( recs, cb );
-								cb( null );   // signal end-of-events
-							}
-
-							else {
-								feedEvents(evs, cb);
-								cb( null );   // signal end-of-events
-							}
+						else {
+							feedEvents(evs, cb);
+							cb( null );   // signal end-of-events
 						}
-
-						sql.release();	
-					});
+					}
 
 				else
 					cb( null );  // signal end-of-events
