@@ -83,7 +83,7 @@ var
 						"COMMIT", 
 						function (err) { 
 
-					Trace("PROOF ",[posProofs.length,negProofs.length], sql);
+					Log("PROOF ",[posProofs.length,negProofs.length]);
 
 					if (posProofs.length && negProofs.length) {	// must have some proofs to execute ctx
 
@@ -94,7 +94,7 @@ var
 							totProofs = posProofs.length + negProofs.length,
 							dirtyness = totDirty / totProofs;
 
-						Trace('DIRTY', [dirtyness,ctx.MaxDirty,posDirty,negDirty,posProofs.length,negProofs.length], sql);
+						Log('DIRTY', [dirtyness,ctx.MaxDirty,posDirty,negDirty,posProofs.length,negProofs.length]);
 
 						sql.query("UPDATE detectors SET ? WHERE ?",[{Dirty:dirtyness},{ID:ctx.ID}]);
 
@@ -121,7 +121,7 @@ var
 								det.client = log.client;
 								det.work = det.posCount + det.negCount;
 
-								Trace(`TRAIN ${det.Name} v${ver}`, sql);
+								Trace(`TRAIN ${det.Name} ver ${ver}`, sql);
 
 								var Execute = {
 									Purge: "rm -rf " + det.Path,
