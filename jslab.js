@@ -878,7 +878,8 @@ ME.import({
 
 	xmatrix: function ( xccf ) { 
 	/* 
-	return N x N complex corr matrix Xccf [unitless] given its 2N+1 dim complex corr function xccf [unitless].
+	Returns the N x N complex corr matrix Xccf [unitless] given a 2N+1 complex corr function xccf [unitless].
+	Xccf is band symmetric so on its k'th diag lies xccf(lag k) = xccf[ N+1 + k ] , k = -N:N
 	*/
 		
 		var 
@@ -889,7 +890,7 @@ ME.import({
 			K0 = N0-1,	// 0-based index to 0-lag
 			Xccf = $$( N0, N0, (m,n,X) => X[m][n] = 0 );
 
-		Log("xmatrix",N,N0,M0);
+		//Log("xmatrix",N,N0,M0);
 		
 		for (var n = -M0; n<=M0; n++) 
 			for (var m = -M0; m<=M0; m++) {
