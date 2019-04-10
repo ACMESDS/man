@@ -59,10 +59,14 @@ Use $ as follows:
 	
 	evs.$( ctx, (evs) => { ... } );		// save aggregated events to context ctx with callback(unsaved events)
 
-## Installing
+## Installation
 
 Clone [MAN manipulator](https://github.com/acmesds/$) into your PROJECT/man folder.
 Clone [ENUM enumerators](https://github.com/acmesds/enum) into your PROJECT/enum folder.
+
+### Required MySQL databases
+
+* app._stats Read  to derive the default save keys
 
 ## Contributing
 
