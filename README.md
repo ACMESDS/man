@@ -11,7 +11,7 @@ neural and bayseian networks, data i/o, task sharding, and special functions.
 
 ## Usage
 
-Use $ as follows:
+Use the MAN manipulators as follows:
 
 	var $ = require("man");
 	
@@ -61,8 +61,8 @@ Use $ as follows:
 
 ## Installation
 
-Clone [MAN manipulator](https://github.com/acmesds/$) into your PROJECT/man folder.
-Clone [ENUM enumerators](https://github.com/acmesds/enum) into your PROJECT/enum folder.
+Clone [MAN manipulator](https://github.com/acmesds/$) into your PROJECT/man folder.  
+Clone [ENUM enumerators](https://github.com/acmesds/enum) into your PROJECT/enum folder.  
 
 ### Required MySQL databases
 
