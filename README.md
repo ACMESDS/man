@@ -5,13 +5,13 @@
 	[geointapps](https://git.geointapps.org/acmesds/jslab)
 	[gitlab](https://gitlab.west.nga.ic.gov/acmesds/jslab)
 
-MAN provides: matlab-like matrix manipulators, light 
+The matrix manipualtor MAN provides: matlab-like matrix manipulators, light 
 weight image processing, symbolic algebra, dsp, machine learning, regression, expectation-maximization methods, 
 neural and bayseian networks, data i/o, task sharding, and special functions.
 
 ## Usage
 
-Use the MAN manipulators as follows:
+Use MAN as follows:
 
 	var $ = require("man");
 	
@@ -61,7 +61,7 @@ Use the MAN manipulators as follows:
 
 ## Installation
 
-Clone [MAN manipulator](https://github.com/acmesds/$) into your PROJECT/man folder.  
+Clone [MAN manipulator](https://github.com/acmesds/man) into your PROJECT/man folder.  
 Clone [ENUM enumerators](https://github.com/acmesds/enum) into your PROJECT/enum folder.  
 
 ### Required MySQL databases
