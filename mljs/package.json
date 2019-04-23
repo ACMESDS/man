@@ -47,6 +47,7 @@
     "ml-kmeans": "^3.0.0",
     "ml-knn": "^2.0.0",
     "ml-levenberg-marquardt": "^1.0.0",
+    "ml-logistic-regression": "^1.0.2",
     "ml-matrix": "^5.0.0",
     "ml-naivebayes": "^3.0.0",
     "ml-pad-array": "^1.0.0",
