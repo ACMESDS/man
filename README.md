@@ -5,9 +5,27 @@
 	[geointapps](https://git.geointapps.org/acmesds/jslab)
 	[gitlab](https://gitlab.west.nga.ic.gov/acmesds/jslab)
 
-The matrix manipualtor MAN provides: matlab-like matrix manipulators, light 
-weight image processing, symbolic algebra, dsp, machine learning, regression, expectation-maximization methods, 
-neural and bayseian networks, data i/o, task sharding, and special functions.
+The manipualtor MAN provides: 
+[matlab-like matrix manipulators](https://www.npmjs.com/package/mathjs), 
+[light weight image processing](https://www.npmjs.com/package/lwip), 
+[symbolic algebra](https://www.npmjs.com/package/mathjs), 
+[digital signal processing](https://www.npmjs.com/package/dsp) and [fft](https://www.npmjs.com/package/fft-js), 
+[hidden markov, viterbi, baum-welch](https://www.npmjs.com/package/nodehmm) 
+aka [expectation-maximization](https://www.npmjs.com/package/expectation-maximization) algorithms,
+[eigen spectrums](https://www.npmjs.com/package/node-svd),
+[recurrent](https://www.npmjs.com/package/recurrent-js),
+[bayesian belief](https://www.npmjs.com/package/jsbayes), and
+[convolutional](http://caffe.berkeleyvision.org/) neural networks,
+[logistic](https://www.npmjs.com/package/newton-raphson-method) and
+[support vector machine](https://www.npmjs.com/package/node-svm) regressions,
+[least cost path](https://www.npmjs.com/package/edmonds-blossom),
+[linear programming](https://www.npmjs.com/package/javascript-lp-solver),
+and [other machine learning](https://www.npmjs.com/package/ml) optimizers,
+special ([gamma](npm gamma), 
+[multivariate normal](https://www.npmjs.com/package/multivariate-normal), 
+[rieman-zeta](https://www.npmjs.com/package/math-riemann-zeta) functions,
+[task sharding](https://github.com/ACMESDS/totem),
+and a data i/o interface.
 
 ## Usage
 
