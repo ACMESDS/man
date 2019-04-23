@@ -82,6 +82,7 @@ Use MAN as follows:
 
 Clone [MAN manipulator](https://github.com/acmesds/man) into your PROJECT/man folder.  
 Clone [ENUM enumerators](https://github.com/acmesds/enum) into your PROJECT/enum folder.  
+Clone [GLWIP image processing](https://github.com/acmesds/glwip) into your PROJECT/glwip folder.  
 
 ### Required MySQL databases
 
