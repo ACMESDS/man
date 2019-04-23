@@ -14,17 +14,17 @@ hidden markov ([viterbi, baum-welch](https://www.npmjs.com/package/nodehmm) and
 [EM](https://www.npmjs.com/package/expectation-maximization) algorithms,
 [eigen spectrums](https://www.npmjs.com/package/node-svd),
 [recurrent](https://www.npmjs.com/package/recurrent-js),
-[bayesian belief](https://www.npmjs.com/package/jsbayes), and
+[bayesian belief](https://www.npmjs.com/package/jsbayes) and
 [convolutional](http://caffe.berkeleyvision.org/) neural networks,
 [logistic](https://www.npmjs.com/package/ml-logistic-regression) and
 [support vector machine](https://www.npmjs.com/package/node-svm) regressions,
-[least cost path](https://www.npmjs.com/package/edmonds-blossom),
+various ([least cost path](https://www.npmjs.com/package/edmonds-blossom),
 [linear programming](https://www.npmjs.com/package/javascript-lp-solver),
 [gradient descent, newton-raphton](https://www.npmjs.com/package/newton-raphson-method) 
-and [other machine learning](https://www.npmjs.com/package/ml) optimizers,
-special ([gamma](https://www.npmjs.com/package/gamma), 
+and [other machine learning](https://www.npmjs.com/package/ml)) non-linear optimizers,
+several special functions ([gamma](https://www.npmjs.com/package/gamma), 
 [multivariate normal](https://www.npmjs.com/package/multivariate-normal), 
-[rieman-zeta](https://www.npmjs.com/package/math-riemann-zeta)) functions,
+[rieman-zeta](https://www.npmjs.com/package/math-riemann-zeta)),
 [task sharding](https://github.com/ACMESDS/totem),
 and a data i/o interface.
 
