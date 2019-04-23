@@ -9,9 +9,9 @@ The manipualtor MAN provides:
 [matlab-like matrix manipulators](https://www.npmjs.com/package/mathjs), 
 [light weight image processing](https://www.npmjs.com/package/lwip), 
 [symbolic algebra](https://www.npmjs.com/package/mathjs), 
-[digital signal processing](https://www.npmjs.com/package/dsp) and [fft](https://www.npmjs.com/package/fft-js), 
-[hidden markov, viterbi, baum-welch](https://www.npmjs.com/package/nodehmm) 
-aka [expectation-maximization](https://www.npmjs.com/package/expectation-maximization) algorithms,
+[digital signal](https://www.npmjs.com/package/dsp) and [spectral](https://www.npmjs.com/package/fft-js) processing, 
+hidden markov ([viterbi, baum-welch](https://www.npmjs.com/package/nodehmm) and
+[EM](https://www.npmjs.com/package/expectation-maximization) algorithms,
 [eigen spectrums](https://www.npmjs.com/package/node-svd),
 [recurrent](https://www.npmjs.com/package/recurrent-js),
 [bayesian belief](https://www.npmjs.com/package/jsbayes), and
@@ -19,11 +19,11 @@ aka [expectation-maximization](https://www.npmjs.com/package/expectation-maximiz
 [logistic](https://www.npmjs.com/package/newton-raphson-method) and
 [support vector machine](https://www.npmjs.com/package/node-svm) regressions,
 [least cost path](https://www.npmjs.com/package/edmonds-blossom),
-[linear programming](https://www.npmjs.com/package/javascript-lp-solver),
+[linear programming](https://www.npmjs.com/package/javascript-lp-solver)
 and [other machine learning](https://www.npmjs.com/package/ml) optimizers,
-special ([gamma](npm gamma), 
+special ([gamma](https://www.npmjs.com/package/gamma), 
 [multivariate normal](https://www.npmjs.com/package/multivariate-normal), 
-[rieman-zeta](https://www.npmjs.com/package/math-riemann-zeta) functions,
+[rieman-zeta](https://www.npmjs.com/package/math-riemann-zeta)) functions,
 [task sharding](https://github.com/ACMESDS/totem),
 and a data i/o interface.
 
