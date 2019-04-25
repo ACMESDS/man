@@ -634,19 +634,54 @@ $.import({
 		Log(svd);
 	},
 	
-	svmTrain: function (x,y,solve) {
+	svmTrain: function (x,y,solve,cb) {
+		var
+			X = x._data,
+			Y = y._data,
+			N = x._size[0],
+			XY = $( N, (n, xy) => xy[n] = [ X[n], Y[n] ] );
+		
+		Log("XY", XY);
+		var
+			svm = new SVM.SVM(solve);
+		
+		svm
+		.train(XY)
+		.spread( (model) => {
+			Log("got model");
+			cb(model);
+		})
+		.done ( (rep) => {
+			Log("training done!!!");
+			Log("testpred", svm.predictSync(X[0]), svm.predictSync(X[1]) );
+		} );
+		
+		return svm;
 	},
 	
-	svmPredict: function (SVM, x) {
+	svmPredict: function (svm, x) {
+		return [0];
+		
+		var
+			N = x._size[0],
+			X = x._data,
+			predict = svm.predictSync;
+		
+		Log("X", X, "pred", predict, svm.isTrained);
+		Log("svm", JSON.stringify(svm));
+		
+		var
+			y = $( N, (n,y) => y[n] = svm.predictSync( X[n] ) );
+		
+		Log("y",y);
+		return y;
 	},
 	
 	lrmTrain: function (x,y,solve) {
 		var
 			mlMatrix = ML.Matrix,
 			X = new mlMatrix(x._data),
-			Y = mlMatrix.columnVector(y._data);
-		
-		var
+			Y = mlMatrix.columnVector(y._data),
 			lrm = new LRM(solve.numSteps || 1000, solve.learningRate || 5e-3);
 		
 		lrm.train(X,Y);
@@ -941,7 +976,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 	},
 						 
 	zeta: function (a) {},
-	bayinfer: function (a) {},
+	infer: function (a) {},
 	va: function (a) {},
 	mle: function (a) {},
 	mvn: function (a) {},
@@ -1187,6 +1222,33 @@ y0 = lrmPredict( lrm, x0);`,
   y0: [ 0, 0, 0, 1, 1, 1, 2, 2, 2 ] }
   */
 		break;
+		
+	case "L8":
+		var ctx = {
+			x: [[0, 0], [0, 1], [1, 0], [1, 1]],
+			y: [0, 1, 1, 0],
+			x0:  [[0, 0], [0, 1], [1, 0], [1, 1]],
+			save: function (model) {
+				Log("saving model", JSON.stringify(model) );
+				var svm = SVM.restore(model);
+				
+				Log("restore pred", svm.predictSync( [0,0] ), svm.predictSync( [0,1] ) );				
+			}
+		};
+		
+		$(`svmTrain( x, y, {}, save );` ,  ctx, (ctx) => {
+
+		// Log( JSON.stringify(ctx.svm) );
+			
+			Log({
+				x0: ctx.x0,
+				y0: ctx.y0
+			});
+		});
+		break;
+		
 }
+
+
 
 // UNCLASSIFIED

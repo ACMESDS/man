@@ -42,9 +42,9 @@ Use MAN as follows:
 
 	var A = $( "matlab expression" );  // eval expression and return resulting matrix
 	
-	$( N, (n,A) => A[n] = ... );  // define vector A of N elements
+	var A = $( N, (n,A) => A[n] = ... );  // define vector A of N elements 
 
-	$( [M,N, ... ], (n,m, ... A) => A[m][n] ... = ... );	// define M x N matrrix
+	var A = $( [M,N, ... ], (n,m, ... A) => A[m][n] ... = ... );	// define M x N matrrix
 
 	$( {		//  import functions
 		somefn: function (args) { ... },
