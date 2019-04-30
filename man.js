@@ -21,7 +21,7 @@
 @requires newton-raphson
 */
 
-const { Copy,Each,Log } = require("enum");
+const { Copy,Each,Log,isArray,isNumber,isString,isObject } = require("enum");
 
 const {random, sin, cos, exp, log, PI, floor, abs} = Math;
 
@@ -227,7 +227,7 @@ function feedEvents (evs, cb) {  // feed evs event buffer to callback cb(evs) th
 	
 	function $(ctx, cb) {	// index matrix A, load/save data A
 		if (cb) // load/save data
-			if (ctx.constructor == String)
+			if ( isString(ctx) )
 				return this.get(ctx, cb);
 			else
 				return this.put(ctx, cb);
@@ -261,7 +261,7 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 
 				for (key in ctx) {
 					val = ctx[key];
-					vmctx[key] = (val && val.constructor == Array) 
+					vmctx[key] = (val && isArray(val) )
 							? vmctx[key] = $.matrix(val)
 							: val;
 				}
@@ -837,7 +837,7 @@ $.import({
 		var 
 			F = F._data,
 			N = F.length,
-			isReal = F[0].constructor == Number,
+			isReal = isNumber( F[0] ),
 			G = isReal 
 				? 	$( N-1, (n,G) =>  { // alternate signs to setup dft and truncate array to N-1 = 2^int
 						G[n] = (n % 2) ? [-F[n], 0] : [F[n], 0];
@@ -985,7 +985,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 	rnn: function (a) {},
 	
 	disp: function (a) {
-		if (a.constructor == Object)
+		if ( isObject(a) )
 			for (var key in a) {
 				var val = a[key];
 				Log(key, val._data ? val._data : val);
