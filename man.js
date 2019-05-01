@@ -701,10 +701,10 @@ $.import({
 	
 	lrmTrain: function (x,y,solve,cb) {
 		var
-			mlMatrix = ML.Matrix,
-			X = new mlMatrix(x._data),
-			Y = mlMatrix.columnVector(y._data),
-			cls = new LRM(solve.numSteps || 1000, solve.learningRate || 5e-3);
+			ml$ = ML.Matrix,
+			X = new ml$(x._data),
+			Y = ml$.columnVector(y._data),
+			cls = new LRM(solve);
 		
 		Log("lrm training", "steps", [solve.numSteps, cls.numSteps], "rate", cls.learningRate);
 		cls.train(X,Y);
@@ -714,8 +714,8 @@ $.import({
 	
 	lrmPredict: function (cls,x) {
 		var 
-			mlMatrix = ML.Matrix,
-			X = new mlMatrix(x._data),
+			ml$ = ML.Matrix,
+			X = new ml$(x._data),
 			Y = cls.predict(X);
 		
 		return $.matrix(Y);
