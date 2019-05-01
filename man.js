@@ -630,6 +630,8 @@ Copy({
 	JSON: JSON,
 	LWIP: LWIP,
 	CRYPTO: CRYPTO,
+	LRM: LRM,
+	SVM: SVM,
 
 	// basic enumerators
 	Copy: Copy,
@@ -704,9 +706,8 @@ $.import({
 			Y = mlMatrix.columnVector(y._data),
 			cls = new LRM(solve.numSteps || 1000, solve.learningRate || 5e-3);
 		
-		Log("lrm train start", "steps", [solve.numSteps, cls.numSteps], "lr", cls.learningRate);
+		Log("lrm training", "steps", [solve.numSteps, cls.numSteps], "rate", cls.learningRate);
 		cls.train(X,Y);
-		Log("lrm train done");
 		if (cb) cb(cls);
 		return cls;
 	},
