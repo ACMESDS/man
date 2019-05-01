@@ -35,6 +35,21 @@ function feedEvents (evs, cb) {  // feed evs event buffer to callback cb(evs) th
 	evs.length = 0;
 }
 
+function saveStash(sql, stash, ID, host) {
+	function saveKey( sql, key, save ) {				
+		sql.query(
+			`UPDATE app.?? SET ${key}=? WHERE ID=?`, 
+			[host, JSON.stringify(save) || "null", ID], 
+			function (err) {  // will fail if key does not exist or mysql server buffer too small (see my.cnf)
+				Trace(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` );
+				//Log(err);
+		});
+	}
+
+	for (var key in stash) 
+		saveKey( sql, key, stash[key] );
+}
+		 
 [ 
 	function get(grouping, cb) { // get event records from db using supplied query
 		var query = this+"";
@@ -63,9 +78,28 @@ function feedEvents (evs, cb) {  // feed evs event buffer to callback cb(evs) th
 		});
 	},
 	
+	function put(ctx,cb) {
+		var stash = {}, rem = {};
+		$.thread( (sql) => {
+			Each(ctx, (key,val) => {
+				if ( key.indexOf("Save_") == 0 )
+					stash[key] = val;
+				else
+					rem[key] = val;
+			});
+			saveStash( sql, stash, ctx.ID, ctx.Host );
+			cb( rem, sql );
+		});
+		
+	},
+	
 	function $(ctx, cb) {
 		if (cb) // load/save data
-			return this.get(ctx, cb);
+			if ( isString(ctx) )
+				return this.get(ctx, cb);
+		
+			else
+				return this.put(ctx,cb);
 
 		else
 			return null;
@@ -100,16 +134,6 @@ function feedEvents (evs, cb) {  // feed evs event buffer to callback cb(evs) th
 	
 	function put( ctx, cb ) {
 	// stash aggregated events evs into context ctx[ Save_KEYs ] then callback(unsaved evs) 
-		
-		function saveKey( sql, key, save, ID, host ) {				
-			sql.query(
-				`UPDATE ?? SET ${key}=? WHERE ID=?`, 
-				[host, JSON.stringify(save) || "null", ID], 
-				function (err) {  // will fail if key does not exist or mysql server buffer too small (see my.cnf)
-					Trace(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` );
-					//Log(err);
-			});
-		}
 
 		function updateFile( sql, file, stats ) {
 			stats.forEach( function (stat) {
@@ -164,12 +188,12 @@ function feedEvents (evs, cb) {  // feed evs event buffer to callback cb(evs) th
 
 		var evs = this;
 		
-		$.thread( function (sql) {
+		$.thread( (sql) => {
 			var 
 				stash = { remainder: [] },  // stash for aggregated keys 
 				rem = stash.remainder;
 
-			Array.from(evs).stashify("at", "Save_", ctx, stash, function (ev, stat) {  // add {at:"KEY",...} evs to the Save_KEY stash
+			evs.stashify("at", "Save_", ctx, stash, function (ev, stat) {  // add {at:"KEY",...} evs to the Save_KEY stash
 
 				if (ev)
 					try {
@@ -215,8 +239,7 @@ function feedEvents (evs, cb) {  // feed evs event buffer to callback cb(evs) th
 					});
 				*/
 
-			for (var key in stash) 
-				saveKey(sql, key, stash[key], ctx.ID, ctx.Host);
+			saveStash(sql, stash, ctx.ID, ctx.Host);
 
 			sql.release();
 		});
@@ -229,6 +252,7 @@ function feedEvents (evs, cb) {  // feed evs event buffer to callback cb(evs) th
 		if (cb) // load/save data
 			if ( isString(ctx) )
 				return this.get(ctx, cb);
+			
 			else
 				return this.put(ctx, cb);
 					
@@ -641,58 +665,57 @@ $.import({
 			N = x._size[0],
 			XY = $( N, (n, xy) => xy[n] = [ X[n], Y[n] ] );
 		
-		Log("XY", XY);
+		//Log("XY", XY);
 		var
-			svm = new SVM.SVM(solve);
+			cls = new SVM.SVM({});
 		
-		svm
+		cls
 		.train(XY)
 		.spread( (model) => {
-			Log("got model");
-			cb(model);
+			if (cb) cb(model);
 		})
 		.done ( (rep) => {
-			Log("training done!!!");
-			Log("testpred", svm.predictSync(X[0]), svm.predictSync(X[1]) );
+			//Log("testpred", cls.predictSync(X[0]), cls.predictSync(X[1]) );
 		} );
 		
-		return svm;
+		return cls;
 	},
 	
-	svmPredict: function (svm, x) {
-		return [0];
-		
+	svmPredict: function (cls, x) {
 		var
 			N = x._size[0],
 			X = x._data,
-			predict = svm.predictSync;
+			predict = cls.predictSync;
 		
-		Log("X", X, "pred", predict, svm.isTrained);
-		Log("svm", JSON.stringify(svm));
+		Log("X", X, "pred", predict, cls.isTrained);
+		Log("svm", JSON.stringify(cls));
 		
 		var
-			y = $( N, (n,y) => y[n] = svm.predictSync( X[n] ) );
+			y = $( N, (n,y) => y[n] = cls.predictSync( X[n] ) );
 		
 		Log("y",y);
 		return y;
 	},
 	
-	lrmTrain: function (x,y,solve) {
+	lrmTrain: function (x,y,solve,cb) {
 		var
 			mlMatrix = ML.Matrix,
 			X = new mlMatrix(x._data),
 			Y = mlMatrix.columnVector(y._data),
-			lrm = new LRM(solve.numSteps || 1000, solve.learningRate || 5e-3);
+			cls = new LRM(solve.numSteps || 1000, solve.learningRate || 5e-3);
 		
-		lrm.train(X,Y);
-		return lrm;
+		Log("lrm train start", "steps", [solve.numSteps, cls.numSteps], "lr", cls.learningRate);
+		cls.train(X,Y);
+		Log("lrm train done");
+		if (cb) cb(cls);
+		return cls;
 	},
 	
-	lrmPredict: function (lrm,x) {
+	lrmPredict: function (cls,x) {
 		var 
 			mlMatrix = ML.Matrix,
 			X = new mlMatrix(x._data),
-			Y = lrm.predict(X);
+			Y = cls.predict(X);
 		
 		return $.matrix(Y);
 	},
@@ -1229,7 +1252,6 @@ y0 = lrmPredict( lrm, x0);`,
 			y: [0, 1, 1, 0],
 			x0:  [[0, 0], [0, 1], [1, 0], [1, 1]],
 			save: function (model) {
-				Log("saving model", JSON.stringify(model) );
 				var svm = SVM.restore(model);
 				
 				Log("restore pred", svm.predictSync( [0,0] ), svm.predictSync( [0,1] ) );				

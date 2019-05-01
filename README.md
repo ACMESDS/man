@@ -72,11 +72,13 @@ Use MAN as follows:
 		(msg) => console.log(msg) 
 	);
 	
-	evs.$( boolean, (evs) => { ... } );  // thread events evs = [ev, ev, ...] to callback(grouped evs) or callback(null) at end
+	[ev, ...].$( "all" || "group", (evs) => { ... } );  // stream event list to callback( got events || null at end )
 	
-	"query".$( boolean, (evs) => { ... } );	// thread with optional grouping sql queried events to callback(grouped evs)
+	"query".$( "all" || "group", (evs) => { ... } );	// stream event query to callback( got events || null at end )
 	
-	evs.$( ctx, (evs) => { ... } );		// save aggregated events to context ctx with callback(unsaved events)
+	[ev, ...].$( ctx, (evs) => { ... } );		// aggregate and save event ev = {at: "KEY", ...} to ctx.Save_KEY with callback(unsaved events)
+
+	"".$( ctx, (evs) => { ... } );		// save ctx.Save_KEY with callback(unsaved events)
 
 ## Installation
 
