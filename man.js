@@ -588,6 +588,7 @@ var
 	ML = require("./mljs/node_modules/ml-matrix"),
 	LRM = require("./mljs/node_modules/ml-logistic-regression"),
 	KNN = require("./mljs/node_modules/ml-knn"),
+	PLS = require("./mljs/node_modules/ml-pls"),
 	SVM = require("node-svm"),
 	GAMMA = require("gamma"),
 	DSP = require("fft-js"),
@@ -635,6 +636,7 @@ Copy({
 	LRM: LRM,
 	SVM: SVM,
 	KNN: KNN,
+	PLS: PLS,
 	EM: EM,
 	MVN: MVN,
 	LM: LM,
@@ -727,6 +729,26 @@ $.import({
 	},
 	
 	knnPredict: function (cls,x) {
+		var 
+			X = new ml$(x._data),
+			Y = cls.predict(X);
+		
+		return $.matrix(Y);
+	},
+	
+	plsTrain: function (x,y,solve,cb) {
+		var
+			X = new ml$(x._data),
+			Y = ml$.columnVector(y._data),
+			cls = new PLS(solve);
+		
+		Log("pls training", solve);
+		cls.train(X,Y);
+		if (cb) cb(cls);
+		return cls;
+	},
+	
+	plsPredict: function (cls,x) {
 		var 
 			X = new ml$(x._data),
 			Y = cls.predict(X);
