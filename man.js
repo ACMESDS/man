@@ -587,6 +587,7 @@ var
 	LM = require("./mljs/node_modules/ml-levenberg-marquardt"),
 	ML = require("./mljs/node_modules/ml-matrix"),
 	LRM = require("./mljs/node_modules/ml-logistic-regression"),
+	KNN = require("./mljs/node_modules/ml-knn"),
 	SVM = require("node-svm"),
 	GAMMA = require("gamma"),
 	DSP = require("fft-js"),
@@ -596,7 +597,8 @@ var
 	BAYES = require("jsbayes"),
 	HMM = require("nodehmm"),
 	ZETA = require("riemann-zeta"),
-	NRAP = require("newton-raphson");
+	NRAP = require("newton-raphson"),
+	ml$ = ML.Matrix;
 
 //console.log("jslab las=", ML);
 
@@ -632,29 +634,23 @@ Copy({
 	CRYPTO: CRYPTO,
 	LRM: LRM,
 	SVM: SVM,
+	KNN: KNN,
+	EM: EM,
+	MVN: MVN,
+	LM: LM,
+	GAMMA: GAMMA,
 
 	// basic enumerators
 	Copy: Copy,
 	Each: Each,
 	Log: Log,
-	console: console,
+	console: console
 
-	// following should be removed when plugins rely only on $
-	//ML: ML,
-	EM: EM,
-	MVN: MVN,
-	LM: LM,
-	GAMMA: GAMMA
 }, $);
 
 //=========== Extend mathjs emulator
 
 $.import({
-	/*
-	isEqual: function (a,b) {
-		return a==b;
-	},*/
-	
 	svd: function (a) {
 		var svd = new ML.SVD( a._data );
 		Log(svd);
@@ -701,7 +697,6 @@ $.import({
 	
 	lrmTrain: function (x,y,solve,cb) {
 		var
-			ml$ = ML.Matrix,
 			X = new ml$(x._data),
 			Y = ml$.columnVector(y._data),
 			cls = new LRM(solve);
@@ -714,7 +709,25 @@ $.import({
 	
 	lrmPredict: function (cls,x) {
 		var 
-			ml$ = ML.Matrix,
+			X = new ml$(x._data),
+			Y = cls.predict(X);
+		
+		return $.matrix(Y);
+	},
+	
+	knnTrain: function (x,y,solve,cb) {
+		var
+			X = new ml$(x._data),
+			Y = ml$.columnVector(y._data),
+			cls = new KNN(X,Y,solve);
+		
+		Log("knn training", "k", solve.k);
+		if (cb) cb(cls);
+		return cls;
+	},
+	
+	knnPredict: function (cls,x) {
+		var 
 			X = new ml$(x._data),
 			Y = cls.predict(X);
 		
