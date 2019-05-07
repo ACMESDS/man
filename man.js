@@ -588,7 +588,10 @@ var
 	ML = require("./mljs/node_modules/ml-matrix"),
 	LRM = require("./mljs/node_modules/ml-logistic-regression"),
 	KNN = require("./mljs/node_modules/ml-knn"),
+	MLR = require("./mljs/node_modules/ml-regression-multivariate-linear"),
+	SPR = require("./mljs/node_modules/ml-regression-polynomial"),
 	PLS = require("./mljs/node_modules/ml-pls"),
+	SOM = require("./mljs/node_modules/ml-som"),
 	SVM = require("node-svm"),
 	GAMMA = require("gamma"),
 	DSP = require("fft-js"),
@@ -636,6 +639,9 @@ Copy({
 	LRM: LRM,
 	SVM: SVM,
 	KNN: KNN,
+	SPR: SPR,
+	MLR: MLR,		
+	SOM: SOM,
 	PLS: PLS,
 	EM: EM,
 	MVN: MVN,
@@ -656,6 +662,50 @@ $.import({
 	svd: function (a) {
 		var svd = new ML.SVD( a._data );
 		Log(svd);
+	},
+	
+	somTrain: function (x,y,solve,cb) {
+		var
+			X = x._data,
+			Y = y._data,
+			N = x._size[0],
+			XY = $( N, (n, xy) => xy[n] = [ X[n], Y[n] ] ),			
+			cls = new SOM(solve.xdim || 30, solve.ydim || 30, solve);
+
+		cls.train(XY);
+		cb( cls.export() );
+		return cls;
+	},
+	
+	somPredict: function (cls, x) {
+		var
+			N = x._size[0],
+			X = x._data,
+			Y = cls.predict(X);
+		
+		return $.matrix(Y);
+	},
+	
+	olsTrain: function (x,y,solve,cb) {
+		var
+			X = x._data,
+			Y = y._data,
+			N = x._size[0],
+			degree = solve.degree,
+			Y = degree ? Y : $(N, (n,y) => y[n] = [ Y[n] ] ),
+			cls = degree ? new SPR(X,Y,solve.degree) : new MLR(X,Y);
+
+		cb( cls );
+		return cls;
+	},
+	
+	olsPredict: function (cls, x) {
+		var
+			N = x._size[0],
+			X = x._data,
+			Y = cls.predict(X);
+		
+		return $.matrix(Y);
 	},
 	
 	svmTrain: function (x,y,solve,cb) {
@@ -685,16 +735,14 @@ $.import({
 		var
 			N = x._size[0],
 			X = x._data,
-			predict = cls.predictSync;
+			predict = cls.predictSync,
+			Y = $( N, (n,y) => y[n] = predict( X[n] ) );
 		
 		Log("X", X, "pred", predict, cls.isTrained);
 		Log("svm", JSON.stringify(cls));
 		
-		var
-			y = $( N, (n,y) => y[n] = cls.predictSync( X[n] ) );
-		
-		Log("y",y);
-		return y;
+		Log("y",Y);
+		return $.matrix(Y);
 	},
 	
 	lrmTrain: function (x,y,solve,cb) {
@@ -703,7 +751,7 @@ $.import({
 			Y = ml$.columnVector(y._data),
 			cls = new LRM(solve);
 		
-		Log("lrm training", "steps", [solve.numSteps, cls.numSteps], "rate", cls.learningRate);
+		Log("lrm training", "steps:", cls.numSteps, "rate:", cls.learningRate);
 		cls.train(X,Y);
 		if (cb) cb(cls);
 		return cls;
