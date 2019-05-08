@@ -587,6 +587,8 @@ var
 	LM = require("./mljs/node_modules/ml-levenberg-marquardt"),
 	ML = require("./mljs/node_modules/ml-matrix"),
 	LRM = require("./mljs/node_modules/ml-logistic-regression"),
+	RAF = require("./mljs/node_modules/ml-random-forest"),
+	DTR = require("./mljs/node_modules/ml-cart"),
 	KNN = require("./mljs/node_modules/ml-knn"),
 	MLR = require("./mljs/node_modules/ml-regression-multivariate-linear"),
 	SPR = require("./mljs/node_modules/ml-regression-polynomial"),
@@ -644,6 +646,8 @@ Copy({
 	SOM: SOM,
 	PLS: PLS,
 	EM: EM,
+	RAF: RAF,
+	DTR: DTR,
 	MVN: MVN,
 	LM: LM,
 	GAMMA: GAMMA,
@@ -659,9 +663,95 @@ Copy({
 //=========== Extend mathjs emulator
 
 $.import({
-	svd: function (a) {
-		var svd = new ML.SVD( a._data );
-		Log(svd);
+	// regressors
+	
+	dtrTrain: function (x,y,solve,cb) {
+		var
+			X = x._data,
+			Y = y._data,
+			cls = new $.DTR.DecisionTreeRegression(solve);
+
+		cls.train(X,Y);
+		cb( cls );
+		return cls;
+	},
+	
+	dtrPredict: function (cls, x) {
+		var
+			X = x._data,
+			Y = cls.predict(X);
+		
+		return $.matrix(Y);
+	},
+
+	rafTrain: function (x,y,solve,cb) {
+		//
+		var dataset = [
+  [73, 80, 75, 152],
+  [93, 88, 93, 185],
+  [89, 91, 90, 180],
+  [96, 98, 100, 196],
+  [73, 66, 70, 142],
+  [53, 46, 55, 101],
+  [69, 74, 77, 149],
+  [47, 56, 60, 115],
+  [87, 79, 90, 175],
+  [79, 70, 88, 164],
+  [69, 70, 73, 141],
+  [70, 65, 74, 141],
+  [93, 95, 91, 184],
+  [79, 80, 73, 152],
+  [70, 73, 78, 148],
+  [93, 89, 96, 192],
+  [78, 75, 68, 147],
+  [81, 90, 93, 183],
+  [88, 92, 86, 177],
+  [78, 83, 77, 159],
+  [82, 86, 90, 177],
+  [86, 82, 89, 175],
+  [78, 83, 85, 175],
+  [76, 83, 71, 149],
+  [96, 93, 95, 192]
+];
+		/*
+		var X = new Array(dataset.length);
+		var Y = new Array(dataset.length);
+
+		for (var i = 0; i < dataset.length; ++i) {
+		  X[i] = dataset[i].slice(0, 3);
+		  Y[i] = dataset[i][3];
+		}  */
+		
+		var
+			X = x._data,
+			Y = y._data,
+			N = x._size[0],
+			cls = new RAF.RandomForestRegression({
+			  seed: 3,
+			  maxFeatures: 2,
+			  replacement: false,
+			  nEstimators: 200
+			});
+
+		X.length = Y.length = 25;
+		X.$( (n,x) => x[n] = x[n].slice(0,3) );  // dataset[n].slice(0,3) ); //
+		Y.$( (n,y) => y[n] = dataset[n][3] );
+		
+		Log("x",X);
+		Log("y",Y);
+
+		Log("raf", X.length, Y.length, N, X[0].length);
+		cls.train(X,Y);
+		cb( cls );
+		return cls;
+	},
+	
+	rafPredict: function (cls, x) {
+		var
+			X = x._data,
+			Y = cls.predict(X);
+		
+		return $.matrix(Y);
 	},
 	
 	somTrain: function (x,y,solve,cb) {
@@ -679,7 +769,6 @@ $.import({
 	
 	somPredict: function (cls, x) {
 		var
-			N = x._size[0],
 			X = x._data,
 			Y = cls.predict(X);
 		
@@ -701,7 +790,6 @@ $.import({
 	
 	olsPredict: function (cls, x) {
 		var
-			N = x._size[0],
 			X = x._data,
 			Y = cls.predict(X);
 		
@@ -803,7 +891,14 @@ $.import({
 		
 		return $.matrix(Y);
 	},
+
+	// linear algebra
 	
+	svd: function (a) {
+		var svd = new ML.SVD( a._data );
+		Log(svd);
+	},
+
 	evd: function (a) {	// eigen vector decomposition
 		var evd = new ML.EVD( a._data );  //, {assumeSymmetric: true}
 		return {
