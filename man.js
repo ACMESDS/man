@@ -677,7 +677,7 @@ $.import({
 
 		X.$( (n,x) => x[n] = x[n][0] );
 		cls.train(X,Y);
-		cb( cls );
+		if (cb) cb( cls );
 		return cls;
 	},
 	
@@ -690,7 +690,7 @@ $.import({
 	},
 
 	rafTrain: function (x,y,solve,cb) {
-		//
+		/*
 		var dataset = [
   [73, 80, 75, 152],
   [93, 88, 93, 185],
@@ -717,7 +717,8 @@ $.import({
   [78, 83, 85, 175],
   [76, 83, 71, 149],
   [96, 93, 95, 192]
-];
+];  
+		*/
 		/*
 		var X = new Array(dataset.length);
 		var Y = new Array(dataset.length);
@@ -738,16 +739,15 @@ $.import({
 			  nEstimators: 200
 			});
 
-		X.length = Y.length = 25;
-		X.$( (n,x) => x[n] = x[n].slice(0,3) );  // dataset[n].slice(0,3) ); //
-		Y.$( (n,y) => y[n] = dataset[n][3] );
+		//X.length = Y.length = 25;
+		//X.$( (n,x) => x[n] = x[n].slice(0,3) );  // dataset[n].slice(0,3) ); //
+		//Y.$( (n,y) => y[n] = dataset[n][3] );
 		
-		Log("x",X);
-		Log("y",Y);
+		//Log("x",X, "y",Y);
 
 		Log("raf", X.length, Y.length, N, X[0].length);
 		cls.train(X,Y);
-		cb( cls );
+		if (cb) cb( cls );
 		return cls;
 	},
 	
@@ -768,7 +768,7 @@ $.import({
 			cls = new SOM(solve.xdim || 30, solve.ydim || 30, solve);
 
 		cls.train(XY);
-		cb( cls.export() );
+		if (cb) cb( cls.export() );
 		return cls;
 	},
 	
@@ -789,7 +789,7 @@ $.import({
 			Y = degree ? Y : $(N, (n,y) => y[n] = [ Y[n] ] ),
 			cls = degree ? new SPR(X,Y,solve.degree) : new MLR(X,Y);
 
-		cb( cls );
+		if (cb) cb( cls );
 		return cls;
 	},
 	
@@ -1453,6 +1453,57 @@ y0 = lrmPredict( lrm, x0);`,
 		});
 		break;
 		
+	case "L9":
+		
+		var
+			raf =  [
+  [73, 80, 75, 152],
+  [93, 88, 93, 185],
+  [89, 91, 90, 180],
+  [96, 98, 100, 196],
+  [73, 66, 70, 142],
+  [53, 46, 55, 101],
+  [69, 74, 77, 149],
+  [47, 56, 60, 115],
+  [87, 79, 90, 175],
+  [79, 70, 88, 164],
+  [69, 70, 73, 141],
+  [70, 65, 74, 141],
+  [93, 95, 91, 184],
+  [79, 80, 73, 152],
+  [70, 73, 78, 148],
+  [93, 89, 96, 192],
+  [78, 75, 68, 147],
+  [81, 90, 93, 183],
+  [88, 92, 86, 177],
+  [78, 83, 77, 159],
+  [82, 86, 90, 177],
+  [86, 82, 89, 175],
+  [78, 83, 85, 175],
+  [76, 83, 71, 149],
+  [96, 93, 95, 192]
+		],
+			tests = {
+				raf: {
+					x: $(raf.length, (n,x) => x[n] = raf[n].slice(0,3) ),
+					y: $(raf.length, (n,y) => y[n] = raf[n][3] )
+				}
+			};
+		
+		for (var met in tests) {
+			var
+				test = tests[met],
+				ctx = {
+					x: test.x,
+					y: test.y,
+					x0: test.x.slice(0,4)
+				};
+			
+			$( `cls = ${met}Train(x,y,{}); y0 = ${met}Predict( cls, x0 );`, ctx, (ctx) => {
+				Log(`unittest ${met}`, {x0: ctx.x0, y0: ctx.y0}, ctx.cls);
+			});
+		}
+		break;
 }
 
 
