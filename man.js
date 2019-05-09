@@ -669,8 +669,13 @@ $.import({
 		var
 			X = x._data,
 			Y = y._data,
-			cls = new $.DTR.DecisionTreeRegression(solve);
+			cls = new $.DTR.DecisionTreeRegression({
+			  gainFunction: 'gini',
+			  maxDepth: 10,
+			  minNumSamples: 3
+			});
 
+		X.$( (n,x) => x[n] = x[n][0] );
 		cls.train(X,Y);
 		cb( cls );
 		return cls;
