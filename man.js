@@ -23,7 +23,7 @@
 
 const { Copy,Each,Log,isArray,isNumber,isString,isObject } = require("enum");
 
-const {random, sin, cos, exp, log, PI, floor, abs} = Math;
+const {random, sin, cos, exp, log, PI, floor, abs, min, max} = Math;
 
 function groupEvents (rec,recs) { 
 	return recs.length ? rec.t > recs[0].t : false;
@@ -665,7 +665,7 @@ Copy({
 $.import({
 	// regressors
 	
-	dtrTrain: function (x,y,solve,cb) {
+	dtr_train: function (x,y,solve,cb) {
 		var
 			X = x._data,
 			Y = y._data,
@@ -677,19 +677,19 @@ $.import({
 
 		X.$( (n,x) => x[n] = x[n][0] );
 		cls.train(X,Y);
-		if (cb) cb( cls );
+		if (cb) cb(cls);
 		return cls;
 	},
-	
-	dtrPredict: function (cls, x) {
+
+	dtr_predict: function (cls, x) {
 		var
 			X = x._data,
 			Y = cls.predict(X);
-		
+
 		return $.matrix(Y);
 	},
 
-	rafTrain: function (x,y,solve,cb) {
+	raf_train: function (x,y,solve,cb) {
 		/*
 		var dataset = [
   [73, 80, 75, 152],
@@ -727,7 +727,7 @@ $.import({
 		  X[i] = dataset[i].slice(0, 3);
 		  Y[i] = dataset[i][3];
 		}  */
-		
+
 		var
 			X = x._data,
 			Y = y._data,
@@ -742,24 +742,24 @@ $.import({
 		//X.length = Y.length = 25;
 		//X.$( (n,x) => x[n] = x[n].slice(0,3) );  // dataset[n].slice(0,3) ); //
 		//Y.$( (n,y) => y[n] = dataset[n][3] );
-		
+
 		//Log("x",X, "y",Y);
 
 		Log("raf", X.length, Y.length, N, X[0].length);
 		cls.train(X,Y);
-		if (cb) cb( cls );
+		if (cb) cb(cls);
 		return cls;
 	},
-	
-	rafPredict: function (cls, x) {
+
+	raf_predict: function (cls, x) {
 		var
 			X = x._data,
 			Y = cls.predict(X);
-		
+
 		return $.matrix(Y);
 	},
-	
-	somTrain: function (x,y,solve,cb) {
+
+	som_train: function (x,y,solve,cb) {
 		var
 			X = x._data,
 			Y = y._data,
@@ -771,16 +771,16 @@ $.import({
 		if (cb) cb( cls.export() );
 		return cls;
 	},
-	
-	somPredict: function (cls, x) {
+
+	som_predict: function (cls, x) {
 		var
 			X = x._data,
 			Y = cls.predict(X);
-		
+
 		return $.matrix(Y);
 	},
-	
-	olsTrain: function (x,y,solve,cb) {
+
+	ols_train: function (x,y,solve,cb) {
 		var
 			X = x._data,
 			Y = y._data,
@@ -789,29 +789,29 @@ $.import({
 			Y = degree ? Y : $(N, (n,y) => y[n] = [ Y[n] ] ),
 			cls = degree ? new SPR(X,Y,solve.degree) : new MLR(X,Y);
 
-		if (cb) cb( cls );
+		if (cb) cb(cls);		
 		return cls;
 	},
-	
-	olsPredict: function (cls, x) {
+
+	ols_predict: function (cls, x) {
 		var
 			X = x._data,
 			Y = cls.predict(X);
-		
+
 		return $.matrix(Y);
 	},
-	
-	svmTrain: function (x,y,solve,cb) {
+
+	svm_train: function (x,y,solve,cb) {
 		var
 			X = x._data,
 			Y = y._data,
 			N = x._size[0],
 			XY = $( N, (n, xy) => xy[n] = [ X[n], Y[n] ] );
-		
+
 		//Log("XY", XY);
 		var
 			cls = new SVM.SVM({});
-		
+
 		cls
 		.train(XY)
 		.spread( (model) => {
@@ -820,80 +820,80 @@ $.import({
 		.done ( (rep) => {
 			//Log("testpred", cls.predictSync(X[0]), cls.predictSync(X[1]) );
 		} );
-		
+
 		return cls;
 	},
-	
-	svmPredict: function (cls, x) {
+
+	svm_predict: function (cls, x) {
 		var
 			N = x._size[0],
 			X = x._data,
 			predict = cls.predictSync,
 			Y = $( N, (n,y) => y[n] = predict( X[n] ) );
-		
+
 		Log("X", X, "pred", predict, cls.isTrained);
 		Log("svm", JSON.stringify(cls));
-		
+
 		Log("y",Y);
 		return $.matrix(Y);
 	},
-	
-	lrmTrain: function (x,y,solve,cb) {
+
+	lrm_train: function (x,y,solve,cb) {
 		var
 			X = new ml$(x._data),
-			Y = ml$.columnVector(y._data),
+			Y = ml$.columnVector( categorize(y._data) ),
 			cls = new LRM(solve);
-		
+
 		Log("lrm training", "steps:", cls.numSteps, "rate:", cls.learningRate);
 		cls.train(X,Y);
-		if (cb) cb(cls);
+		if (cb) cb(cls);		
 		return cls;
 	},
-	
-	lrmPredict: function (cls,x) {
+
+	lrm_predict: function (cls,x) {
 		var 
 			X = new ml$(x._data),
 			Y = cls.predict(X);
-		
+
 		return $.matrix(Y);
 	},
-	
-	knnTrain: function (x,y,solve,cb) {
+
+	knn_train: function (x,y,solve,cb) {
 		var
 			X = new ml$(x._data),
 			Y = ml$.columnVector(y._data),
 			cls = new KNN(X,Y,solve);
-		
+
 		Log("knn training", "k", solve.k);
-		if (cb) cb(cls);
+		if (cb) cb(cls);		
 		return cls;
 	},
-	
-	knnPredict: function (cls,x) {
+
+	knn_predict: function (cls,x) {
 		var 
 			X = new ml$(x._data),
 			Y = cls.predict(X);
-		
+
 		return $.matrix(Y);
 	},
-	
-	plsTrain: function (x,y,solve,cb) {
+
+	pls_train: function (x,y,solve,cb) {
 		var
 			X = new ml$(x._data),
 			Y = ml$.columnVector(y._data),
 			cls = new PLS(solve);
-		
+
 		Log("pls training", solve);
 		cls.train(X,Y);
-		if (cb) cb(cls);
+		if (cb) cb(cls);		
 		return cls;
 	},
-	
-	plsPredict: function (cls,x) {
+
+	pls_predict: function (cls,x) {
 		var 
 			X = new ml$(x._data),
 			Y = cls.predict(X);
-		
+
 		return $.matrix(Y);
 	},
 
@@ -1160,6 +1160,23 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		return $.eval(" {psd: re(Gu)/ids, rate:  mean(Ks)/T } ", ctx); 
 	},
 	
+	// misc
+
+	shuffle: function (x,y,N) {
+		var
+			x = x._data,
+			y = y._data,
+			N = min(x._data,y._data,N),
+			devs = $( N, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
+
+		return {
+			x: $.matrix( $( N, (n,x0) => x0[n] = x[ devs[n].idx ] ) ),
+			y: $.matrix( $( N, (n,y0) => y0[n] = y[ devs[n].idx ] ) )
+		};
+	},
+	
+	// deviates
+	
 	udev: function (N,a) {  
 	/* 
 	Returns uniform random deviate on [0...a]
@@ -1181,7 +1198,9 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		
 		return $.matrix( $(N, (n,X) => X[n] = n ? X[n-1] + x[n] : x[0] ) );
 	},
-						 
+	
+	// special
+	
 	zeta: function (a) {},
 	infer: function (a) {},
 	va: function (a) {},
@@ -1221,6 +1240,18 @@ function _logp0(a,k,x) {  // for case 6.x unit testing
 
 	Log(a,k,x, logp0);
 	return logp0;
+}
+
+function categorize(x) {
+	var cats = {}, ncats = 1;
+	x.$( (n,x) => {
+		var x0 = x[n];
+		if ( xcat = cats[x0] ) 
+			x[n] = xcat;
+		else
+			x[n] = cats[x0] = ncats++;
+	});
+	return x;
 }
 
 //=========== Unit testing
@@ -1505,7 +1536,5 @@ y0 = lrmPredict( lrm, x0);`,
 		}
 		break;
 }
-
-
 
 // UNCLASSIFIED
