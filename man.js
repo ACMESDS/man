@@ -1166,7 +1166,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		var
 			x = x._data,
 			y = y._data,
-			N = min(x._data,y._data,N),
+			N = min(x.length,y.length,N),
 			devs = $( N, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
 
 		return {
