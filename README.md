@@ -11,7 +11,7 @@ The manipualtor MAN provides:
 [symbolic algebra](https://www.npmjs.com/package/mathjs), 
 [digital signal](https://www.npmjs.com/package/dsp) and [spectral](https://www.npmjs.com/package/fft-js) processing, 
 hidden markov ([viterbi, baum-welch](https://www.npmjs.com/package/nodehmm) and
-[EM](https://www.npmjs.com/package/expectation-maximization) algorithms,
+[EM](https://www.npmjs.com/package/expectation-maximization) algorithms),
 [eigen spectrums](https://www.npmjs.com/package/node-svd),
 [recurrent](https://www.npmjs.com/package/recurrent-js),
 [bayesian belief](https://www.npmjs.com/package/jsbayes) and
