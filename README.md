@@ -80,10 +80,6 @@ Use MAN as follows:
 
 	"".$( ctx, (evs) => { ... } );		// save ctx.Save_KEY with callback(unsaved events)
 
-Unit test via:
-
-	npm test [ ? | L1 | ... ]
-	
 ## Installation
 
 Clone [MAN manipulator](https://github.com/acmesds/man) into your PROJECT/man folder.  
@@ -93,6 +89,10 @@ Clone [ENUM enumerators](https://github.com/acmesds/enum) into your PROJECT/enum
 
 * app._stats Read  to derive the default save keys
 
+### Unit test
+
+	npm test [ ? || L1 || ... ]
+	
 ## Contributing
 
 To contribute to this module, see our [issues](https://totem.west.ile.nga.ic.gov/issues.view)
