@@ -89,9 +89,11 @@ Clone [ENUM enumerators](https://github.com/acmesds/enum) into your PROJECT/enum
 
 * app._stats Read  to derive the default save keys
 
-### Unit test
+### Manage 
 
-	npm test [ ? || L1 || ... ]
+	npm run [ edit || start ]			# Configure environment
+	npm test [ ? || L1 || ... ]					# unit test
+	npm run [ prmprep || prmload ]		# Revise PRM
 	
 ## Contributing
 
