@@ -4,18 +4,19 @@
   "description": "matrix manipulator",
   "main": "man.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node man.js "
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "expectation-maximization": "^1.5.0",
-    "fft-js": "0.0.11",
+    "fft-js": "0.0.12",
     "gamma": "^1.0.0",
     "javascript-lp-solver": "^0.4.5",
-    "jsbayes": "0.0.5",
+    "jimp": "^0.6.4",
+    "jsbayes": "^0.1.0",
     "math-riemann-zeta": "^1.0.1",
-    "mathjs": "^3.20.2",
+    "mathjs": "^5.10.3",
     "modified-newton-raphson": "^1.0.2",
     "multivariate-normal": "^0.1.1",
     "newton-raphson": "0.0.3",

@@ -581,7 +581,7 @@ var
 		}
 	},
 	CRYPTO = require('crypto'),
-	LWIP = require('glwip'),
+	LWIP = require('jimp'),
 	EM = require("expectation-maximization"),
 	MVN = require("multivariate-normal").default,
 	LM = require("./mljs/node_modules/ml-levenberg-marquardt"),
@@ -661,6 +661,12 @@ Copy({
 }, $);
 
 //=========== Extend mathjs emulator
+
+$.import({ // overrides
+	eye: $.identity,
+}, {	 
+	override: true
+});
 
 $.import({
 	// regressors

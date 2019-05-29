@@ -7,7 +7,7 @@
 
 The manipualtor MAN provides: 
 [matlab-like matrix manipulators](https://www.npmjs.com/package/mathjs), 
-[light weight image processing](https://www.npmjs.com/package/lwip), 
+[light weight image processing](https://www.npmjs.com/package/jimp), 
 [symbolic algebra](https://www.npmjs.com/package/mathjs), 
 [digital signal](https://www.npmjs.com/package/dsp) and [spectral](https://www.npmjs.com/package/fft-js) processing, 
 hidden markov ([viterbi, baum-welch](https://www.npmjs.com/package/nodehmm) and
@@ -80,11 +80,14 @@ Use MAN as follows:
 
 	"".$( ctx, (evs) => { ... } );		// save ctx.Save_KEY with callback(unsaved events)
 
+Unit test via:
+
+	npm test [ ? | L1 | ... ]
+	
 ## Installation
 
 Clone [MAN manipulator](https://github.com/acmesds/man) into your PROJECT/man folder.  
 Clone [ENUM enumerators](https://github.com/acmesds/enum) into your PROJECT/enum folder.  
-Clone [GLWIP image processing](https://github.com/acmesds/glwip) into your PROJECT/glwip folder.  
 
 ### Required MySQL databases
 
