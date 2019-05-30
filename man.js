@@ -616,7 +616,7 @@ var
 		}
 	},
 	CRYPTO = require('crypto'),
-	LWIP = require('jimp'),
+	IMP = require('jimp'),
 	EM = require("expectation-maximization"),
 	MVN = require("multivariate-normal").default,
 	LM = require("./mljs/node_modules/ml-levenberg-marquardt"),
@@ -670,7 +670,7 @@ Copy({
 	},
 	
 	JSON: JSON,
-	LWIP: LWIP,
+	IMP: IMP,
 	CRYPTO: CRYPTO,
 	LRM: LRM,
 	SVM: SVM,
