@@ -36,14 +36,13 @@ function feedEvents (evs, cb) {  // feed evs event buffer to callback cb(evs) th
 }
 
 function saveStash(sql, stash, ID, host) {
-	function saveKey( sql, key, save ) {				
+	function saveKey( sql, key, save ) {		
 		sql.query(
 			`UPDATE app.?? SET ${key}=? WHERE ID=?`, 
 			[host, JSON.stringify(save) || "null", ID], 
-			function (err) {  // will fail if key does not exist or mysql server buffer too small (see my.cnf)
-				Trace(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` );
-				//Log(err);
-		});
+			(err) => // will fail if key does not exist or mysql server buffer too small (see my.cnf)
+				Trace(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` )
+		);
 	}
 
 	for (var key in stash) 
@@ -90,7 +89,6 @@ function saveStash(sql, stash, ID, host) {
 			saveStash( sql, stash, ctx.ID, ctx.Host );
 			cb( rem, sql );
 		});
-		
 	},
 	
 	function $(ctx, cb) {
@@ -103,12 +101,11 @@ function saveStash(sql, stash, ID, host) {
 
 		else
 			return null;
-	}	
-	
+	}		
 ].extend(String);
 	
 [
-	function get( style, cb) {  
+	function load( style, cb) {  
 	// thread events evs with style to callback cb(evs) if fetched or cb(null) if at end
 		
 		var evs = this;
@@ -132,8 +129,8 @@ function saveStash(sql, stash, ID, host) {
 		}
 	},		
 	
-	function put( ctx, cb ) {
-	// stash aggregated events evs into context ctx[ Save_KEYs ] then callback(unsaved evs) 
+	function save( ctx, cb ) {
+	// stash aggregated events evs into context ctx[ Save_KEYs ] then callback(remaining evs) 
 
 		function updateFile( sql, file, stats ) {
 			stats.forEach( function (stat) {
@@ -193,7 +190,7 @@ function saveStash(sql, stash, ID, host) {
 				stash = { remainder: [] },  // stash for aggregated keys 
 				rem = stash.remainder;
 
-			evs.stashify("at", "Save_", ctx, stash, function (ev, stat) {  // add {at:"KEY",...} evs to the Save_KEY stash
+			evs.stashify("at", "Save_", ctx, stash, (ev, stat) => {  // add {at:"KEY",...} evs to the Save_KEY stash
 
 				if (ev)
 					try {
@@ -214,7 +211,8 @@ function saveStash(sql, stash, ID, host) {
 			if (rem.length) {  // there is a remainder to save
 				if (cb) cb(rem, sql);
 
-				saveKey(sql, "Save", rem, ctx.ID, ctx.Host);
+				//saveKey(sql, "Save", rem, ctx.ID, ctx.Host);
+				saveStash(sql, {Save: rem}, ctx.ID, ctx.Host);				
 			}
 
 			delete stash.remainder;	
@@ -248,32 +246,69 @@ function saveStash(sql, stash, ID, host) {
 
 	},
 	
-	function $(ctx, cb) {	// index matrix A, load/save data A
-		if (cb) // load/save data
-			if ( isString(ctx) )
-				return this.get(ctx, cb);
-			
-			else
-				return this.put(ctx, cb);
-					
-		else  {	// index matrix A with callback cb(idx, ..., A)
-			var 
-				cb = ctx,
-				A = this, 
-				N = A.length;		
-			
-			if (A.rows) {
-				var M = A.rows, N = A.columns;
+	function $(ctx, cb) {	// index matrix A
+		var 
+			cb = ctx,
+			A = this, 
+			N = A.length;		
 
-				for (var m=0; m<M; m++) for (var n=0, Am = A[m]; n<N; n++) cb(m,n,A,Am);
-				return A;
-			}
+		if (A.rows) {
+			var M = A.rows, N = A.columns;
 
-			else {
-				for (var n=0,N=A.length; n<N; n++) cb(n,A);
-				return A;
-			}
+			for (var m=0; m<M; m++) for (var n=0, Am = A[m]; n<N; n++) cb(m,n,A,Am);
+			return A;
 		}
+
+		else {
+			for (var n=0,N=A.length; n<N; n++) cb(n,A);
+			return A;
+		}
+	},
+	
+	function stashify(watchKey, targetPrefix, ctx, stash, cb) {
+	/*
+	@member Array
+	@method stashify
+	@param [String] watchKey  this = [ { watchKey:"KEY", x:X, y: Y, ...}, ... }
+	@param [String] targetPrefix  stash = { (targetPrefix + watchKey): { x: [X,...], y: [Y,...], ... }, ... } 
+	@param [Object] ctx plugin context keys
+	@param [Object] stash refactored output suitable for a Save_KEY
+	@param [Function] cb callback(ev,stat) returns refactored result to put into stash
+	Used by plugins for aggregating ctx keys into optional Save_KEY stashes such that:
+
+			[	
+				{ at: KEY, A: a1, B: b1, ... }, 
+				{ at: KEY, A: a2, B: b2, ... }, ... 
+				{ x: x1, y: y1 },
+				{ x: x2, y: y2 },	...
+			].stashify( "at", "Save_", {Save_KEY: {}, ...} , stash, cb )
+
+	creates stash.Save_KEY = {A: [a1, a2,  ...], B: [b1, b2, ...], ...} iff Save_KEY is in the
+	supplied context ctx.   If no stash.rem is provided by the ctx, the {x, y, ...} are 
+	appended (w/o aggregation) to stash.remainder. Conversely, if ctx contains a stash.rem, 
+	the {x, y, ...} are aggregated to stash.rem.
+	*/
+
+		var rem = stash.remainder;
+
+		this.forEach( (stat,n) => {  // split-save all stashable keys
+			var 
+				key = targetPrefix + (stat[watchKey] || "rem"),  // target ctx key 
+				ev = ( key in stash )
+					? stash[key]  // stash was already primed
+					: (key in ctx)  // see if its in the ctx
+							? stash[key] = cb(null,stat, ctx[key]) // prime stash
+							: null;  // not in ctx so stash in remainder
+
+			if ( ev )  { // found a ctx target key to save results
+				delete stat[watchKey];
+				cb(ev, stat);
+			}
+
+			else  
+			if (rem)  // stash remainder 
+				rem.push( stat );
+		});
 	}	
 ].extend(Array);
 
@@ -622,8 +657,7 @@ Copy({
 		var
 			saveKeys = $.saveKeys;
 
-		$.thread( function (sql) {
-	
+		$.thread( (sql) => {
 			sql.getFields("app._stats", null, [], function (keys) {
 				keys.forEach(function (key) {
 					saveKeys[key] = true;
