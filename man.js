@@ -50,7 +50,7 @@ function saveStash(sql, stash, ID, host) {
 }
 		 
 [ 
-	function get(grouping, cb) { // get event records from db using supplied query
+	function load(grouping, cb) { // get event records from db using supplied query
 		var query = this+"";
 		
 		//Log(">>>>fetching", query);
@@ -77,7 +77,7 @@ function saveStash(sql, stash, ID, host) {
 		});
 	},
 	
-	function put(ctx,cb) {
+	function save(ctx,cb) {
 		var stash = {}, rem = {};
 		$.thread( (sql) => {
 			Each(ctx, (key,val) => {
@@ -92,6 +92,7 @@ function saveStash(sql, stash, ID, host) {
 	},
 	
 	function $(ctx, cb) {
+	/*
 		if (cb) // load/save data
 			if ( isString(ctx) )
 				return this.get(ctx, cb);
@@ -101,7 +102,8 @@ function saveStash(sql, stash, ID, host) {
 
 		else
 			return null;
-	}		
+	*/
+	}
 ].extend(String);
 	
 [
@@ -246,12 +248,15 @@ function saveStash(sql, stash, ID, host) {
 
 	},
 	
-	function $(ctx, cb) {	// index matrix A
+	function $(cb) {	// index matrix A
 		var 
-			cb = ctx,
 			A = this, 
 			N = A.length;		
 
+		if ( isString(cb) ) 
+			return $$( cb, { $: A, "this": A } );
+		
+		else
 		if (A.rows) {
 			var M = A.rows, N = A.columns;
 
@@ -312,7 +317,7 @@ function saveStash(sql, stash, ID, host) {
 	}	
 ].extend(Array);
 
-var $ = MAN = module.exports = function $(code,ctx,cb) {
+var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 	switch (code.constructor) {
 		case String:
 			if (cb) {
