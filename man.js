@@ -49,7 +49,7 @@ function saveStash(sql, stash, ID, host) {
 		saveKey( sql, key, stash[key] );
 }
 		 
-[ 
+[  // String processing
 	function load(grouping, cb) { // get event records from db using supplied query
 		var query = this+"";
 		
@@ -103,10 +103,18 @@ function saveStash(sql, stash, ID, host) {
 		else
 			return null;
 	*/
+	},
+	
+	function read(cb) {
+		Log("reading", "."+this);
+		IMP.read( "."+ this ).then( img => { 
+			Log("read", img.bitmap.width, img.bitmap.height);
+			if (cb) cb(img) ; 
+			return img; } ).catch( err => Log(err) );
 	}
 ].extend(String);
-	
-[
+
+[	// Array processing
 	function load( style, cb) {  
 	// thread events evs with style to callback cb(evs) if fetched or cb(null) if at end
 		
@@ -647,6 +655,43 @@ var
 	ml$ = ML.Matrix;
 
 //console.log("jslab las=", ML);
+
+[	// Image processing
+	function reflect(axis) {
+		var 
+			image = this,
+			bitmap = image.bitmap,
+			data = bitmap.data,
+			Rows = bitmap.height,
+			Cols = bitmap.width,
+			rows = floor(Rows/2),
+			X = [],
+			Y = [],
+			red = 0, green = 1, blue = 2;
+
+		//Log( "reflect", axis, Rows, Cols );
+		for (var col = 0; col<Cols; col++) {
+			var 
+				x = [],
+				y = [];
+
+			for ( var row=0, Row=Rows-1; row<rows; row++, Row-- ) {
+				var
+					idx = image.getPixelIndex( col, row ),
+					Idx = image.getPixelIndex( col, Row );
+
+				x.push( [ data[ idx+red ] + data[ idx+green] + data[ idx+blue] ] );
+				y.push( data[ Idx+red ] + data[ Idx+green] + data[ Idx+blue] );
+			}
+
+			X.push( x );
+			Y.push( y );
+		}
+
+		image.reflect = {x: X, y: Y};
+		return(image);
+	}
+].extend(IMP);
 
 Copy({
 	thread: () => Trace("sql threader not configured"), //< define on config
