@@ -324,21 +324,26 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 			if (cb) {
 				var vmctx = {};
 
-				for (key in ctx) {
-					val = ctx[key];
-					vmctx[key] = (val && isArray(val) )
-							? vmctx[key] = $.matrix(val)
-							: val;
+				for (key in ctx) 
+					if ( val = ctx[key] ) 
+						vmctx[key] = isArray(val) ? $.matrix(val) : val;
+				
+					else
+						vmctx[key] = val;
+
+				try {
+					$.eval(code, vmctx);
+				}
+				catch (err) {
+					Log(err);
 				}
 
-				$.eval(code, vmctx);
-
-				for (key in vmctx) {
-					val = vmctx[key];
-					vmctx[key] = (val && val._data)
-						? val._data
-						: val;
-				}
+				for (key in vmctx) 
+					if ( val = vmctx[key] ) 
+						vmctx[key] = val._data ? val._data : val;
+				
+					else
+						vmctx[key] = val;
 
 				cb(vmctx);
 			}
@@ -711,6 +716,8 @@ $.import({ // overrides
 $.import({
 	// regressors
 	
+	is: x => x ? true : false,
+	
 	dtr_train: function (x,y,solve,cb) {
 		var
 			X = x._data,
@@ -897,6 +904,7 @@ $.import({
 	},
 
 	lrm_predict: function (cls,x) {
+		Log("predict", x);
 		var 
 			X = new ml$(x._data),
 			Y = cls.predict(X);
@@ -1258,31 +1266,34 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 	
 	disp: function (a) {
 		if ( isObject(a) )
-			for (var key in a) {
-				var val = a[key];
-				Log(key, val._data ? val._data : val);
-			}
+			if (a._data)
+				Log( a._data );
+		
+			else
+			for (var key in a) Log(key, a[key]);
 		
 		else
-			Log( a._data ? a._data : a );
+			Log( a );
 	}
 });
 
 [ // add Jimp methods
-	function auto(collapse, flip) {	// autocomplete over vertical axis
+	function auto(collapse, flip, lims) {	// autocomplete over vertical axis
 		var 
 			img = this,
 			bitmap = img.bitmap,
 			data = bitmap.data,
+			lims = lims || [0,4],
 			Rows = bitmap.height,
-			Cols = 4, //bitmap.width,
-			rows = Math.floor(Rows/2),
+			Cols = bitmap.width,
+			rows = Math.floor( (lims[0] ? min(lims[0],Rows) : Rows) / 2 ),
+			cols = lims[1] ? min(lims[1], Cols) : Cols,
 			X = [],
 			Y = [],
 			red = 0, green = 1, blue = 2;
 
-		Log( "auto", Rows, Cols , collapse, flip );
-		for (var col = 0; col<Cols; col++) {
+		Log( "auto", [Rows, Cols] , "->", [rows, cols], collapse, flip );
+		for (var col = 0; col<cols; col++) {
 			var 
 				x = [],
 				y = [];
