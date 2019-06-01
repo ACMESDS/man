@@ -1268,6 +1268,47 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 	}
 });
 
+[ // add Jimp methods
+	function auto(collapse, flip) {	// autocomplete over vertical axis
+		var 
+			img = this,
+			bitmap = img.bitmap,
+			data = bitmap.data,
+			Rows = bitmap.height,
+			Cols = 4, //bitmap.width,
+			rows = Math.floor(Rows/2),
+			X = [],
+			Y = [],
+			red = 0, green = 1, blue = 2;
+
+		Log( "auto", Rows, Cols , collapse, flip );
+		for (var col = 0; col<Cols; col++) {
+			var 
+				x = [],
+				y = [];
+
+			for ( var row=0, Row=Rows-1; row<rows; row++, Row-- ) {
+				var
+					idx = img.getPixelIndex( col, flip ? Row : row ),
+					Idx = img.getPixelIndex( col, flip ? row : Row );	// row-reflected
+
+				x.push( collapse 
+					? [ data[ idx+red ] + data[ idx+green] + data[ idx+blue] ] 
+					: [ data[ idx+red ] , data[ idx+green] , data[ idx+blue] ]
+				);
+				
+				y.push( data[ Idx+red ] + data[ Idx+green] + data[ Idx+blue] );
+			}
+
+			X.push( x );
+			Y.push( y );
+		}
+
+		img.results = {x: X, y: Y};
+		return(img);
+	}
+].extend( IMP );
+
 function Trace(msg,sql) {
 	TRACE.trace(msg,sql);
 }
