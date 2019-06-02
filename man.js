@@ -307,7 +307,39 @@ function saveStash(sql, stash, ID, host) {
 
 			if ( ev )  { // found a ctx target key to save results
 				delete stat[watchKey];
-				cb(ev, stat);
+				switch (key) {
+					case "Save_jpg":
+						Log("save jpg !!!", stat.prime, "=>", stat.save);
+						
+						IMP.read( "."+stat.prime )
+						.then( img => { 
+							Log("read", img.bitmap.height, img.bitmap.width);
+							var
+								values = stat.values,
+								idx = stat.index,
+								cols = values.length,
+								rows = idx.length;
+							
+							Log("gen", rows, cols);
+							for ( var col=0, vals=values[0]; col<cols; col++, vals=values[col] ) {
+								//Log("vals", vals);
+								for ( var row=0; row<rows; row++ ) {
+									Log(row, col, vals[row][0], idx[row]);
+									img.setPixelColor( vals[row][0], col, idx[row] );
+								}
+							}
+							
+							img.write( "."+stat.save, err => Log("save jpg", err) );
+							return img; 
+						} )
+						.catch( err => Log(err) );
+						
+						cb(ev, stat);
+						break;
+						
+					default:
+						cb(ev, stat);
+				}
 			}
 
 			else  
@@ -1303,17 +1335,19 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 			for ( var row=0, Row=Rows-1; row<rows; row++, Row-- ) {
 				var
 					idx = img.getPixelIndex( col, row ),
-					Idx = n0[row] = img.getPixelIndex( col, Row );	// row-reflected
+					Idx = img.getPixelIndex( col, Row );	// row-reflected
 
 				x[row] = collapse 
-					? [ data[ idx+red ] + data[ idx+green] + data[ idx+blue] ] 
+					? [ img.getPixelColor( col, row ) ]
 					: [ data[ idx+red ] , data[ idx+green] , data[ idx+blue] ];
 				
-				y[row] = data[ Idx+red ] + data[ Idx+green] + data[ Idx+blue];
+				y[row] = img.getPixelColor( col, Row );
 				
 				x0[row] = collapse 
 					? [ y[row] ]
 					: [ data[ Idx+red ] , data[ Idx+green] , data[ Idx+blue] ]
+				
+				n0[row] = Row;
 			}
 
 			X[col] = x;
