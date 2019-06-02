@@ -214,8 +214,7 @@ function saveStash(sql, stash, ID, host) {
 			if (rem.length) {  // there is a remainder to save
 				if (cb) cb(rem, sql);
 
-				//saveKey(sql, "Save", rem, ctx.ID, ctx.Host);
-				saveStash(sql, {Save: rem}, ctx.ID, ctx.Host);				
+				saveStash(sql, {Save_rem: rem}, ctx.ID, ctx.Host);				
 			}
 
 			delete stash.remainder;	
@@ -261,12 +260,12 @@ function saveStash(sql, stash, ID, host) {
 		if (A.rows) {
 			var M = A.rows, N = A.columns;
 
-			for (var m=0; m<M; m++) for (var n=0, Am = A[m]; n<N; n++) cb(m,n,A,Am);
+			if (cb) for (var m=0; m<M; m++) for (var n=0, Am = A[m]; n<N; n++) cb(m,n,A,Am);			
 			return A;
 		}
 
 		else {
-			for (var n=0,N=A.length; n<N; n++) cb(n,A);
+			if (cb) for (var n=0,N=A.length; n<N; n++) cb(n,A);
 			return A;
 		}
 	},
@@ -1278,7 +1277,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 });
 
 [ // add Jimp methods
-	function auto(collapse, flip, lims) {	// autocomplete over vertical axis
+	function auto(collapse, lims) {	// autocomplete over vertical axis
 		var 
 			img = this,
 			bitmap = img.bitmap,
@@ -1286,36 +1285,43 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 			lims = lims || [0,4],
 			Rows = bitmap.height,
 			Cols = bitmap.width,
-			rows = Math.floor( (lims[0] ? min(lims[0],Rows) : Rows) / 2 ),
-			cols = lims[1] ? min(lims[1], Cols) : Cols,
-			X = [],
-			Y = [],
+			rows = lims[0] ? min( lims[0], Math.floor( Rows/2 )) : Math.floor( Rows/2 ),
+			cols = lims[1] ? min( lims[1], Cols ) : Cols,
+			X = $(cols),
+			Y = $(cols),
+			X0 = $(cols),
+			n0 = $(rows),
 			red = 0, green = 1, blue = 2;
 
-		Log( "auto", [Rows, Cols] , "->", [rows, cols], collapse, flip );
+		Log( "auto", [Rows, Cols] , "->", [rows, cols], collapse, lims );
 		for (var col = 0; col<cols; col++) {
 			var 
-				x = [],
-				y = [];
+				x = $(rows),
+				y = $(rows),
+				x0 = $(rows);
 
 			for ( var row=0, Row=Rows-1; row<rows; row++, Row-- ) {
 				var
-					idx = img.getPixelIndex( col, flip ? Row : row ),
-					Idx = img.getPixelIndex( col, flip ? row : Row );	// row-reflected
+					idx = img.getPixelIndex( col, row ),
+					Idx = n0[row] = img.getPixelIndex( col, Row );	// row-reflected
 
-				x.push( collapse 
+				x[row] = collapse 
 					? [ data[ idx+red ] + data[ idx+green] + data[ idx+blue] ] 
-					: [ data[ idx+red ] , data[ idx+green] , data[ idx+blue] ]
-				);
+					: [ data[ idx+red ] , data[ idx+green] , data[ idx+blue] ];
 				
-				y.push( data[ Idx+red ] + data[ Idx+green] + data[ Idx+blue] );
+				y[row] = data[ Idx+red ] + data[ Idx+green] + data[ Idx+blue];
+				
+				x0[row] = collapse 
+					? [ y[row] ]
+					: [ data[ Idx+red ] , data[ Idx+green] , data[ Idx+blue] ]
 			}
 
-			X.push( x );
-			Y.push( y );
+			X[col] = x;
+			Y[col] = y;
+			X0[col] = x0;
 		}
 
-		img.results = {x: X, y: Y};
+		img.results = {x: X, y: Y, x0: X0, n0: n0};
 		return(img);
 	}
 ].extend( IMP );
