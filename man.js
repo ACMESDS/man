@@ -313,14 +313,14 @@ function saveStash(sql, stash, ID, host) {
 						
 						IMP.read( "."+stat.prime )
 						.then( img => { 
-							Log("read", img.bitmap.height, img.bitmap.width);
+							Log("jpg read", img.bitmap.height, img.bitmap.width);
 							var
 								values = stat.values,
 								idx = stat.index,
 								cols = values.length,
 								rows = idx.length;
 							
-							Log("gen", rows, cols);
+							Log("jpg gen", rows, cols);
 							for ( var col=0, vals=values[0]; col<cols; col++, vals=values[col] ) {
 								//Log("vals", vals);
 								for ( var row=0; row<rows; row++ ) {
@@ -329,10 +329,10 @@ function saveStash(sql, stash, ID, host) {
 								}
 							}
 							
-							img.write( "."+stat.save, err => Log("save jpg", err) );
+							img.write( ".uploads/"+stat.save, err => Log("save jpg", err) );
 							return img; 
 						} )
-						.catch( err => Log(err) );
+						.catch( err => Log( "jpg failed save", err) );
 						
 						cb(ev, stat);
 						break;
