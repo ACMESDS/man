@@ -312,9 +312,9 @@ function saveStash(sql, stash, ID, host) {
 						var
 							img = stat.input,
 							values = stat.values,
-							idx = stat.index,
+							index = stat.index,
 							cols = values.length,
-							rows = idx.length,
+							rows = index.length,
 							keep = stat.keep,
 							toColor = IMP.rgbaToInt;
 							
@@ -328,8 +328,8 @@ function saveStash(sql, stash, ID, host) {
 							//Log("vals", vals);
 							for ( var row=0; row<rows; row++ ) {
 								var L = max(0,min(255,floor(vals[row][0])));
-								//Log(row, col, L, idx[row]);
-								img.setPixelColor( toColor(L,L,L,255), col, idx[row] );
+								//Log(row, col, L, index[row]);
+								img.setPixelColor( toColor(L,L,L,255), col, index[row] );
 							}
 						}
 
@@ -338,8 +338,8 @@ function saveStash(sql, stash, ID, host) {
 						delete stat.input;
 						
 						if (keep) {
-							stat.values = Array.from(stat.values.slice(0,keep)).$( (n,v) => v[n] = v[n].slice(keep) );
-							stat.index = stat.index.slice(0,keep);
+							stat.values = Array.from(values.slice(0,keep)).$( (n,v) => v[n] = v[n].slice(0,keep) );
+							stat.index = index.slice(0,keep);
 						}
 						else {
 							delete stat.values;
@@ -1348,7 +1348,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 			img = this,
 			bitmap = img.bitmap,
 			data = bitmap.data,
-			lims = lims || {rows:0, cols:4},
+			lims = lims || {rows:0, cols:0},
 			maps = maps || {x: "RGB", y: "L"},
 			Rows = bitmap.height,
 			Cols = bitmap.width,
