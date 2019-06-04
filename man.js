@@ -309,30 +309,42 @@ function saveStash(sql, stash, ID, host) {
 				delete stat[watchKey];
 				switch (key) {
 					case "Save_jpg":
-						Log("save jpg !!!", stat.prime, "=>", stat.save);
+						var
+							img = stat.input,
+							values = stat.values,
+							idx = stat.index,
+							cols = values.length,
+							rows = idx.length,
+							keep = stat.keep,
+							toColor = IMP.rgbaToInt;
+							
+						Log("save jpg", {
+							dims: [img.bitmap.height, img.bitmap.width], 
+							save: stat.save,
+							gen: [rows, cols]
+						});
 						
-						IMP.read( "."+stat.prime )
-						.then( img => { 
-							Log("jpg read", img.bitmap.height, img.bitmap.width);
-							var
-								values = stat.values,
-								idx = stat.index,
-								cols = values.length,
-								rows = idx.length;
-							
-							Log("jpg gen", rows, cols);
-							for ( var col=0, vals=values[0]; col<cols; col++, vals=values[col] ) {
-								//Log("vals", vals);
-								for ( var row=0; row<rows; row++ ) {
-									Log(row, col, vals[row][0], idx[row]);
-									img.setPixelColor( vals[row][0], col, idx[row] );
-								}
+						for ( var col=0, vals=values[0]; col<cols; col++, vals=values[col] ) {
+							//Log("vals", vals);
+							for ( var row=0; row<rows; row++ ) {
+								var L = max(0,min(255,floor(vals[row][0])));
+								//Log(row, col, L, idx[row]);
+								img.setPixelColor( toColor(L,L,L,255), col, idx[row] );
 							}
-							
-							img.write( ".uploads/"+stat.save, err => Log("save jpg", err) );
-							return img; 
-						} )
-						.catch( err => Log( "jpg failed save", err) );
+						}
+
+						img.write( "."+stat.save, err => Log("save jpg", err) );
+						
+						delete stat.input;
+						
+						if (keep) {
+							stat.values = Array.from(stat.values.slice(0,keep)).$( (n,v) => v[n] = v[n].slice(keep) );
+							stat.index = stat.index.slice(0,keep);
+						}
+						else {
+							delete stat.values;
+							delete stat.index;
+						}
 						
 						cb(ev, stat);
 						break;
@@ -1309,23 +1321,47 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 });
 
 [ // add Jimp methods
-	function auto(collapse, lims) {	// autocomplete over vertical axis
+	function save( file ) {
+		var img = this;
+		
+		if ( file ) img.write( "." + (file || img.readPath), err => Log("save jpg", err) );		
+		return img;
+	},
+	
+	function auto( maps, lims) {	// autocomplete over vertical axis
+		
+		function remap(idx, pix) {
+			pix.X = pix.R - pix.G;
+			pix.Y = pix.R - pix.B;
+			pix.Z = pix.G - pix.B;
+			
+			pix.L = ( pix.R + pix.G + pix.B ) / 3;
+			pix.S = 1 - min( pix.R, pix.G, pix.B ) / pix.L;
+			pix.H = acos( (pix.X + pix.Y) / sqrt(pix.X**2 + pix.Y*pix.Z) / 2 )
+			
+			return $( idx.length, (n,x) => x[n] = pix[ idx[n] ] );
+		}
+		
+		const {floor, acos, sqrt} = Math;
+		
 		var 
 			img = this,
 			bitmap = img.bitmap,
 			data = bitmap.data,
-			lims = lims || [0,4],
+			lims = lims || {rows:0, cols:4},
+			maps = maps || {x: "RGB", y: "L"},
 			Rows = bitmap.height,
 			Cols = bitmap.width,
-			rows = lims[0] ? min( lims[0], Math.floor( Rows/2 )) : Math.floor( Rows/2 ),
-			cols = lims[1] ? min( lims[1], Cols ) : Cols,
+			rows = lims.rows ? min( lims.rows, floor( Rows/2 )) : floor( Rows/2 ),
+			cols = lims.cols ? min( lims.cols, Cols ) : Cols,
 			X = $(cols),
 			Y = $(cols),
 			X0 = $(cols),
 			n0 = $(rows),
 			red = 0, green = 1, blue = 2;
 
-		Log( "auto", [Rows, Cols] , "->", [rows, cols], collapse, lims );
+		Log( "auto", [Rows, Cols] , "->", [rows, cols], maps, lims );
+		
 		for (var col = 0; col<cols; col++) {
 			var 
 				x = $(rows),
@@ -1335,18 +1371,13 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 			for ( var row=0, Row=Rows-1; row<rows; row++, Row-- ) {
 				var
 					idx = img.getPixelIndex( col, row ),
-					Idx = img.getPixelIndex( col, Row );	// row-reflected
-
-				x[row] = collapse 
-					? [ img.getPixelColor( col, row ) ]
-					: [ data[ idx+red ] , data[ idx+green] , data[ idx+blue] ];
+					pix = {R: data[ idx+red ] , G: data[ idx+green] , B: data[ idx+blue] },
+					map = x[row] = remap( maps.x || "RGB", pix),
+					Idx = img.getPixelIndex( col, Row ),	// row-reflected
+					Pix = {R: data[ Idx+red ] , G: data[ Idx+green] , B:data[ Idx+blue] },
+					Map = y[row] = remap( maps.y || "L", Pix);
 				
-				y[row] = img.getPixelColor( col, Row );
-				
-				x0[row] = collapse 
-					? [ y[row] ]
-					: [ data[ Idx+red ] , data[ Idx+green] , data[ Idx+blue] ]
-				
+				x0[row] = remap( maps.x || "RGB", Pix);
 				n0[row] = Row;
 			}
 
@@ -1355,7 +1386,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 			X0[col] = x0;
 		}
 
-		img.results = {x: X, y: Y, x0: X0, n0: n0};
+		img.autoResults = {x: X, y: Y, x0: X0, n0: n0, input: img};
 		return(img);
 	}
 ].extend( IMP );
