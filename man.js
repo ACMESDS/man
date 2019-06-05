@@ -1324,11 +1324,11 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 	function save( file ) {
 		var img = this;
 		
-		if ( file ) img.write( "." + (file || img.readPath), err => Log("save jpg", err) );		
+		if ( file ) img.write( "." + (file || img.readPath) );	
 		return img;
 	},
 	
-	function auto( maps, lims) {	// autocomplete over vertical axis
+	function auto( maps, lims ) {	// autocomplete over vertical axis
 		
 		function remap(idx, pix) {
 			pix.X = pix.R - pix.G;
@@ -1352,38 +1352,44 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 			maps = maps || {x: "RGB", y: "L"},
 			Rows = bitmap.height,
 			Cols = bitmap.width,
-			rows = lims.rows ? min( lims.rows, floor( Rows/2 )) : floor( Rows/2 ),
+			Row0 = floor(Rows/2), 
+			rows = lims.rows ? min( lims.rows, Rows ) : Rows,
 			cols = lims.cols ? min( lims.cols, Cols ) : Cols,
 			X = $(cols),
 			Y = $(cols),
 			X0 = $(cols),
-			n0 = $(rows),
+			Row = Rows-1,
+			n0 = $(Row0, (row, n0) => n0[row] = Row-- ),
 			red = 0, green = 1, blue = 2;
 
 		Log( "auto", [Rows, Cols] , "->", [rows, cols], maps, lims );
 		
 		for (var col = 0; col<cols; col++) {
 			var 
-				x = $(rows),
-				y = $(rows),
-				x0 = $(rows);
+				x = X[col] = $(rows),
+				y = Y[col] = $(rows),
+				x0 = X0[col] = $(Row0),
+				samples = $(rows, (row,m0) => m0[row] = {row: row, val: random()} ).sort( (a,b) => a.val-b.val );
 
-			for ( var row=0, Row=Rows-1; row<rows; row++, Row-- ) {
+			for ( var n=0; n<rows; n++ ) {  // define random training sets
 				var
+					row = samples[n].row, 		// sample row
+					Row = Rows - row - 1,	// reflected row
 					idx = img.getPixelIndex( col, row ),
 					pix = {R: data[ idx+red ] , G: data[ idx+green] , B: data[ idx+blue] },
 					map = x[row] = remap( maps.x || "RGB", pix),
 					Idx = img.getPixelIndex( col, Row ),	// row-reflected
 					Pix = {R: data[ Idx+red ] , G: data[ Idx+green] , B:data[ Idx+blue] },
 					Map = y[row] = remap( maps.y || "L", Pix);
-				
-				x0[row] = remap( maps.x || "RGB", Pix);
-				n0[row] = Row;
 			}
 
-			X[col] = x;
-			Y[col] = y;
-			X0[col] = x0;
+			for ( var n=0; n<Row0; n++ ) {	// define test sets
+				var
+					row = n,
+					idx = img.getPixelIndex( col, row ),
+					pix = {R: data[ idx+red ] , G: data[ idx+green] , B: data[ idx+blue] },
+					map = x0[row] = remap( maps.x || "RGB", pix);	// test data x0
+			}
 		}
 
 		img.autoResults = {x: X, y: Y, x0: X0, n0: n0, input: img};
