@@ -1328,28 +1328,39 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		return img;
 	},
 	
-	function auto( maps, lims ) {	// autocomplete over vertical axis
+	function auto( maps, lims, levs ) {	// autocomplete over vertical axis
 		
-		function remap(idx, pix) {
+		function remap(idx, levels, pix) {
 			pix.X = pix.R - pix.G;
 			pix.Y = pix.R - pix.B;
 			pix.Z = pix.G - pix.B;
 			
 			pix.L = ( pix.R + pix.G + pix.B ) / 3;
 			pix.S = 1 - min( pix.R, pix.G, pix.B ) / pix.L;
-			pix.H = acos( (pix.X + pix.Y) / sqrt(pix.X**2 + pix.Y*pix.Z) / 2 )
+			pix.H = acos( (pix.X + pix.Y) / sqrt(pix.X**2 + pix.Y*pix.Z) / 2 ) * 360/Math.PI;
 			
-			return $( idx.length, (n,x) => x[n] = pix[ idx[n] ] );
+			return $( idx.length, (n,x) => x[n] = levler[ levels ? idx[n] : "U" ]( pix[ idx[n] ] , levels ) );
 		}
 		
 		const {floor, acos, sqrt} = Math;
 		
 		var 
 			img = this,
+			levler = {
+				R: (u,N) => floor( u * N / 256 ),
+				G: (u,N) => floor( u * N / 256 ),
+				B: (u,N) => floor( u * N / 256 ),
+				L: (u,N) => floor( u * N / 256 ),
+				S: (u,N) => floor( u * N ),
+				H: (u,N) => floor( u * N / 360 ),
+				U: (u,N) => u
+			},
 			bitmap = img.bitmap,
 			data = bitmap.data,
 			lims = lims || {rows:0, cols:0},
+			levs = levs || {x: 0, y: 0},
 			maps = maps || {x: "RGB", y: "L"},
+			levs = levs || {x: 0, y: 0},
 			Rows = bitmap.height,
 			Cols = bitmap.width,
 			Row0 = floor(Rows/2), 
@@ -1377,10 +1388,10 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 					Row = Rows - row - 1,	// reflected row
 					idx = img.getPixelIndex( col, row ),
 					pix = {R: data[ idx+red ] , G: data[ idx+green] , B: data[ idx+blue] },
-					map = x[row] = remap( maps.x || "RGB", pix),
+					map = x[row] = remap( maps.x || "RGB", levs.x, pix),
 					Idx = img.getPixelIndex( col, Row ),	// row-reflected
 					Pix = {R: data[ Idx+red ] , G: data[ Idx+green] , B:data[ Idx+blue] },
-					Map = y[row] = remap( maps.y || "L", Pix);
+					Map = y[row] = remap( maps.y || "L", levs.y, Pix);
 			}
 
 			for ( var n=0; n<Row0; n++ ) {	// define test sets
@@ -1388,7 +1399,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 					row = n,
 					idx = img.getPixelIndex( col, row ),
 					pix = {R: data[ idx+red ] , G: data[ idx+green] , B: data[ idx+blue] },
-					map = x0[row] = remap( maps.x || "RGB", pix);	// test data x0
+					map = x0[row] = remap( maps.x || "RGB", levs.x, pix);	// test data x0
 			}
 		}
 
