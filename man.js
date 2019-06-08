@@ -105,7 +105,7 @@ function saveStash(sql, stash, ID, host) {
 	*/
 	}
 	
-].extend(String);
+].Extend(String);
 
 [	// Array processing
 	function load( style, cb) {  
@@ -359,7 +359,7 @@ function saveStash(sql, stash, ID, host) {
 				rem.push( stat );
 		});
 	}	
-].extend(Array);
+].Extend(Array);
 
 var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 	switch (code.constructor) {
@@ -1406,7 +1406,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		img.simTests = {x: X, y: Y, x0: X0, n0: n0, input: img};
 		return(img);
 	}
-].extend( IMP );
+].Extend( IMP );
 
 function Trace(msg,sql) {
 	TRACE.trace(msg,sql);
