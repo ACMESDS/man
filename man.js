@@ -1328,7 +1328,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		return img;
 	},
 	
-	function auto( maps, lims, levs ) {	// autocomplete over vertical axis
+	function sym( maps, lims, levs ) {	// autocomplete over vertical axis
 		
 		function remap(idx, levels, pix) {
 			pix.X = pix.R - pix.G;
@@ -1373,7 +1373,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 			n0 = $(Row0, (row, n0) => n0[row] = Row-- ),
 			red = 0, green = 1, blue = 2;
 
-		Log( "auto", [Rows, Cols] , "->", [rows, cols], maps, lims );
+		Log( "sym", [Rows, Cols] , "->", [rows, cols], maps, lims );
 		
 		for (var col = 0; col<cols; col++) {
 			var 
@@ -1389,7 +1389,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 					idx = img.getPixelIndex( col, row ),
 					pix = {R: data[ idx+red ] , G: data[ idx+green] , B: data[ idx+blue] },
 					map = x[row] = remap( maps.x || "RGB", levs.x, pix),
-					Idx = img.getPixelIndex( col, Row ),	// row-reflected
+					Idx = img.getPixelIndex( col, false ? Row : row ),	// row-reflected
 					Pix = {R: data[ Idx+red ] , G: data[ Idx+green] , B:data[ Idx+blue] },
 					Map = y[row] = remap( maps.y || "L", levs.y, Pix);
 			}
@@ -1403,7 +1403,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 			}
 		}
 
-		img.autoResults = {x: X, y: Y, x0: X0, n0: n0, input: img};
+		img.simTests = {x: X, y: Y, x0: X0, n0: n0, input: img};
 		return(img);
 	}
 ].extend( IMP );
