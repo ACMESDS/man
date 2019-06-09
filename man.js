@@ -50,6 +50,24 @@ function saveStash(sql, stash, ID, host) {
 }
 		 
 [  // String processing
+	function parseEval($) {
+	/**
+	@member String
+	@method parseEval
+
+	Parse "$.KEY" || "$[INDEX]" expressions given $ hash.
+
+	@param {Object} $ source hash
+	*/
+		try {
+			return eval(this+"");
+		}
+
+		catch (err) {
+			return err+"";
+		}
+	},
+	
 	function load(grouping, cb) { // get event records from db using supplied query
 		var query = this+"";
 		
@@ -108,6 +126,59 @@ function saveStash(sql, stash, ID, host) {
 ].Extend(String);
 
 [	// Array processing
+	function match(where, get) {
+		var rtns = [];
+		
+		this.forEach( rec => {
+			var matched = true;
+
+			for (var x in where) 
+				if ( rec[x] != where[x] ) matched = false; 
+
+			if (matched) 
+				if (rec) {
+					var rtn = {};
+					for (var from in get) 
+						rtn[ get[from] ] = rec[from];
+					
+					rtns.push(rtn);
+				}
+			
+				else
+					rtns.push(rec);
+		});
+
+		return rtns;
+	},
+	
+	function replace(subs) {
+		return this.$( this.length, (n,rec) => {
+			Each(subs, function (pre, sub) {  // make #key and ##key substitutions
+				for (var idx in sub) {
+					var keys = sub[idx];
+					if ( rec[idx] )
+						for (var key in keys)
+							rec[idx] = (rec[idx] + "").replace(pre + key, keys[key]);
+				}
+			});
+		});
+	},
+	
+	function get(js) {
+		var recs = this;
+		return $(this.length, (n,rtns) => rtns[n] = js.parseEval( recs[n] ) );
+	},
+	
+	function dice(start,len) {
+		const {round} = Math;
+		
+		var A = this;
+		
+		return len 
+			? $(A.length, (n,rtn) => rtn[n] = A[n].slice(start,start+len) )
+			: $(A.length, (n,rtn) => rtn[n] = round(A[n][start]) );
+	},
+		
 	function load( style, cb) {  
 	// thread events evs with style to callback cb(evs) if fetched or cb(null) if at end
 		
@@ -935,6 +1006,9 @@ $.import({
 	},
 
 	lrm_train: function (x,y,solve,cb) {
+		solve.numSteps = solve.numSteps || 1e3;
+		solve.learningRate = solve.learningRate || 5e-3;
+		
 		var
 			X = new ml$(x._data),
 			Y = ml$.columnVector( categorize(y._data) ),
@@ -1328,7 +1402,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		return img;
 	},
 	
-	function sym( maps, lims, levs ) {	// autocomplete over vertical axis
+	function sym( maps, lims, levs ) {	// symmetry over vertical axis
 		
 		function remap(idx, levels, pix) {
 			pix.X = pix.R - pix.G;
@@ -1389,7 +1463,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 					idx = img.getPixelIndex( col, row ),
 					pix = {R: data[ idx+red ] , G: data[ idx+green] , B: data[ idx+blue] },
 					map = x[row] = remap( maps.x || "RGB", levs.x, pix),
-					Idx = img.getPixelIndex( col, false ? Row : row ),	// row-reflected
+					Idx = img.getPixelIndex( col, true ? Row : row ),	// row-reflected
 					Pix = {R: data[ Idx+red ] , G: data[ Idx+green] , B:data[ Idx+blue] },
 					Map = y[row] = remap( maps.y || "L", levs.y, Pix);
 			}
