@@ -25,6 +25,7 @@ const { Copy,Each,Log,isArray,isNumber,isString,isObject } = require("enum");
 
 const {random, sin, cos, exp, log, PI, floor, abs, min, max} = Math;
 
+/*
 function groupEvents (rec,recs) { 
 	return recs.length ? rec.t > recs[0].t : false;
 }
@@ -34,6 +35,7 @@ function feedEvents (evs, cb) {  // feed evs event buffer to callback cb(evs) th
 	if (evs.length) cb( evs );
 	evs.length = 0;
 }
+*/
 
 function saveStash(sql, stash, ID, host) {
 	function saveKey( sql, key, save ) {		
@@ -68,29 +70,29 @@ function saveStash(sql, stash, ID, host) {
 		}
 	},
 	
-	function load(grouping, cb) { // get event records from db using supplied query
+	function feed(key, cb) { // get event records from db using supplied query
 		var query = this+"";
 		
 		//Log(">>>>fetching", query);
-		$.thread( (sql) => {  
+		$.thread( sql => {  
 			var recs = [];
 
-			if ( grouping )  // feed grouped events
-				sql.forEach( TRACE, query , [], function (rec) {  // feed db events to grouper
-					if ( groupEvents(rec, recs) ) feedEvents(recs, cb);
+			if (key)
+				sql.forEach( TRACE, query , [], rec => {  // feed db events to grouper
+					if ( recs.group(key, rec) ) recs.flush(cb);
 					recs.push(rec);
 				})
 				.on("end", () => {
-					feedEvents(recs, cb);
+					recs.flush(cb);
 					cb( null );   // signal end-of-events
 				});
 
 			else
-				sql.forAll( TRACE, query, [], function (recs) {  // feed all db events w/o a grouper
-					feedEvents(recs, cb);
+				sql.forAll( TRACE, query, [], recs => {  // feed all db events w/o a grouper
+					recs.flush(cb);
 					cb( null );  // signal end-of-events
 				});
-
+			
 			sql.release();	
 		});
 	},
@@ -126,7 +128,28 @@ function saveStash(sql, stash, ID, host) {
 ].Extend(String);
 
 [	// Array processing
-	function name(keys) {
+	
+	// samplers
+	
+	function group(key, rec) { 
+		return this.length ? rec[key] > this[0][key] : false;
+	},
+
+	function flush(cb) {  // feed events to callback cb(evs) then flush events
+		if (this.length) cb( this );
+		this.length = 0;
+	},
+	
+	function sampler(N) {
+		var
+			x = this,
+			N = N ? min(x.length, N) : x.length,
+			devs = $( x.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
+
+		return $( N, (n,y) => y[n] = x[ devs[n].idx ] );
+	},
+	
+	function pick(keys) {
 		return this.$( (n,recs) => {
 			var rec = recs[n], rtn = {};
 			for ( var key in keys ) rtn[key] = rec[ keys[key] ];
@@ -187,28 +210,24 @@ function saveStash(sql, stash, ID, host) {
 			: $(A.length, (n,rtn) => rtn[n] = round(A[n][start]) );
 	},
 		
-	function load( style, cb) {  
-	// thread events evs with style to callback cb(evs) if fetched or cb(null) if at end
+	function feed( key, cb) {  
+	// thread key-grouped events to callback cb(evs) or cb(null) at end
 		
-		var evs = this;
+		var 
+			recs = [];
 		
-		switch (style) {
-			case "group":
-				var recs = [];			
-				evs.forEach( function (rec) { // feed recs
-					if ( groupEvents(rec, recs) ) feedEvents(recs, cb);
-					recs.push(rec);
-				});
-				feedEvents( recs, cb );
-				cb( null );   // signal end-of-events
-				break;
-				
-			case "":
-			case "all":
-			default:
-				feedEvents(evs, cb);
-				cb( null );   // signal end-of-events
+		if ( key ) {
+			this.forEach( rec => { 
+				if ( recs.group(key, rec) ) recs.flush(cb);
+				recs.push(rec);
+			});
+			recs.flush( cb );
 		}
+		
+		else 
+			cb(this);
+			
+		cb( null );   // signal end-of-events		
 	},		
 	
 	function save( ctx, cb ) {
@@ -837,9 +856,24 @@ $.import({ // overrides
 });
 
 $.import({
-	// regressors
+	// misc and samplers
 	
 	is: x => x ? true : false,
+	
+	shuffle: function (x,y,N) {
+		var
+			x = x._data,
+			y = y._data,
+			N = min(x.length,y.length,N),
+			devs = $( N, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
+
+		return {
+			x: $.matrix( $( N, (n,x0) => x0[n] = x[ devs[n].idx ] ) ),
+			y: $.matrix( $( N, (n,y0) => y0[n] = y[ devs[n].idx ] ) )
+		};
+	},
+		
+	// regressors
 	
 	dtr_train: function (x,y,solve,cb) {
 		var
@@ -1337,21 +1371,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		return $.eval(" {psd: re(Gu)/ids, rate:  mean(Ks)/T } ", ctx); 
 	},
 	
-	// misc
 
-	shuffle: function (x,y,N) {
-		var
-			x = x._data,
-			y = y._data,
-			N = min(x.length,y.length,N),
-			devs = $( N, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
-
-		return {
-			x: $.matrix( $( N, (n,x0) => x0[n] = x[ devs[n].idx ] ) ),
-			y: $.matrix( $( N, (n,y0) => y0[n] = y[ devs[n].idx ] ) )
-		};
-	},
-	
 	// deviates
 	
 	udev: function (N,a) {  
@@ -1460,7 +1480,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 				x = X[col] = $(rows),
 				y = Y[col] = $(rows),
 				x0 = X0[col] = $(Row0),
-				samples = $(rows, (row,m0) => m0[row] = {row: row, val: random()} ).sort( (a,b) => a.val-b.val );
+				samples = $(Rows, (row,m0) => m0[row] = {row: row, val: random()} ).sort( (a,b) => a.val-b.val );
 
 			for ( var n=0; n<rows; n++ ) {  // define random training sets
 				var
