@@ -141,12 +141,18 @@ function saveStash(sql, stash, ID, host) {
 	},
 	
 	function sampler(N) {
-		var
-			x = this,
-			N = N ? min(x.length, N) : x.length,
-			devs = $( x.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
+		
+		if (N) {
+			var
+				x = this,
+				N = N ? min(this.length, N) : x.length,
+				devs = $( this.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
 
-		return $( N, (n,y) => y[n] = x[ devs[n].idx ] );
+			return $( N, (n,y) => y[n] = x[ devs[n].idx ] );
+		}
+		
+		else
+			return this;
 	},
 	
 	function pick(keys) {
@@ -520,8 +526,10 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 			if (task = ctx)
 				$.tasker( code, task, cb );
 			
-			else
+			else {
+				Copy(code,$);
 				$.import(code);
+			}
 			
 			break;
 	}
@@ -855,7 +863,7 @@ $.import({ // overrides
 	override: true
 });
 
-$.import({
+$({
 	// misc and samplers
 	
 	is: x => x ? true : false,
@@ -865,7 +873,7 @@ $.import({
 			x = x._data,
 			y = y._data,
 			N = min(x.length,y.length,N),
-			devs = $( N, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
+			devs = $( x.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
 
 		return {
 			x: $.matrix( $( N, (n,x0) => x0[n] = x[ devs[n].idx ] ) ),
@@ -993,7 +1001,9 @@ $.import({
 			Y = y._data,
 			N = x._size[0],
 			degree = solve.degree,
-			Y = degree ? Y : $(N, (n,y) => y[n] = [ Y[n] ] ),
+			Y = degree ? Y : $(N, (n,y) => y[n] = [ Y[n] ] );
+		
+		var
 			cls = degree ? new SPR(X,Y,solve.degree) : new MLR(X,Y);
 
 		if (cb) cb(cls);		
@@ -1015,7 +1025,7 @@ $.import({
 			N = x._size[0],
 			XY = $( N, (n, xy) => xy[n] = [ X[n], Y[n] ] );
 
-		//Log("XY", XY);
+		Log("XY", XY);
 		var
 			cls = new SVM.SVM({});
 
@@ -1125,9 +1135,9 @@ $.import({
 	
 	rng: function (min,max,N) { 	// range
 		var
-			del = (max-min) / (N-1);
+			del = N ? (max-min) / (N-1) : 1;
 		
-		return $.matrix( $( N, (n,R) => { R[n] = min; min+=del; } ) );
+		return $.matrix( $( N || max-min, (n,R) => { R[n] = min; min+=del; } ) );
 	},
 
 	xcorr: function ( xccf ) { 
@@ -1470,40 +1480,39 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 			Y = $(cols),
 			X0 = $(cols),
 			Row = Rows-1,
-			n0 = $(Row0, (row, n0) => n0[row] = Row-- ),
+			n0 = $(Row0, (n, n0) => n0[n] = Row-- ),
+			rowS = $.rng(0,Rows)._data.sampler(rows),
 			red = 0, green = 1, blue = 2;
 
-		Log( "sym", [Rows, Cols] , "->", [rows, cols], maps, lims );
+		Log( "sym", [Rows, Cols] , "->", [rows, cols], maps, lims, rowS.length );
 		
 		for (var col = 0; col<cols; col++) {
 			var 
 				x = X[col] = $(rows),
 				y = Y[col] = $(rows),
-				x0 = X0[col] = $(Row0),
-				samples = $(Rows, (row,m0) => m0[row] = {row: row, val: random()} ).sort( (a,b) => a.val-b.val );
+				x0 = X0[col] = $(Row0);
 
-			for ( var n=0; n<rows; n++ ) {  // define random training sets
+			rowS.forEach( (row,n) => { // define (x,y) random training sets
 				var
-					row = samples[n].row, 		// sample row
 					Row = Rows - row - 1,	// reflected row
 					idx = img.getPixelIndex( col, row ),
 					pix = {R: data[ idx+red ] , G: data[ idx+green] , B: data[ idx+blue] },
-					map = x[row] = remap( maps.x || "RGB", levs.x, pix),
+					map = x[n] = remap( maps.x || "RGB", levs.x, pix),
 					Idx = img.getPixelIndex( col, true ? Row : row ),	// row-reflected
 					Pix = {R: data[ Idx+red ] , G: data[ Idx+green] , B:data[ Idx+blue] },
-					Map = y[row] = remap( maps.y || "L", levs.y, Pix);
-			}
+					Map = y[n] = remap( maps.y || "L", levs.y, Pix);
+			});
 
-			for ( var n=0; n<Row0; n++ ) {	// define test sets
+			n0.forEach( (row,n) => {		// define x0,n0 test set and index set
 				var
-					row = n,
 					idx = img.getPixelIndex( col, row ),
 					pix = {R: data[ idx+red ] , G: data[ idx+green] , B: data[ idx+blue] },
-					map = x0[row] = remap( maps.x || "RGB", levs.x, pix);	// test data x0
-			}
+					map = x0[n] = remap( maps.x || "RGB", levs.x, pix);	// test data x0
+			});
+			
 		}
 
-		img.simTests = {x: X, y: Y, x0: X0, n0: n0, input: img};
+		img.symmetries = {x: X, y: Y, x0: X0, n0: n0, input: img};
 		return(img);
 	}
 ].Extend( IMP );
