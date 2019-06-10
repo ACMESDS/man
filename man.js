@@ -126,6 +126,14 @@ function saveStash(sql, stash, ID, host) {
 ].Extend(String);
 
 [	// Array processing
+	function name(keys) {
+		return this.$( (n,recs) => {
+			var rec = recs[n], rtn = {};
+			for ( var key in keys ) rtn[key] = rec[ keys[key] ];
+			recs[n] = rtn;
+		});		
+	},
+	
 	function match(where, get) {
 		var rtns = [];
 		
@@ -750,6 +758,7 @@ var
 	RAF = require("./mljs/node_modules/ml-random-forest"),
 	DTR = require("./mljs/node_modules/ml-cart"),
 	KNN = require("./mljs/node_modules/ml-knn"),
+	NAB = require("./mljs/node_modules/ml-naivebayes"),
 	MLR = require("./mljs/node_modules/ml-regression-multivariate-linear"),
 	SPR = require("./mljs/node_modules/ml-regression-polynomial"),
 	PLS = require("./mljs/node_modules/ml-pls"),
@@ -929,12 +938,9 @@ $.import({
 	som_train: function (x,y,solve,cb) {
 		var
 			X = x._data,
-			Y = y._data,
-			N = x._size[0],
-			XY = $( N, (n, xy) => xy[n] = [ X[n], Y[n] ] ),			
-			cls = new SOM(solve.xdim || 30, solve.ydim || 30, solve);
+			cls = new SOM(solve.dims.x || 20, solve.dims.y || 20, solve);
 
-		cls.train(XY);
+		cls.train(X);
 		if (cb) cb( cls.export() );
 		return cls;
 	},
