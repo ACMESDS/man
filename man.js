@@ -790,7 +790,7 @@ var
 	SPR = require("./mljs/node_modules/ml-regression-polynomial"),
 	PLS = require("./mljs/node_modules/ml-pls"),
 	SOM = require("./mljs/node_modules/ml-som"),
-	SVM = require("node-svm"),
+	SVM = require("./mljs/node_modules/ml-svm"), // require("node-svm"),
 	GAMMA = require("gamma"),
 	DSP = require("fft-js"),
 	//RAN: require("randpr"),  // added by debe to avoid recursive requires
@@ -1019,6 +1019,7 @@ $({
 	},
 
 	svm_train: function (x,y,solve,cb) {
+		/*
 		var
 			X = x._data,
 			Y = y._data,
@@ -1037,7 +1038,26 @@ $({
 		.done ( (rep) => {
 			//Log("testpred", cls.predictSync(X[0]), cls.predictSync(X[1]) );
 		} );
-
+		*/
+		
+		var 
+			opts = {
+			  C: 0.01,
+			  tol: 10e-4,
+			  maxPasses: 10,
+			  maxIterations: 10000,
+			  kernel: 'rbf',
+			  kernelOptions: {
+				sigma: 0.5
+			  }
+			},
+			X = x._data,
+			Y = y._data.$( (n,y) => y[n] = y[n][0] ),
+			cls = new SVM(opts);
+		
+		//Log(X,Y);
+		cls.train(X,Y);
+		if (cb) cb(cls);
 		return cls;
 	},
 
@@ -1473,7 +1493,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 			levs = levs || {x: 0, y: 0},
 			Rows = bitmap.height,
 			Cols = bitmap.width,
-			Row0 = floor(Rows/2), 
+			Row0 = floor(Rows/2), 	// halfway row
 			rows = lims.rows ? min( lims.rows, Rows ) : Rows,
 			cols = lims.cols ? min( lims.cols, Cols ) : Cols,
 			X = $(cols),
@@ -1481,7 +1501,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 			X0 = $(cols),
 			Row = Rows-1,
 			n0 = $(Row0, (n, n0) => n0[n] = Row-- ),
-			rowS = $.rng(0,Rows)._data.sampler(rows),
+			rowS = $.rng(0,Row0)._data.sampler(rows),
 			red = 0, green = 1, blue = 2;
 
 		Log( "sym", [Rows, Cols] , "->", [rows, cols], maps, lims, rowS.length );
