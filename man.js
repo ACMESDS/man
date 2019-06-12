@@ -413,7 +413,8 @@ function saveStash(sql, stash, ID, host) {
 						Log("save jpg", {
 							dims: [img.bitmap.height, img.bitmap.width], 
 							save: stat.save,
-							gen: [rows, cols]
+							gen: [rows, cols],
+							keep: keep
 						});
 						
 						for ( var col=0, vals=values[0]; col<cols; col++, vals=values[col] ) {
@@ -430,12 +431,12 @@ function saveStash(sql, stash, ID, host) {
 						delete stat.input;
 						
 						if (keep) {
-							stat.values = Array.from(values.slice(0,keep)).$( (n,v) => v[n] = v[n].slice(0,keep) );
-							stat.index = index.slice(0,keep);
+							stat.values = stat.values.sampler(keep); // Array.from(values.slice(0,keep)).$( (n,v) => v[n] = v[n].slice(0,keep) );
+							stat.index = index.sampler(keep); // index.slice(0,keep);
 						}
 						else {
-							delete stat.values;
-							delete stat.index;
+							//delete stat.values;
+							//delete stat.index;
 						}
 						
 						cb(ev, stat);
@@ -862,12 +863,12 @@ $({
 		var
 			x = x._data,
 			y = y._data,
-			N = min(x.length,y.length,N),
-			devs = $( x.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
+			idx = $.rng(0,x.length)._data.sampler(N);
 
+		Log("shuffle", idx);
 		return {
-			x: $.matrix( $( N, (n,x0) => x0[n] = x[ devs[n].idx ] ) ),
-			y: $.matrix( $( N, (n,y0) => y0[n] = y[ devs[n].idx ] ) )
+			x: $.matrix( $( idx.length, (n,x0) => x0[n] = x[ idx[n] ] ) ),
+			y: $.matrix( $( idx.length, (n,y0) => y0[n] = y[ idx[n] ] ) )
 		};
 	},
 		
