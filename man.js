@@ -25,18 +25,6 @@ const { Copy,Each,Log,isArray,isNumber,isString,isObject } = require("enum");
 
 const {random, sin, cos, exp, log, PI, floor, abs, min, max} = Math;
 
-/*
-function groupEvents (rec,recs) { 
-	return recs.length ? rec.t > recs[0].t : false;
-}
-
-function feedEvents (evs, cb) {  // feed evs event buffer to callback cb(evs) then flush the buffer
-	//Log("feed ",evs.length);
-	if (evs.length) cb( evs );
-	evs.length = 0;
-}
-*/
-
 function saveStash(sql, stash, ID, host) {
 	function saveKey( sql, key, save ) {		
 		sql.query(
@@ -527,8 +515,10 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 				$.tasker( code, task, cb );
 			
 			else {
-				Copy(code,$);
-				$.import(code);
+				for (var key in code) Trace(`IMPORTING ${key}`);
+
+				Copy(code,$);		// mixin them for access from $[name]
+				$.import(code);		// import them for access from $(" name(...) ")
 			}
 			
 			break;
