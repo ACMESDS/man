@@ -128,7 +128,7 @@ function saveStash(sql, stash, ID, host) {
 		this.length = 0;
 	},
 	
-	function sampler(N) {
+	function sampler(N, index) {
 		
 		if (N) {
 			var
@@ -136,7 +136,9 @@ function saveStash(sql, stash, ID, host) {
 				N = N ? min(this.length, N) : x.length,
 				devs = $( this.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
 
-			return $( N, (n,y) => y[n] = x[ devs[n].idx ] );
+			return index 
+				? $( N, (n,y) => y[n] = x[ devs[n].idx ] )
+				: $( N, (n,y) => y[n] = devs[n].idx );			
 		}
 		
 		else
@@ -349,6 +351,9 @@ function saveStash(sql, stash, ID, host) {
 			return $$( cb, { $: A, "this": A } );
 		
 		else
+		if ( isArray( idx = cb) )
+			return $$( idx.length, (n,x) => x[n] = A[ idx[n] ] );
+		
 		if (A.rows) {
 			var M = A.rows, N = A.columns;
 
@@ -867,8 +872,8 @@ $({
 
 		Log("shuffle", idx);
 		return {
-			x: $.matrix( $( idx.length, (n,x0) => x0[n] = x[ idx[n] ] ) ),
-			y: $.matrix( $( idx.length, (n,y0) => y0[n] = y[ idx[n] ] ) )
+			x: $.matrix( x.$( idx ) ),
+			y: $.matrix( y.$( idx ) )
 		};
 	},
 		
