@@ -137,8 +137,8 @@ function saveStash(sql, stash, ID, host) {
 				devs = $( this.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
 
 			return index 
-				? $( N, (n,y) => y[n] = x[ devs[n].idx ] )
-				: $( N, (n,y) => y[n] = devs[n].idx );			
+				? $( N, (n,y) => y[n] = devs[n].idx )	
+				: $( N, (n,y) => y[n] = x[ devs[n].idx ] ) ;
 		}
 		
 		else
@@ -345,15 +345,17 @@ function saveStash(sql, stash, ID, host) {
 	function $(cb) {	// index matrix A
 		var 
 			A = this, 
+			idx = expr = cb,
 			N = A.length;		
 
-		if ( isString(cb) ) 
-			return $$( cb, { $: A, "this": A } );
+		if ( isString( expr ) ) 
+			return $$( expr, { $: A, "this": A } );
 		
 		else
-		if ( isArray( idx = cb) )
+		if ( isArray( idx ) ) 
 			return $$( idx.length, (n,x) => x[n] = A[ idx[n] ] );
 		
+		else
 		if (A.rows) {
 			var M = A.rows, N = A.columns;
 
@@ -412,14 +414,12 @@ function saveStash(sql, stash, ID, host) {
 							index = stat.index,
 							cols = values.length,
 							rows = index.length,
-							keep = stat.keep,
 							toColor = IMP.rgbaToInt;
 							
 						Log("save jpg", {
 							dims: [img.bitmap.height, img.bitmap.width], 
 							save: stat.save,
-							gen: [rows, cols],
-							keep: keep
+							gen: [rows, cols]
 						});
 						
 						for ( var col=0, vals=values[0]; col<cols; col++, vals=values[col] ) {
@@ -435,14 +435,15 @@ function saveStash(sql, stash, ID, host) {
 						
 						delete stat.input;
 						
+						/*
 						if (keep) {
 							stat.values = stat.values.sampler(keep); // Array.from(values.slice(0,keep)).$( (n,v) => v[n] = v[n].slice(0,keep) );
 							stat.index = index.sampler(keep); // index.slice(0,keep);
 						}
 						else {
-							//delete stat.values;
-							//delete stat.index;
-						}
+							delete stat.values;
+							delete stat.index;
+						}*/
 						
 						cb(ev, stat);
 						break;
