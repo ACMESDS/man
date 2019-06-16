@@ -130,10 +130,9 @@ function saveStash(sql, stash, ID, host) {
 	
 	function sampler(N, index) {
 		
-		if (N) {
+		if (N && N<this.length) {
 			var
 				x = this,
-				N = N ? min(this.length, N) : x.length,
 				devs = $( this.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
 
 			return index 
@@ -1491,7 +1490,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 			Rows = bitmap.height,
 			Cols = bitmap.width,
 			Row0 = floor(Rows/2), 	// halfway row
-			rows = lims.rows ? min( lims.rows, Rows ) : Rows,
+			rows = lims.rows ? min( lims.rows, Row0 ) : Row0,
 			cols = lims.cols ? min( lims.cols, Cols ) : Cols,
 			X = $(cols),
 			Y = $(cols),
