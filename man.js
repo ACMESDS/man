@@ -413,6 +413,7 @@ function saveStash(sql, stash, ID, host) {
 							index = stat.index,
 							cols = values.length,
 							rows = index.length,
+							isEmpty = values[0] ? false : true,
 							toColor = IMP.rgbaToInt;
 							
 						Log("save jpg", {
@@ -421,14 +422,15 @@ function saveStash(sql, stash, ID, host) {
 							gen: [rows, cols]
 						});
 						
-						for ( var col=0, vals=values[0]; col<cols; col++, vals=values[col] ) {
-							//Log("vals", vals);
-							for ( var row=0; row<rows; row++ ) {
-								var L = max(0,min(255,floor(vals[row][0])));
-								//Log(row, col, L, index[row]);
-								img.setPixelColor( toColor(L,L,L,255), col, index[row] );
+						if ( !isEmpty )
+							for ( var col=0, vals=values[0]; col<cols; col++, vals=values[col] ) {
+								//Log("vals", vals);
+								for ( var row=0; row<rows; row++ ) {
+									var L = max(0,min(255,floor(vals[row][0])));
+									//Log(row, col, L, index[row]);
+									img.setPixelColor( toColor(L,L,L,255), col, index[row] );
+								}
 							}
-						}
 
 						img.write( "."+stat.save, err => Log("save jpg", err) );
 						
