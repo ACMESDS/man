@@ -100,7 +100,7 @@ function saveStash(sql, stash, ID, host) {
 		});
 	},
 	
-	function $(ctx, cb) {
+	function $(ctx, cb) {	// index string
 	/*
 		if (cb) // load/save data
 			if ( isString(ctx) )
@@ -349,7 +349,7 @@ function saveStash(sql, stash, ID, host) {
 			N = A.length;		
 
 		if ( isString( expr ) ) 
-			return $$( expr, { $: A, "this": A } );
+			return $$( expr, { /*$: A,*/ "this": A } );
 		
 		else
 		if ( isArray( idx ) ) 
@@ -805,6 +805,8 @@ var
 //console.log("jslab las=", ML);
 
 Copy({
+	// methods
+	
 	thread: () => Trace("sql threader not configured"), //< define on config
 
 	tasker: () => Trace("tasker not configured"), //< define on config
@@ -1037,6 +1039,8 @@ Copy({
 		});
 	},											
 			
+	// libraries
+		
 	JSON: JSON,
 	IMP: IMP,
 	CRYPTO: CRYPTO,
@@ -1053,6 +1057,7 @@ Copy({
 	MVN: MVN,
 	LM: LM,
 	GAMMA: GAMMA,
+	GEN: GEN,
 
 	// basic enumerators
 	Copy: Copy,
@@ -1073,7 +1078,7 @@ $.import({ // overrides
 $({
 	// misc and samplers
 	
-	is: x => x ? true : false,
+	isDefined: x => x ? true : false,
 	
 	shuffle: function (x,y,N) {
 		var
@@ -1081,7 +1086,7 @@ $({
 			y = y._data,
 			idx = $.rng(0,x.length)._data.sampler(N);
 
-		Log("shuffle", idx);
+		//Log("shuffle", idx);
 		return {
 			x: $.matrix( x.$( idx ) ),
 			y: $.matrix( y.$( idx ) )
@@ -1284,36 +1289,24 @@ $({
 
 	lrm_train: function (x,y,solve,cb) {
 		
-		if ( beta = solve.beta ) {
-			var 
-				beta0 = beta[0],
-				beta1 = beta[1],
-				N = solve.N,
-				gen = GEN.create(),
-				u = gen.seed("Some seed is better than none"),
-				rand = gen.random,
-				X = $( N, (n,x) => x[n] = [2*rand()-1, 2*rand()-1, 2*rand()-1] ),
-				Y = $( N, (n,y) => {
-					var
-						x = X[n],
-						p = 1/(1+ exp( -(beta0 + beta1[0]*x[0] + beta1[1]*x[1]) + beta1[2]*x[2] ));
-					
-					y[n] = (random()>=0.5) ? 1 : 0;
-				}),
-				x = $.matrix(X),
-				y = $.matrix(Y);
-			
-			//Log("x,y", x, y);
-		}
-		
 		solve.numSteps = solve.numSteps || 1e3;
 		solve.learningRate = solve.learningRate || 5e-3;
 		
+		if (false) {
+			// our training set (X,Y)
+			var X = new ml$([[0,-1], [1,0], [1,1], [1,-1], [2,0], [2,1], [2,-1], [3,2], [0,4], [1,3], [1,4], [1,5], [2,3], [2,4], [2,5], [3,4], [1, 10], [1, 12], [2, 10], [2,11], [2, 14], [3, 11]]);
+			var Y = ml$.columnVector([0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2]);
+		}
+		else 
+		if (true) {
+			var
+				X = new ml$(x._data),
+				//Y = ml$.columnVector( categorize(y._data) );
+				Y = ml$.columnVector( y._data );
+		}
+		
 		var
-			X = new ml$(x._data),
-			//Y = ml$.columnVector( categorize(y._data) ),
-			Y = ml$.columnVector( y._data ),
-			cls = new LRM(solve);
+				cls = new LRM(solve);
 
 		Log("lrm training", "steps:", cls.numSteps, "rate:", cls.learningRate);
 		
@@ -1323,7 +1316,7 @@ $({
 	},
 
 	lrm_predict: function (cls,x) {
-		Log("predict", x);
+		//Log("predict", x);
 		var 
 			X = new ml$(x._data),
 			Y = cls.predict(X);
@@ -1370,6 +1363,26 @@ $({
 		return $.matrix(Y);
 	},
 
+	// data generators
+	
+	xgen: function  (N, beta0, beta1, seed) {
+		var 
+			gen = GEN.create(),
+			u = seed ? gen.seed( seed ) : 0,
+			rand = gen.random,
+			X = $( N, (n,x) => x[n] = [2*rand()-1, 2*rand()-1] ),
+			Y = $( N, (n,y) => {
+				var
+					x = X[n],
+					p = 1.0/(1.0+ exp( -(beta0 + beta1[0]*x[0] + beta1[1]*x[1]) ));
+
+				y[n] = (random()>=p) ? 1 : 0;
+				//Log(n,p,y[n], beta0, beta1, x,  beta0 + beta1[0]*x[0] + beta1[1]*x[1] );
+			});
+			
+		return {x: $.matrix(X), y: $.matrix(Y)};
+	},
+	
 	// linear algebra
 	
 	svd: function (a) {
@@ -1633,7 +1646,6 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		return $.eval(" {psd: re(Gu)/ids, rate:  mean(Ks)/T } ", ctx); 
 	},
 	
-
 	// deviates
 	
 	udev: function (N,a) {  
