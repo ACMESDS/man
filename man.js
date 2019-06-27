@@ -19,6 +19,7 @@
 @requires expectation-maximization
 @requires multivariate-normal
 @requires newton-raphson
+@requires random-seed
 */
 
 const { Copy,Each,Log,isArray,isNumber,isString,isObject } = require("enum");
@@ -798,6 +799,7 @@ var
 	HMM = require("nodehmm"),
 	ZETA = require("riemann-zeta"),
 	NRAP = require("newton-raphson"),
+	GEN = require("random-seed"),
 	ml$ = ML.Matrix;
 
 //console.log("jslab las=", ML);
@@ -1281,15 +1283,40 @@ $({
 	},
 
 	lrm_train: function (x,y,solve,cb) {
+		
+		if ( beta = solve.beta ) {
+			var 
+				beta0 = beta[0],
+				beta1 = beta[1],
+				N = solve.N,
+				gen = GEN.create(),
+				u = gen.seed("Some seed is better than none"),
+				rand = gen.random,
+				X = $( N, (n,x) => x[n] = [2*rand()-1, 2*rand()-1, 2*rand()-1] ),
+				Y = $( N, (n,y) => {
+					var
+						x = X[n],
+						p = 1/(1+ exp( -(beta0 + beta1[0]*x[0] + beta1[1]*x[1]) + beta1[2]*x[2] ));
+					
+					y[n] = (random()>=0.5) ? 1 : 0;
+				}),
+				x = $.matrix(X),
+				y = $.matrix(Y);
+			
+			//Log("x,y", x, y);
+		}
+		
 		solve.numSteps = solve.numSteps || 1e3;
 		solve.learningRate = solve.learningRate || 5e-3;
 		
 		var
 			X = new ml$(x._data),
-			Y = ml$.columnVector( categorize(y._data) ),
+			//Y = ml$.columnVector( categorize(y._data) ),
+			Y = ml$.columnVector( y._data ),
 			cls = new LRM(solve);
 
 		Log("lrm training", "steps:", cls.numSteps, "rate:", cls.learningRate);
+		
 		cls.train(X,Y);
 		if (cb) cb(cls);		
 		return cls;
