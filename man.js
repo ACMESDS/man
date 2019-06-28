@@ -1355,7 +1355,7 @@ $.extensions = $.extensions = {
 			cls = new PLS( Copy( solve, {
 				latentVectors: 10,
 				tolerance: 1e-4				
-			});
+			}) );
 
 		Log("pls training", solve);
 		cls.train(X,Y);
