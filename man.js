@@ -129,29 +129,22 @@ function saveStash(sql, stash, ID, host) {
 		this.length = 0;
 	},
 	
-	function sampler(N, index) {
-		
-		if (N && N<this.length) {
-			var
-				x = this,
-				devs = $( this.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
+	function shuffle(N, index) {
+		var 
+			A = this,
+			devs = $( A.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
 
-			return index 
-				? $( N, (n,y) => y[n] = devs[n].idx )	
-				: $( N, (n,y) => y[n] = x[ devs[n].idx ] ) ;
-		}
-		
-		else
-			return this;
+		return index ? $( N, (n,B) => B[n] = devs[n].idx ) : $( N, (n,B) => B[n] = A[ devs[n].idx ] ) ;
 	},
 	
+	/*
 	function pick(keys) {
 		return this.$( (n,recs) => {
 			var rec = recs[n], rtn = {};
 			for ( var key in keys ) rtn[key] = rec[ keys[key] ];
 			recs[n] = rtn;
 		});		
-	},
+	}, */
 	
 	function match(where, get) {
 		var rtns = [];
@@ -191,21 +184,46 @@ function saveStash(sql, stash, ID, host) {
 		});
 	},
 	
-	function get(js) {
-		var recs = this;
-		return $(this.length, (n,rtns) => rtns[n] = js.parseEval( recs[n] ) );
+	function get(idx) {		
+		var A = this, N = A.length;
+
+		if ( isString(idx) )
+			return $(N, (n,B) => B[n] = idx.parseEval( A[n] ) );
+	 
+		else
+		if ( isArray(idx) )
+			return $(N, (n,B) => B[n] = $( idx.length, (n,B) => B[n] = A[ idx[n] ] ) );
+
+		else
+		if ( isNumber(idx) )
+			return $(N, (n,B) => B[n] = A[n].slice(0,idx) );
+		
+		else
+		if ( keys = idx.keys )
+			return A.$( (n,recs) => {
+				var rec = recs[n], rtn = {};
+				for ( var key in keys ) rtn[key] = rec[ keys[key] ];
+				recs[n] = rtn;
+			});		
+			
+		else
+		if ( count = idx.len || idx.count ) {
+			Log("get", idx);
+			return $(N, (n,B) => B[n] = A[n].slice(idx.start,idx.start+count) );
+		}
+		
+		else
+		if ( idx.draws ) 
+			return $(N, (n,B) => B[n] = A[n].shuffle( idx.draws, idx.index ) );
+		
+		else
+			return A;
 	},
-	
-	function dice(start,len) {
-		const {round} = Math;
 		
-		var A = this;
-		
-		return len 
-			? $(A.length, (n,rtn) => rtn[n] = A[n].slice(start,start+len) )
-			: $(A.length, (n,rtn) => rtn[n] = round(A[n][start]) );
+	function Get(idx) {
+		return [this].get(idx)[0];
 	},
-		
+
 	function feed( key, cb) {  
 	// thread key-grouped events to callback cb(evs) or cb(null) at end
 		
@@ -439,8 +457,8 @@ function saveStash(sql, stash, ID, host) {
 						
 						/*
 						if (keep) {
-							stat.values = stat.values.sampler(keep); // Array.from(values.slice(0,keep)).$( (n,v) => v[n] = v[n].slice(0,keep) );
-							stat.index = index.sampler(keep); // index.slice(0,keep);
+							stat.values = stat.values.shuffle(keep); // Array.from(values.slice(0,keep)).$( (n,v) => v[n] = v[n].slice(0,keep) );
+							stat.index = index.shuffle(keep); // index.slice(0,keep);
 						}
 						else {
 							delete stat.values;
@@ -781,13 +799,13 @@ var
 	LM = require("./mljs/node_modules/ml-levenberg-marquardt"),
 	ML = require("./mljs/node_modules/ml-matrix"),
 	LRM = require("./mljs/node_modules/ml-logistic-regression"),
-	RAF = require("./mljs/node_modules/ml-random-forest"),
-	DTR = require("./mljs/node_modules/ml-cart"),
+	RAF = require("./mljs/node_modules/ml-random-forest").RandomForestRegression,
+	DTR = require("./mljs/node_modules/ml-cart").DecisionTreeRegression,
 	KNN = require("./mljs/node_modules/ml-knn"),
-	NAB = require("./mljs/node_modules/ml-naivebayes"),
+	NAB = require("./mljs/node_modules/ml-naivebayes").MultinomialNB,
 	MLR = require("./mljs/node_modules/ml-regression-multivariate-linear"),
 	SPR = require("./mljs/node_modules/ml-regression-polynomial"),
-	PLS = require("./mljs/node_modules/ml-pls"),
+	PLS = require("./mljs/node_modules/ml-pls").PLS,
 	SOM = require("./mljs/node_modules/ml-som"),
 	SVM = require("./mljs/node_modules/ml-svm"), // require("node-svm"),
 	GAMMA = require("gamma"),
@@ -1080,6 +1098,7 @@ $.extensions = $.extensions = {
 	
 	isDefined: x => x ? true : false,
 	
+	/*
 	shuffle: function (x,y,N) {
 		var
 			x = x._data,
@@ -1091,7 +1110,7 @@ $.extensions = $.extensions = {
 			x: $.matrix( x.$( idx ) ),
 			y: $.matrix( y.$( idx ) )
 		};
-	},
+	}, */
 		
 	// regressors
 	
@@ -1099,13 +1118,13 @@ $.extensions = $.extensions = {
 		var
 			X = x._data,
 			Y = y._data,
-			cls = new $.DTR.DecisionTreeRegression({
-			  gainFunction: 'gini',
-			  maxDepth: 10,
-			  minNumSamples: 3
-			});
+			cls = new $.DTR( Copy( solve, {
+				gainFunction: 'gini',
+				maxDepth: 10,
+				minNumSamples: 3
+			}) );
 
-		X.$( (n,x) => x[n] = x[n][0] );
+		//X.$( (n,x) => x[n] = x[n][0] );
 		cls.train(X,Y);
 		if (cb) cb(cls);
 		return cls;
@@ -1120,62 +1139,23 @@ $.extensions = $.extensions = {
 	},
 
 	raf_train: function (x,y,solve,cb) {
-		/*
-		var dataset = [
-  [73, 80, 75, 152],
-  [93, 88, 93, 185],
-  [89, 91, 90, 180],
-  [96, 98, 100, 196],
-  [73, 66, 70, 142],
-  [53, 46, 55, 101],
-  [69, 74, 77, 149],
-  [47, 56, 60, 115],
-  [87, 79, 90, 175],
-  [79, 70, 88, 164],
-  [69, 70, 73, 141],
-  [70, 65, 74, 141],
-  [93, 95, 91, 184],
-  [79, 80, 73, 152],
-  [70, 73, 78, 148],
-  [93, 89, 96, 192],
-  [78, 75, 68, 147],
-  [81, 90, 93, 183],
-  [88, 92, 86, 177],
-  [78, 83, 77, 159],
-  [82, 86, 90, 177],
-  [86, 82, 89, 175],
-  [78, 83, 85, 175],
-  [76, 83, 71, 149],
-  [96, 93, 95, 192]
-];  
-		*/
-		/*
-		var X = new Array(dataset.length);
-		var Y = new Array(dataset.length);
-
-		for (var i = 0; i < dataset.length; ++i) {
-		  X[i] = dataset[i].slice(0, 3);
-		  Y[i] = dataset[i][3];
-		}  */
-
+		
 		var
 			X = x._data,
 			Y = y._data,
 			N = x._size[0],
-			cls = new RAF.RandomForestRegression({
-			  seed: 3,
-			  maxFeatures: 2,
-			  replacement: false,
-			  nEstimators: 200
-			});
+			cls = new RAF( Copy(solve, {
+				seed: 3,
+				maxFeatures: 2,
+				replacement: false,
+				nEstimators: 200
+			}));
 
-		//X.length = Y.length = 25;
-		//X.$( (n,x) => x[n] = x[n].slice(0,3) );  // dataset[n].slice(0,3) ); //
-		//Y.$( (n,y) => y[n] = dataset[n][3] );
-
-		//Log("x",X, "y",Y);
-
-		Log("raf", X.length, Y.length, N, X[0].length);
+		Log("raf training", {
+			dims: [X.length, Y.length], 
+			features: N
+		});
+		
 		cls.train(X,Y);
 		if (cb) cb(cls);
 		return cls;
@@ -1189,10 +1169,31 @@ $.extensions = $.extensions = {
 		return $.matrix(Y);
 	},
 
+	nab_train: function (x,y,solve,cb) {
+		var
+			X = x._data,
+			Y = y._data,
+			cls = new NAB( );
+
+		cls.train(X,Y);
+		if (cb) cb( cls.export() );
+		return cls;
+	},
+
+	nab_predict: function (cls, x) {
+		var
+			X = x._data,
+			Y = cls.predict(X);
+
+		return $.matrix(Y);
+	},
+	
 	som_train: function (x,y,solve,cb) {
 		var
 			X = x._data,
-			cls = new SOM(solve.dims.x || 20, solve.dims.y || 20, solve);
+			cls = new SOM( solve.dims.x || 20, solve.dims.y || 20, Copy( solve, {
+				fields: [ {name: "r", range: [0,255]}, {name: "g", range: [0,255]}, {name: "b", range: [0,255]} ]
+			}) );
 
 		cls.train(X);
 		if (cb) cb( cls.export() );
@@ -1213,9 +1214,7 @@ $.extensions = $.extensions = {
 			Y = y._data,
 			N = x._size[0],
 			degree = solve.degree,
-			Y = degree ? Y : $(N, (n,y) => y[n] = [ Y[n] ] );
-		
-		var
+			Y = degree ? Y : $(N, (n,y) => y[n] = [ Y[n] ] ),
 			cls = degree ? new SPR(X,Y,solve.degree) : new MLR(X,Y);
 
 		if (cb) cb(cls);		
@@ -1232,6 +1231,7 @@ $.extensions = $.extensions = {
 
 	svm_train: function (x,y,solve,cb) {
 		/*
+		// legacy version
 		var
 			X = x._data,
 			Y = y._data,
@@ -1254,14 +1254,14 @@ $.extensions = $.extensions = {
 		
 		var 
 			opts = {
-			  C: 0.01,
-			  tol: 10e-4,
-			  maxPasses: 10,
-			  maxIterations: 10000,
-			  kernel: 'rbf',
-			  kernelOptions: {
-				sigma: 0.5
-			  }
+				C: 0.01,
+				tol: 10e-4,
+				maxPasses: 10,
+				maxIterations: 10000,
+				kernel: 'rbf',
+				kernelOptions: {
+					sigma: 0.5
+				}
 			},
 			X = x._data,
 			Y = y._data.$( (n,y) => y[n] = y[n][0] ),
@@ -1289,26 +1289,31 @@ $.extensions = $.extensions = {
 
 	lrm_train: function (x,y,solve,cb) {
 		
-		solve.numSteps = solve.numSteps || 1e3;
-		solve.learningRate = solve.learningRate || 5e-3;
-		
-		if (false) {
-			// our training set (X,Y)
-			var X = new ml$([[0,-1], [1,0], [1,1], [1,-1], [2,0], [2,1], [2,-1], [3,2], [0,4], [1,3], [1,4], [1,5], [2,3], [2,4], [2,5], [3,4], [1, 10], [1, 12], [2, 10], [2,11], [2, 14], [3, 11]]);
-			var Y = ml$.columnVector([0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2]);
+		function categorize(x) {
+			var cats = {}, ncats = 1;
+			x.$( (n,x) => {
+				var x0 = x[n];
+				if ( xcat = cats[x0] ) 
+					x[n] = xcat;
+				else
+					x[n] = cats[x0] = ncats++;
+			});
+			return x;
 		}
-		else 
-		if (true) {
-			var
-				X = new ml$(x._data),
-				//Y = ml$.columnVector( categorize(y._data) );
-				Y = ml$.columnVector( y._data );
-		}
-		
+	
 		var
-				cls = new LRM(solve);
+			X = new ml$(x._data),
+			//Y = ml$.columnVector( categorize(y._data) );
+			Y = ml$.columnVector( y._data ),
+			cls = new LRM( Copy( solve, {
+				numSteps: 1e3,
+				learningRate: 5e-3		
+			}) );
 
-		Log("lrm training", "steps:", cls.numSteps, "rate:", cls.learningRate);
+		Log("lrm training", {
+			steps: cls.numSteps, 
+			rate: cls.learningRate
+		});
 		
 		cls.train(X,Y);
 		if (cb) cb(cls);		
@@ -1347,7 +1352,10 @@ $.extensions = $.extensions = {
 		var
 			X = new ml$(x._data),
 			Y = ml$.columnVector(y._data),
-			cls = new PLS(solve);
+			cls = new PLS( Copy( solve, {
+				latentVectors: 10,
+				tolerance: 1e-4				
+			});
 
 		Log("pls training", solve);
 		cls.train(X,Y);
@@ -2061,7 +2069,7 @@ $( $.extensions );
 			X0 = $(cols),
 			Row = Rows-1,
 			n0 = $(Row0, (n, n0) => n0[n] = Row-- ),
-			rowS = $.rng(0,Row0)._data.sampler(rows),
+			rowS = $.rng(0,Row0)._data.shuffle(rows),
 			red = 0, green = 1, blue = 2;
 
 		Log( "sym", [Rows, Cols] , "->", [rows, cols], maps, lims, rowS.length );
@@ -2115,18 +2123,6 @@ function _logp0(a,k,x) {  // for case 6.x unit testing
 
 	Log(a,k,x, logp0);
 	return logp0;
-}
-
-function categorize(x) {
-	var cats = {}, ncats = 1;
-	x.$( (n,x) => {
-		var x0 = x[n];
-		if ( xcat = cats[x0] ) 
-			x[n] = xcat;
-		else
-			x[n] = cats[x0] = ncats++;
-	});
-	return x;
 }
 
 //=========== Unit testing
