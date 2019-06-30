@@ -871,6 +871,7 @@ var
 	NAB = require("./mljs/node_modules/ml-naivebayes").MultinomialNB,
 	MLR = require("./mljs/node_modules/ml-regression-multivariate-linear"),
 	SPR = require("./mljs/node_modules/ml-regression-polynomial"),
+	ROR = require("./mljs/node_modules/ml-regression-robust-polynomial"),
 	PLS = require("./mljs/node_modules/ml-pls").PLS,
 	SOM = require("./mljs/node_modules/ml-som"),
 	SVM = require("./mljs/node_modules/ml-svm"), // require("node-svm"),
@@ -1180,6 +1181,12 @@ $.extensions = $.extensions = {
 		
 	// regressors
 
+	rnn_train: function (x,y,solve) {
+	},
+	
+	rnn_predict: function (x,y,solve) {
+	},
+	
 	ann_train: function (x,y,solve) {
 	},
 	
@@ -1190,6 +1197,12 @@ $.extensions = $.extensions = {
 	},
 	
 	dnn_predict: function (x,y,solve) {
+	},
+	
+	dhs_train: function (x,y,solve) {
+	},
+	
+	dhs_predict: function (x,y,solve) {
 	},
 	
 	qda_train: function (x,y,solve) {  // quadratic discriminant analysis (aka bayesian ridge)
@@ -1255,6 +1268,23 @@ $.extensions = $.extensions = {
 		return $.matrix(Y);
 	},
 	
+	ror_train: function (x,y,solve) {
+		var
+			X = x._data,
+			Y = y._data,
+			cls = new $.ROR( X, Y, solve.degree || 1 );
+
+		return cls;
+	},
+
+	ror_predict: function (cls, x) {
+		var
+			X = x._data,
+			Y = cls.predict(X);
+
+		return $.matrix(Y);
+	},
+
 	dtr_train: function (x,y,solve) {
 		var
 			X = x._data,
@@ -1502,9 +1532,9 @@ $.extensions = $.extensions = {
 
 	// data generators
 	
-	gen: function (ctx, res) {
+	gen: function (ctx, res) {	// generate gauss, wiener, markov, bayesian, ornstein process
 	
-		function  genTest(N, beta0, beta1, seed) {
+		function genTest(N, beta0, beta1, seed) {
 			var 
 				gen = GEN.create(),
 				u = seed ? gen.seed( seed ) : 0,
@@ -1526,60 +1556,60 @@ $.extensions = $.extensions = {
 			
 			function getpcs(model, coints, dim, cb) {  // get pcs with callback cb(pcs) || cb(null)
 
-				function genpcs(coints, model, dim, cb) {  // make pcs with callback cb(pcs = {values,vectors,ref})
-					function evd( models, coints, dim, cb) {   // eigen value decomp with callback cb(pcs)
-						models.forEach( function (model) {	// enumerate over all models
-							coints.forEach( (coints) => {	// enumerate over all coherence intervals
-								$( `
-t = rng(-T, T, 2*N-1);
-Tc = T/M;
-xccf = ${model}( t/Tc );
-Xccf = xmatrix( xccf ); 
-R = evd(Xccf); `,   
-								{
-									N: dim,
-									M: coints,
-									T: 50
-								}, ctx => {
+				$.thread( sql => {
+					function genpcs( coints, model, dim, cb) {  // make pcs with callback cb(pcs = {values,vectors,ref})
+						function evd( models, coints, dim, cb) {   // eigen value decomp with callback cb(pcs)
+							models.forEach( function (model) {	// enumerate over all models
+								coints.forEach( (coints) => {	// enumerate over all coherence intervals
+									$( `
+	t = rng(-T, T, 2*N-1);
+	Tc = T/M;
+	xccf = ${model}( t/Tc );
+	Xccf = xmatrix( xccf ); 
+	R = evd(Xccf); `,   
+									{
+										N: dim,
+										M: coints,
+										T: 50
+									}, ctx => {
 
-									if (solve.trace)  { // debugging
-										$(`
-disp({
-M: M,
-ccfsym: sum(Xccf-Xccf'),
-det: [det(Xccf), prod(R.values)],
-trace: [trace(Xccf), sum(R.values)]
-})`, ctx);
-									}
-									
-/*
-basis: R.vectors' * R.vectors,
-vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
-*/
-									cb({  // return computed stats
-										model: model,
-										intervals: coints,
-										values: ctx.R.values._data,
-										vectors: ctx.R.vectors._data
+										if (solve.trace)  { // debugging
+											$(`
+	disp({
+	M: M,
+	ccfsym: sum(Xccf-Xccf'),
+	det: [det(Xccf), prod(R.values)],
+	trace: [trace(Xccf), sum(R.values)]
+	})`, ctx);
+										}
+
+	/*
+	basis: R.vectors' * R.vectors,
+	vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
+	*/
+										cb({  // return computed stats
+											model: model,
+											intervals: coints,
+											values: ctx.R.values._data,
+											vectors: ctx.R.vectors._data
+										});
 									});
 								});
 							});
-						});
-					}
+						}
 
-					evd( [model], [coints], dim, function (pcs) {
+						evd( [model], [coints], dim, function (pcs) {
 
-						var 
-							vals = pcs.values,
-							vecs = pcs.vectors,
-							ref = $.max(vals);
+							var 
+								vals = pcs.values,
+								vecs = pcs.vectors,
+								ref = $.max(vals);
 
-						pcs.ref = ref;
-						pcs.dim = dim;
-						
-						Log(">>>evded pcs", vals.length );
-						
-						$.thread( sql => {
+							pcs.ref = ref;
+							pcs.dim = dim;
+
+							Log(">>>evded pcs", vals.length );
+
 							sql.beginBulk();
 
 							vals.forEach( (val, idx) => {  // save pcs
@@ -1600,16 +1630,13 @@ vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
 							});
 
 							sql.endBulk();
-							sql.release();
 							Log(">>>>saved pcs");
-						});
-						
-						cb( pcs );  // forward the saved pcs
-					});
-				}
 
-				function findpcs( coints, model, lims, cb ) { // get pcs with callback cb(pcs = {values,vectors,ref})
-					$.thread( sql => {
+							cb( pcs );  // forward the saved pcs
+						});
+					}
+
+					function findpcs( coints, model, lims, cb ) { // get pcs with callback cb(pcs = {values,vectors,ref})
 						sql.query(
 							"SELECT *, abs(? - coherence_intervals)  AS coeps FROM app.pcs WHERE coherence_intervals BETWEEN ? AND ? AND eigen_value / ref_value > ? AND least(?,1) ORDER BY coeps desc,eigen_value", 
 							[ coints, coints*(1-lims.coints), coints*(1+lims.coints), lims.mineig, {
@@ -1638,58 +1665,39 @@ vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
 									});
 								}
 						});
-		
-						Log(q.sql);
-						sql.release();
+					}
+
+					findpcs( solve.coints, solve.model, { 
+						coints: 0.1,
+						mineig: solve.mineig,
+						dim: solve.dim
+					}, pcs => {
+						Log(">>>>found pcs");
+						if ( pcs.values.length )   // found pcs so send them on
+							cb( pcs );
+
+						else  // try to generate pcs
+							genpcs( sql, coints, model, dim, pcs => {  
+								Log(">>>>gened pcs", pcs.values.length);
+								if ( pcs.values.length )
+									findpcs( solve.coints, solve.model, { // must now find pcs per limits
+										coints: 0.1,
+										mineig: solve.mineig,
+										dim: solve.dim
+									}, pcs => {
+										if ( pcs.values.length) 
+											cb( pcs );
+
+										else
+											cb(null);
+									});
+
+								else
+									cb( null );
+							});
 					});
-				}
-
-				findpcs( solve.coints, solve.model, { 
-					coints: 0.1,
-					mineig: solve.mineig,
-					dim: solve.dim
-				}, pcs => {
-					Log(">>>>found pcs");
-					if ( pcs.values.length )   // found pcs so send them on
-						cb( pcs );
-					
-					else  // try to generate pcs
-						genpcs( coints, model, dim, pcs => {  
-							Log(">>>>gened pcs", pcs.values.length);
-							if ( pcs.values.length )
-								findpcs( solve.coints, solve.model, { // must now find pcs per limits
-									coints: 0.1,
-									mineig: solve.mineig,
-									dim: solve.dim
-								}, pcs => {
-									if ( pcs.values.length) 
-										cb( pcs );
-									
-									else
-										cb(null);
-								});
-							
-							else
-								cb( null );
-						});
-						/*
-						SQL.query(
-							"SELECT count(ID) as Count FROM app.pcs WHERE least(?,1)", {
-								max_intervals: Mmax, 
-								correlation_model: model
-							}, 
-							function (err, test) {  // see if pc model exists
-
-							//Log("test", test);
-							if ( !test[0].Count )  // pc model does not exist so make it
-								genpcs( Mmax, Mwin*2, model, function () {
-									findpcs( sendpcs );
-								});
-
-							else  // search was too restrictive so no need to remake model
-								sendpcs(pcs);
-								
-						});*/
+				
+					sql.release();
 				});
 			}
 	
@@ -1884,33 +1892,7 @@ vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
 		return $.matrix( Xccf );
 	},
 	
-	sinc: function (x) {
-		var x = x._data, N = x.length;
-		return $.matrix( $( N, (n, sinc) => sinc[n] = x[n] ? sin( PI*x[n] ) / (PI*x[n]) : 1) );
-	},
-	
-	rect: function (x) {
-		var x = x._data, N = x.length;
-		return $.matrix( $( N, (n, rect) => rect[n] = (abs(x[n])<=0.5) ? 1 : 0) );
-	},
-
-	tri: function (x) {
-		var x = x._data, N = x.length;
-		return $.matrix( $( N, (n, tri) => { 
-			var u = abs( x[n] );
-			tri[n] = (u<=1) ? 1-u : 0;
-		}) );
-	},
-	
-	negexp: function (x) {
-		var x = x._data, N = x.length;
-		return $.matrix( $( N, (n, neg) => neg[n] = (x[n] > 0) ? exp(-x[n]) : 0) );
-	},
-		
-	lorenzian: function (x) {
-		var x = x._data, N = x.length;
-		return $.matrix( $( N, (n, lor) => lor[n] = 2 / (1 + (2*pi*x[n]**2)) ));
-	},
+	// hilbert and fourier transforms
 	
 	dht: function (f) {  //  discrete Hilbert transform
 	/*
@@ -1935,7 +1917,724 @@ vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
 		}) );
 	},
 		
-	pwrem: function (nu, z) {  // paley-weiner remainder
+	dft: function (F) {		// discrete Fouier transform (unwrapped and correctly signed)
+	/*
+	Returns unnormalized dft/idft of an odd length, real or complex array F.
+	*/
+		var 
+			F = F._data,
+			N = F.length,
+			isReal = isNumber( F[0] ),
+			G = isReal 
+				? 	$( N-1, (n,G) =>  { // alternate signs to setup dft and truncate array to N-1 = 2^int
+						G[n] = (n % 2) ? [-F[n], 0] : [F[n], 0];
+					})
+			
+				: 	$( N-1, (n,G) =>  { // alternate signs to setup dft and truncate array to N-1 = 2^int
+						G[n] = (n % 2) ? [-F[n].re, -F[n].im] : [F[n].re, F[n].im];
+					}),
+		
+			g = DSP.ifft(G);
+
+		g.$( n => {  // alternate signs to complete dft 
+			var gn = g[n];
+			g[n] = (n % 2) ? $.complex(-gn[0], -gn[1]) : $.complex(gn[0], gn[1]);
+		});
+
+		g.push( $.complex(0,0) );
+		return $.matrix(g);
+	},
+		
+	// self calibration, sepp, trigger recovery
+	
+	triggerProfile: function ( solve, cb) {
+	/**
+	Use the Paley-Wiener Theorem to return the trigger function stats:
+
+		x = normalized time interval of recovered trigger
+		h = recovered trigger function at normalized times x
+		modH = Fourier modulous of recovered trigger at frequencies f
+		argH = Fourier argument of recovered trigger at frequencies f
+		f = spectral frequencies
+
+	via the callback cb(stats) given a solve request:
+
+		evs = events list
+		refLambda = ref mean arrival rate (for debugging)
+		alpha = assumed detector gain
+		N = profile sample times = max coherence intervals
+		model = correlation model name
+		Tc = coherence time of arrival process
+		T = observation time
+	*/
+
+		Log("trigs", {
+			evs: solve.evs.length, 
+			refRate: solve.refLambda,
+			ev0: solve.evs[0]
+		});
+
+		$(`
+N0 = fix( (N+1)/2 );
+fs = (N-1)/T;
+df = fs/N;
+nu = rng(-fs/2, fs/2, N); 
+t = rng(-T/2, T/2, N); 
+V = evpsd(evs, nu, T, "index", "t");  
+
+Lrate = V.rate / alpha;
+Accf = Lrate * ${solve.model}(t/Tc);
+Lccf = Accf[N0]^2 + abs(Accf).^2;
+Lpsd =  wkpsd( Lccf, T);
+disp({ 
+evRates: {ref: refLambda, ev: V.rate, L0: Lpsd[N0]}, 
+idx0lag: N0, 
+obsTime: T, 
+sqPower: {N0: N0, ccf: Lccf[N0], psd: sum(Lpsd)*df }
+});
+
+Upsd = Lrate + Lpsd;
+modH = sqrt(V.psd ./ Upsd );  
+
+argH = pwrec( modH, [] ); 
+h = re(dft( modH .* exp(i*argH),T)); 
+x = t/T; `,  
+			{
+				evs: $.matrix( solve.evs ),
+				N: solve.N,
+				refLambda: solve.refLambda,
+				alpha: solve.alpha,
+				T: solve.T,
+				Tc: solve.Tc
+			}, ctx => {
+				//Log("vmctx", ctx);
+				cb({
+					trigger: {
+						x: ctx.x,
+						h: ctx.h,
+						modH: ctx.modH,
+						argH: ctx.argH,
+						f: ctx.nu
+					}
+				});
+		});
+	},
+			
+	coherenceIntervals: function (solve) { // return coherence intervals M, SNR, etc from events
+	/*
+		H[k] = observation freqs at count level k
+		T = observation time
+		N = number of observations
+		solve = {use: "lma" | ...,  lma: [initial M], lfa: [initial M], bfs: [start, end, increment M] }
+	*/
+		function logNB(k,a,x) { // negative binomial objective function
+		/*
+		return log{ p0 } where
+			p0(x) = negbin(a,k,x) = (gamma(k+x)/gamma(x))*(1+a/x)**(-x)*(1+x/a)**(-k) 
+			a = <k> = average count
+			x = script M = coherence intervals
+			k = count level
+		 */
+			var
+				ax1 =  1 + a/x,
+				xa1 = 1 + x/a,
+
+				// nonindexed log Gamma works with optimizers, but slower than indexed versions
+				logGx = GAMMA.log(x),
+				logGkx = GAMMA.log(k+x), 
+				logGk1 = GAMMA.log(k+1);
+
+				// indexed log Gamma produce round-off errors in optimizers 
+				// logGx = logGamma[ floor(x) ],
+				// logGkx = logGamma[ floor(k + x) ],
+				// logGk1 = logGamma[ floor(k + 1) ];
+
+			return logGkx - logGk1 - logGx  - k*log(xa1) - x*log(ax1);
+		}
+
+		function LFA(init, f, logp) {  // linear-factor-analysis (via newton raphson) for chi^2 extrema - use at your own risk
+		/*
+		1-parameter (x) linear-factor analysis
+		k = possibly compressed list of count bins
+		init = initial parameter values [a0, x0, ...] of length N
+		logf  = possibly compressed list of log count frequencies
+		a = Kbar = average count
+		x = M = coherence intervals		
+		*/
+
+			function p1(k,a,x) { 
+			/*
+			return p0'(x) =
+						(1 + x/a)**(-k)*(a/x + 1)**(-x)*(a/(x*(a/x + 1)) - log(a/x + 1)) * gamma[k + x]/gamma[x] 
+							- (1 + x/a)**(-k)*(a/x + 1)**(-x)*gamma[k + x]*polygamma(0, x)/gamma[x] 
+							+ (1 + x/a)**(-k)*(a/x + 1)**(-x)*gamma[k + x]*polygamma(0, k + x)/gamma[x] 
+							- k*(1 + x/a)**(-k)*(a/x + 1)**(-x)*gamma[k + x]/( a*(1 + x/a)*gamma[x] )			
+
+					=	(1 + x/a)**(-k)*(a/x + 1)**(-x)*(a/(x*(a/x + 1)) - log(a/x + 1)) * G[k + x]/G[x] 
+							- (1 + x/a)**(-k)*(a/x + 1)**(-x)*PSI(x)*G[k + x]/G[x] 
+							+ (1 + x/a)**(-k)*(a/x + 1)**(-x)*PSI(k + x)*G[k + x]/G[x] 
+							- k*(1 + x/a)**(-k)*(a/x + 1)**(-x)*G[k + x]/G[x]/( a*(1 + x/a) )			
+
+					=	G[k + x]/G[x] * (1 + a/x)**(-x) * (1 + x/a)**(-k) * {
+							(a/(x*(a/x + 1)) - log(a/x + 1)) - PSI(x) + PSI(k + x) - k / ( a*(1 + x/a) ) }
+
+					= p(x) * { (a/x) / (1+a/x) - (k/a) / (1+x/a) - log(1+a/x) + Psi(k+x) - Psi(x)  }
+
+					= p(x) * { (a/x - k/a) / (1+x/a) - log(1+a/x) + Psi(k+x) - Psi(x)  }
+
+				where
+					Psi(x) = polyGamma(0,x)
+			 */
+				var
+					ax1 =  1 + a/x,
+					xa1 = 1 + x/a,
+
+					// indexed Psi may cause round-off problems in optimizer
+					psix = Psi[ floor(x) ], 
+					psikx = Psi[ floor(k + x) ], 
+
+					slope = (a/x - k/a)/ax1 - log(ax1) + psikx - psix;
+
+				return exp( logp(k,a,x) ) * slope;  // the slope may go negative so cant return logp1		
+			}
+
+			function p2(k,a,x) {  // not used
+			/*
+			return p0" = 
+					(1 + x/a)**(-k)*(a/x + 1)**(-x)*( a**2/(x**3*(a/x + 1)**2) 
+						+ (a/(x*(a/x + 1)) - log(a/x + 1))**2 - 2*(a/(x*(a/x + 1)) - log(a/x + 1) )*polygamma(0, x) 
+					+ 2*(a/(x*(a/x + 1)) - log(a/x + 1))*polygamma(0, k + x) 
+					+ polygamma(0, x)**2 
+					- 2*polygamma(0, x)*polygamma(0, k + x) + polygamma(0, k + x)**2 - polygamma(1, x) + polygamma(1, k + x) 
+					- 2*k*(a/(x*(a/x + 1)) - log(a/x + 1))/(a*(1 + x/a)) + 2*k*polygamma(0, x)/(a*(1 + x/a)) 
+					- 2*k*polygamma(0, k + x)/(a*(1 + x/a)) + k**2/(a**2*(1 + x/a)**2) + k/(a**2*(1 + x/a)**2))*gamma(k + x)/gamma(x);
+			 */
+				var
+					ax1 =  1 + a/x,
+					xa1 = 1 + x/a,
+					xak = xa1**(-k),
+					axx = ax1**(-x),
+
+					// should make these unindexed log versions
+					gx = logGamma[ floor(x) ],
+					gkx = logGamma[ floor(k + x) ],
+
+					logax1 = log(ax1),
+					xax1 = x*ax1,
+					axa1 = a*xa1,				
+
+					// should make these Psi 
+					pg0x = polygamma(0, x),
+					pg0kx = polygamma(0, k + x);
+
+				return xak*axx*(a**2/(x**3*ax1**2) + (a/xax1 - logax1)**2 - 2*(a/xax1 - logax1)*pg0x 
+							+ 2*(a/xax1 - logax1)*pg0kx + pg0x**2 
+							- 2*pg0x*pg0kx + pg0kx**2 - polygamma(1, x) + polygamma(1, k + x) 
+							- 2*k*(a/xax1 - logax1)/axa1 + 2*k*pgx/axa1 - 2*k*pg0kx/axa1 
+							+ k**2/(a**2*xa1**2) + k/(a**2*xa1**2))*gkx/gx;
+			}
+
+			function chiSq1(f,a,x) { 
+			/*
+			return chiSq' (x)
+			*/
+				var 
+					sum = 0,
+					Kmax = f.length;
+
+				for (var k=1; k<Kmax; k++) sum += ( exp( logp0(a,k,x) ) - f[k] ) * p1(a,k,x);
+
+				//Log("chiSq1",a,x,Kmax,sum);
+				return sum;
+			}
+
+			function chiSq2(f,a,x) {
+			/*
+			return chiSq"(x)
+			*/
+				var
+					sum =0,
+					Kmax = f.length;
+
+				for (var k=1; k<Kmax; k++) sum += p1(a,k,x) ** 2;
+
+				//Log("chiSq2",a,x,Kmax,sum);
+				return 2*sum;
+			}
+
+			var
+				Mmax = 400,
+				Kmax = f.length + Mmax,
+				eps = $(Kmax, (k,A) => A[k] = 1e-3),
+				Zeta = $(Kmax, (k,Z) => 
+					Z[k] = k ? ZETA(k+1) : -0.57721566490153286060   // -Z[0] is euler-masheroni constant
+				), 
+				Psi1 = Zeta.sum(),
+				Psi = $(Kmax, (x,P) =>   // recurrence to build the diGamma Psi
+					P[x] = x ? P[x-1] + 1/x : Psi1 
+				);
+
+			return NRAP( (x) => chiSq1(f, Kbar, x), (x) => chiSq2(f, Kbar, x), init[0]);  // 1-parameter newton-raphson
+		}
+
+		function LMA(init, k, logf, logp) {  // levenberg-marquart algorithm for chi^2 extrema
+		/*
+		N-parameter (a,x,...) levenberg-marquadt algorithm where
+		k = possibly compressed list of count bins
+		init = initial parameter values [a0, x0, ...] of length N
+		logf  = possibly compressed list of log count frequencies
+		a = Kbar = average count
+		x = M = coherence intervals
+		*/
+
+			switch ( init.length ) {
+				case 1:
+					return LM({  // 1-parm (x) levenberg-marquadt
+						x: k,  
+						y: logf
+					}, function ([x]) {
+						//Log(Kbar, x);
+						return k => logp(k, Kbar, x);
+					}, {
+						damping: 0.1, //1.5,
+						initialValues: init,
+						//gradientDifference: 0.1,
+						maxIterations: 1e3,  // >= 1e3 with compression
+						errorTolerance: 10e-3  // <= 10e-3 with compression
+					});
+					break;
+
+				case 2:
+
+					switch ("2stage") {
+						case "2parm":  // greedy 2-parm (a,x) approach will often fail when LM attempts an x<0
+							return LM({  
+								x: k,  
+								y: logf  
+							}, function ([x,u]) {
+								Log("2stage LM",x,u);
+								//return k => logp(k, Kbar, x, u);
+								return x ? k => logp(k, Kbar, x, u) : k => -50;
+							}, {
+								damping: 0.1, //1.5,
+								initialValues: init,
+								//gradientDifference: 0.1,
+								maxIterations: 1e2,
+								errorTolerance: 10e-3
+							});
+
+						case "2stage":  // break 2-parm (a,x) into 2 stages
+							var
+								x0 = init[0],
+								u0 = init[1],
+								fit = LM({  // levenberg-marquadt
+									x: k,  
+									y: logf
+								}, function ([u]) {
+									//Log("u",u);
+									return k => logp(k, Kbar, x0, u);
+								}, {
+									damping: 0.1, //1.5,
+									initialValues: [u0],
+									//gradientDifference: 0.1,
+									maxIterations: 1e3,  // >= 1e3 with compression
+									errorTolerance: 10e-3  // <= 10e-3 with compression
+								}),
+								u0 = fit.parameterValues[0],
+								fit = LM({  // levenberg-marquadt
+									x: k,  
+									y: logf
+								}, function ([x]) {
+									//Log("x",x);
+									return k => logp(k, Kbar, x, u0);
+								}, {
+									damping: 0.1, //1.5,
+									initialValues: [x0],
+									//gradientDifference: 0.1,
+									maxIterations: 1e3,  // >= 1e3 with compression
+									errorTolerance: 10e-3  // <= 10e-3 with compression
+								}),
+								x0 = fit.parameterValues[0];
+
+							fit.parameterValues = [x0, u0];
+							return fit;	
+						}
+					break;	
+			}
+		}
+
+		function BFS(init, f, logp) {   // brute-force-search for chi^2 extrema
+		/*
+		1-parameter (x) brute force search
+		k = possibly compressed list of count bins
+		init = initial parameter values [a0, x0, ...] of length N
+		logf  = possibly compressed list of log count frequencies
+		a = Kbar = average count
+		x = M = coherence intervals			
+		*/
+			function NegBin(NB, Kbar, M, logp) {
+				NB.$( k => NB[k] = exp( logp(k, Kbar, M) ) );
+			}
+
+			function chiSquared(p, f, N) {
+				var chiSq = 0, err = 0;
+				p.$( k => {
+					//chiSq += (H[k] - N*p[k])**2 / (N*p[k]);
+					chiSq += (f[k] - p[k])**2 / p[k];
+				});
+				return chiSq * N;
+			}
+
+			var
+				pRef = $(f.length),
+				Mbrute = 1,
+				chiSqMin = 1e99;
+
+			for (var M=init[0], Mmax=init[1], Minc=init[2]; M<Mmax; M+=Minc) {  // brute force search
+				NegBin(pRef, Kbar, M, logNB);
+				var chiSq = chiSquared(pRef, fK, N);
+
+				Log(M, chiSq, pRef.sum() );
+
+				if (chiSq < chiSqMin) {
+					Mbrute = M;
+					chiSqMin = chiSq;
+				}
+			} 
+			return Mbrute;
+		}
+
+		var
+			/*
+			logGamma = $(Ktop , function (k, logG) {
+				logG[k] = (k<3) ? 0 : GAMMA.log(k);
+			}),
+			*/
+			/*
+			Gamma = $(Ktop, function (k,G) {
+				G[k] = exp( logGamma[k] );
+			}),
+			*/
+			H = solve.H,
+			N = solve.N,
+			T = solve.T,
+
+			Nevs = 0, 	// number of events
+			Kmax = H.length,  // max count
+			Kbar = 0,  // mean count
+			K = [],  // count list
+			compress = solve.lfa ? false : true,   // enable pdf compression if not using lfa
+			interpolate = !compress,
+			fK = $(Kmax, (k, p) => {    // count frequencies
+				if (interpolate)  {
+					if ( H[k] ) 
+						p[k] = H[k] / N;
+
+					else
+					if ( k ) {
+						N += H[k-1];
+						p[k] = H[k-1] / N;
+					}
+
+					else
+						p[k] = 0;
+				}
+				else
+					p[k] = H[k] / N;
+			});
+
+		//H.forEach( (h,n) => Log([n,h]) );
+
+		H.$( k => {
+			Kbar += k * fK[k];
+			Nevs += k * H[k];
+		});
+
+		fK.$( k => {   
+			if ( compress ) {
+				if ( fK[k] ) K.push( k );
+			}
+			else
+				K.push(k); 
+		});
+
+		var
+			M = 0,
+			Mdebug = 0,
+			logfK = $(K.length, (n,logf) => {  // observed log count frequencies
+				if ( Mdebug ) { // enables debugging
+					logf[n] = logNB(K[n], Kbar, Mdebug);
+					//logf[n] += (n%2) ? 0.5 : -0.5;  // add some "noise" for debugging
+				}
+				else
+					logf[n] = fK[ K[n] ] ? log( fK[ K[n] ] ) : -7;
+			});
+
+		Log({
+			Kbar: Kbar, 
+			T: T, 
+			N: N, 
+			Kmax: Kmax,
+			Nevs: Nevs,
+			ci: [compress, interpolate]
+		});
+
+		if (false)
+			K.$( n => {
+				var k = K[n];
+				Log(n, k, logNB(k,Kbar,55), logNB(k,Kbar,65), log( fK[k] ), logfK[n] );
+			});
+
+		if ( Kmax >= 2 ) {
+			var M = {}, fits = {};
+
+			if (solve.lma) {  // levenberg-marquadt algorithm for [M, ...]
+				fits = LMA( solve.lma, K, logfK, logNB);
+				M.lma = fits.parameterValues[0];
+			}
+
+			if (solve.lfa)   // linear factor analysis for M using newton-raphson search over chi^2. UAYOR !  (compression off, interpolation on)
+				M.lfa = LFA( solve.lfa, fK, logNB);
+
+			if (solve.bfs)  // brute force search for M
+				M.bfs = BFS( solve.bfs, fK, logNB);
+
+			var 
+				M0 = M[solve.$ || "lma"],
+				snr = sqrt( Kbar / ( 1 + Kbar/M0 ) ),
+				bias = sqrt( (Nevs-1)/2 ) * exp(GAMMA.log((Nevs-2)/2) - GAMMA.log((Nevs-1)/2)),		// bias of snr estimate
+				mu = (Nevs>=4) ? (Nevs-1) / (Nevs-3) - bias**2 : 2.5;		// rel error in snr estimate
+
+			return {
+				events: Nevs,
+				est: M,
+				fits: fits,
+				coherence_intervals: M0,
+				mean_count: Kbar,
+				mean_intensity: Kbar / T,
+				degeneracyParam: Kbar / M0,
+				snr: snr,
+				complete: 1 - mu/2.5,
+				coherence_time: T / M0,
+				fit_stats: M
+			};
+		}
+
+		else
+			return null;
+	},
+	
+	arrivalRates: function( solve, cb ) { // estimate rates with callback cb(rates) 
+
+		function getpcs(model, Emin, M, Mwin, Mmax, cb) {  // get or gen Principle Components with callback(pcs)
+
+			$.thread( sql => {
+				function genpcs(dim, steps, model, cb) {
+					Log("gen pcs", dim, steps, model); 
+
+					function evd( models, dim, step, cb) {
+						models.forEach( function (model) {
+							Log("pcs", model, dim, step);
+							for (var M=1; M<dim; M+=step) {
+								$( `
+	t = rng(-T, T, 2*N-1);
+	Tc = T/M;
+	xccf = ${model}( t/Tc );
+	Xccf = xmatrix( xccf ); 
+	R = evd(Xccf); 
+	`,  								{
+										N: dim,
+										M: M,
+										T: 50
+									}, ctx => {
+
+									if (solve.trace)  { // debugging
+										$(`
+	disp({
+	M: M,
+	ccfsym: sum(Xccf-Xccf'),
+	det: [det(Xccf), prod(R.values)],
+	trace: [trace(Xccf), sum(R.values)]
+	})`, ctx);
+									}
+
+	/*
+	basis: R.vectors' * R.vectors,
+	vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
+	*/
+									cb({  // return PCs
+										model: model,
+										intervals: M,
+										values: ctx.R.values._data,
+										vectors: ctx.R.vectors._data
+									});
+								});
+							}
+						});
+					}
+
+					sql.beginBulk();
+
+					evd( [model], Mmax, Mwin*2, pc => {
+						var 
+							vals = pc.values,
+							vecs = pc.vectors,
+							N = vals.length, 
+							ref = $.max(vals);
+
+						vals.forEach( (val, idx) => {
+							var
+								save = {
+									correlation_model: pc.model,
+									coherence_intervals: pc.intervals,
+									eigen_value: val / ref,
+									eigen_index: idx,
+									ref_value: ref,
+									max_intervals: dim,
+									eigen_vector: JSON.stringify( vecs[idx] )
+								};
+
+							//Log(save);
+
+							sql.query("INSERT INTO app.pcs SET ? ON DUPLICATE KEY UPDATE ?", [save,save] );
+						});
+					});
+
+					sql.endBulk();
+					cb();	
+				}
+
+				function sendpcs( pcs ) {
+					var vals = [], vecs = [];
+
+					//Log("sendpcs", pcs);
+					pcs.forEach( function (pc) {
+						vals.push( pc.eigen_value );
+						vecs.push( JSON.parse( pc.eigen_vector ) );
+					});
+
+					cb({
+						values: vals,
+						vectors: vecs,
+						ref: pcs[0].ref_value
+					});
+				}
+
+				function findpcs( cb ) {
+					var M0 = Math.min( M, Mmax-Mwin*2 );
+
+					sql.query(
+						"SELECT * FROM app.pcs WHERE coherence_intervals BETWEEN ? AND ? AND eigen_value / ref_value > ? AND least(?,1) ORDER BY eigen_index", 
+						[M0-Mwin, M0+Mwin, Emin, {
+							max_intervals: Mmax, 
+							correlation_model: model
+						}],
+						function (err, pcs) {
+							if (!err) cb(pcs);
+					});
+				}
+
+				findpcs( pcs => {
+					if (pcs.length) 
+						sendpcs( pcs );
+
+					else
+					sql.query(
+						"SELECT count(ID) as Count FROM app.pcs WHERE least(?,1)", {
+							max_intervals: Mmax, 
+							correlation_model: model
+						}, 
+						function (err, test) {  // see if pc model exists
+
+						//Log("test", test);
+						if ( !test[0].Count )  // pc model does not exist so make it
+							genpcs( Mmax, Mwin*2, model, function () {
+								findpcs( sendpcs );
+							});
+
+						else  // search was too restrictive so no need to remake model
+							sendpcs(pcs);
+					});							
+				});
+				
+				sql.release();
+			});
+		}
+
+		// Should add a ctx.Shortcut parms to bypass pcs and use an erfc model for the eigenvalues.
+
+		getpcs( solve.model||"sinc", solve.min||0, solve.M, solve.Mstep/2, solve.Mmax, function (pcs) {
+
+			//const { sqrt, random, log, exp, cos, sin, PI } = Math;
+
+			/*
+			function expdev(mean) {
+				return -mean * log(random());
+			}  */
+
+			if (pcs) {
+				var 
+					pcRef = pcs.ref,  // [unitless]
+					pcVals = pcs.values,  // [unitless]
+					N = pcVals.length,
+					T = solve.T,
+					dt = T / (N-1),
+					egVals = $(N, (n,e) => e[n] = solve.lambdaBar * dt * pcVals[n] * pcRef ),  // [unitless]
+					egVecs = pcs.vectors;   // [sqrt Hz]
+
+				if (N) {
+					$( `
+A=B*V; 
+lambda = abs(A).^2 / dt; 
+Wbar = {evd: sum(E), prof: sum(lambda)*dt};
+evRate = {evd: Wbar.evd/T, prof: Wbar.prof/T};
+x = rng(-1/2, 1/2, N); ` , 
+						{
+							T: T,
+							N: N,
+							dt: dt,
+
+							E: $.matrix( egVals ),
+
+							B: $(N, (n,B) => {
+								var
+									b = sqrt( $.expdev( egVals[n] ) ),  // [unitless]
+									arg = random() * PI;
+
+								Log(n,arg,b, egVals[n], T, N, solve.lambdaBar );
+								B[n] = $.complex( b * cos(arg), b * sin(arg) );  // [unitless]
+							}),
+
+							V: egVecs   // [sqrt Hz]
+						}, ctx => {
+							cb({  // return computed stats
+								intensity: {x: ctx.x, i: ctx.lambda},
+								//mean_count: ctx.Wbar.evd,
+								//mean_intensity: ctx.evRate.evd,
+								eigen_ref: pcRef
+							});
+							Log({  // debugging
+								mean_count: ctx.Wbar,
+								mean_intensity: ctx.evRate,
+								eigen_ref: pcRef
+							});
+						});	
+				}
+
+				else
+					cb({
+						error: `coherence intervals ${stats.coherence_intervals} > max pc dim`
+					});
+			}
+
+			else
+				cb({
+					error: "no pcs matched"
+				});
+		});
+	},
+	
+	pwrem: function (nu, z) {  // paley-weiner remainder 
 	/*
 	Returns paley-weiner remainder given zeros z in complex UHP at frequencies 
 	nu = [ -f0, ... +f0 ] [Hz]
@@ -1956,10 +2655,10 @@ vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
 		return ctx.rem;
 	},
 	
-	pwt: function (modH, z) {   //  paley-weiner theorem reconstruction
+	pwrec: function (modH, z) {   //  paley-weiner reconstruction
 	/* 
-	Returns paley-weiner recovery of H(nu) = |H(nu)| exp( j*argH(nu) ) given its modulous 
-	and its zeros z=[z1,...] in complex UHP
+	Returns paley-weiner reconstructed trigger H(nu) = |H(nu)| exp( j*argH(nu) ) given its modulous 
+	and its zeros z=[z1,...] in complex UHP.
 	*/
 		
 		var 
@@ -1973,34 +2672,8 @@ vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
 		$.eval( "nu = rng(-fs/2, fs/2, N); argH = dht( log( modH ) ) + pwrem(nu, z); ", ctx ); 
 		return ctx.argH;
 	},
-	
-	dft: function (F) {		// discrete Fouier transform (unwrapped and correctly signed)
-	/*
-	Returns unnormalized dft/idft of an odd length, real or complex array F.
-	*/
-		var 
-			F = F._data,
-			N = F.length,
-			isReal = isNumber( F[0] ),
-			G = isReal 
-				? 	$( N-1, (n,G) =>  { // alternate signs to setup dft and truncate array to N-1 = 2^int
-						G[n] = (n % 2) ? [-F[n], 0] : [F[n], 0];
-					})
-			
-				: 	$( N-1, (n,G) =>  { // alternate signs to setup dft and truncate array to N-1 = 2^int
-						G[n] = (n % 2) ? [-F[n].re, -F[n].im] : [F[n].re, F[n].im];
-					}),
-		
-			g = DSP.ifft(G);
 
-		g.$( (n) => {  // alternate signs to complete dft 
-			var gn = g[n];
-			g[n] = (n % 2) ? $.complex(-gn[0], -gn[1]) : $.complex(gn[0], gn[1]);
-		});
-
-		g.push( $.complex(0,0) );
-		return $.matrix(g);
-	},
+	// power spectrums
 	
 	wkpsd: function (ccf, T) {  // weiner-kinchine psd
 	/* 
@@ -2123,6 +2796,34 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 	
 	// special functions
 	
+	sinc: function (x) {
+		var x = x._data, N = x.length;
+		return $.matrix( $( N, (n, sinc) => sinc[n] = x[n] ? sin( PI*x[n] ) / (PI*x[n]) : 1) );
+	},
+	
+	rect: function (x) {
+		var x = x._data, N = x.length;
+		return $.matrix( $( N, (n, rect) => rect[n] = (abs(x[n])<=0.5) ? 1 : 0) );
+	},
+
+	tri: function (x) {
+		var x = x._data, N = x.length;
+		return $.matrix( $( N, (n, tri) => { 
+			var u = abs( x[n] );
+			tri[n] = (u<=1) ? 1-u : 0;
+		}) );
+	},
+	
+	negexp: function (x) {
+		var x = x._data, N = x.length;
+		return $.matrix( $( N, (n, neg) => neg[n] = (x[n] > 0) ? exp(-x[n]) : 0) );
+	},
+		
+	lorenzian: function (x) {
+		var x = x._data, N = x.length;
+		return $.matrix( $( N, (n, lor) => lor[n] = 2 / (1 + (2*pi*x[n]**2)) ));
+	},
+		
 	zeta: function (a) {},
 	infer: function (a) {},
 	mle: function (a) {},
@@ -2284,7 +2985,7 @@ switch ( process.argv[2] ) { //< unit tests
 		break;
 
 	case "L3":
-		$( " disp( pwt( abs(sinc( rng(-4*pi,4*pi,511)) ) , [] ) )" );
+		$( " disp( pwrec( abs(sinc( rng(-4*pi,4*pi,511)) ) , [] ) )" );
 		break;
 		
 	case "L4.1":
@@ -2373,7 +3074,7 @@ switch ( process.argv[2] ) { //< unit tests
 		
 		var p0map = function ([a]) {
 			 Log(a,x);
-			return (k) => _logp0(a,k,x);
+			return k => _logp0(a,k,x);
 		};
 		var data = {
 		  x: new Array(len),
@@ -2404,7 +3105,7 @@ switch ( process.argv[2] ) { //< unit tests
 		
 		var p0map = function ([a,x]) {
 			 Log(a,x);
-			return (k) => _logp0(a,k,x);
+			return k => _logp0(a,k,x);
 		};
 		var data = {
 		  x: new Array(len),
@@ -2436,7 +3137,7 @@ switch ( process.argv[2] ) { //< unit tests
 		$(`
 lrm = lrmTrain(x,y,{numSteps:1000,learningRate:5e-3}); 
 y0 = lrmPredict( lrm, x0);`, 
-		  ctx, (ctx) => {
+		  ctx, ctx => {
 
 		// Log( JSON.stringify(ctx.lrm) );
 			
@@ -2472,7 +3173,7 @@ y0 = lrmPredict( lrm, x0);`,
 			}
 		};
 		
-		$(`svmTrain( x, y, {}, save );` ,  ctx, (ctx) => {
+		$(`svmTrain( x, y, {}, save );` ,  ctx, ctx => {
 
 		// Log( JSON.stringify(ctx.svm) );
 			
@@ -2529,7 +3230,7 @@ y0 = lrmPredict( lrm, x0);`,
 					x0: test.x.slice(0,4)
 				};
 			
-			$( `cls = ${met}Train(x,y,{}); y0 = ${met}Predict( cls, x0 );`, ctx, (ctx) => {
+			$( `cls = ${met}Train(x,y,{}); y0 = ${met}Predict( cls, x0 );`, ctx, ctx => {
 				Log(`unittest ${met}`, {x0: ctx.x0, y0: ctx.y0}, ctx.cls);
 			});
 		}
