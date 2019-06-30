@@ -22,7 +22,7 @@
 @requires random-seed
 */
 
-const { Copy,Each,Log,isArray,isNumber,isString,isObject } = require("enum");
+const { Copy,Each,Log,isArray,isNumber,isString,isObject,isFunction } = require("enum");
 
 const {random, sin, cos, exp, log, PI, floor, abs, min, max} = Math;
 
@@ -59,16 +59,16 @@ function saveStash(sql, stash, ID, host) {
 		}
 	},
 	
-	function feed(key, cb) { // get event records from db using supplied query
+	function get(idx, cb) { // get event records from db using supplied query
 		var query = this+"";
 		
 		//Log(">>>>fetching", query);
 		$.thread( sql => {  
 			var recs = [];
 
-			if (key)
+			if (idx)
 				sql.forEach( TRACE, query , [], rec => {  // feed db events to grouper
-					if ( recs.group(key, rec) ) recs.flush(cb);
+					if ( recs.group(idx, rec) ) recs.flush(cb);
 					recs.push(rec);
 				})
 				.on("end", () => {
@@ -100,8 +100,12 @@ function saveStash(sql, stash, ID, host) {
 		});
 	},
 	
-	function $(ctx, cb) {	// index string
+	function $(idx,cb) {
+		return this.get(idx,cb);
+	}
+	
 	/*
+	function $(ctx, cb) {	// index string
 		if (cb) // load/save data
 			if ( isString(ctx) )
 				return this.get(ctx, cb);
@@ -111,12 +115,30 @@ function saveStash(sql, stash, ID, host) {
 
 		else
 			return null;
-	*/
 	}
+	*/
 	
 ].Extend(String);
 
 [	// Array processing
+	
+	function dist(b) { 
+		var 
+			a = this,
+			d = [ a[0]-b[0], a[1]-b[1] ];
+		
+		return sqrt( d[0]*d[0] + d[1]*d[1] );
+	},
+
+	function nearestOf (metric) {
+		var imin = 0, emin = 1e99;
+
+		this.forEach( (pt,i) => {
+			var e = metric( pt );
+			if (  e < emin) { imin = i; emin = e; }
+		});
+		return {idx: imin, val: emin};
+	},
 	
 	// samplers
 	
@@ -184,9 +206,28 @@ function saveStash(sql, stash, ID, host) {
 		});
 	},
 	
-	function get(idx) {		
+	function get(idx, cb) {	
 		var A = this, N = A.length;
 
+		if ( cb ) {  // thread idx-grouped events to callback cb(evs) or cb(null) at end
+			var 
+				recs = [];
+
+			if ( idx ) {
+				A.forEach( rec => { 
+					if ( recs.group(idx, rec) ) recs.flush(cb);
+					recs.push(rec);
+				});
+				recs.flush( cb );
+			}
+
+			else 
+				cb(A);
+			
+			cb( null );   // signal end-of-events
+		}
+		
+		else
 		if ( isString(idx) )
 			return $(N, (n,B) => B[n] = idx.parseEval( A[n] ) );
 	 
@@ -197,6 +238,24 @@ function saveStash(sql, stash, ID, host) {
 		else
 		if ( isNumber(idx) )
 			return $(N, (n,B) => B[n] = A[n].slice(0,idx) );
+		
+		else
+		if ( isFunction(idx) ) {
+			if (A.rows) {
+				var M = A.rows, N = A.columns;
+
+				for (var m=0; m<M; m++) 
+					for (var n=0, Am = A[m]; n<N; n++) 
+						idx(m,n,A,Am);
+				
+				return A;
+			}
+
+			else 
+				for (var n=0; n<N; n++) idx(n,A);
+
+			return A;
+		}
 		
 		else
 		if ( keys = idx.keys )
@@ -219,11 +278,17 @@ function saveStash(sql, stash, ID, host) {
 		else
 			return A;
 	},
-		
+	
+	function $(idx,db) {
+		return this.get(idx,db);
+	},
+	
+	/*
 	function Get(idx) {
 		return [this].get(idx)[0];
 	},
-
+	*/
+	/*
 	function feed( key, cb) {  
 	// thread key-grouped events to callback cb(evs) or cb(null) at end
 		
@@ -242,7 +307,7 @@ function saveStash(sql, stash, ID, host) {
 			cb(this);
 			
 		cb( null );   // signal end-of-events		
-	},		
+	},	*/
 	
 	function save( ctx, cb ) {
 	// stash aggregated events evs into context ctx[ Save_KEYs ] then callback(remaining evs) 
@@ -360,6 +425,7 @@ function saveStash(sql, stash, ID, host) {
 
 	},
 	
+	/*
 	function $(cb) {	// index matrix A
 		var 
 			A = this, 
@@ -367,7 +433,7 @@ function saveStash(sql, stash, ID, host) {
 			N = A.length;		
 
 		if ( isString( expr ) ) 
-			return $$( expr, { /*$: A,*/ "this": A } );
+			return $$( expr, { "this": A } );
 		
 		else
 		if ( isArray( idx ) ) 
@@ -385,7 +451,7 @@ function saveStash(sql, stash, ID, host) {
 			if (cb) for (var n=0,N=A.length; n<N; n++) cb(n,A);
 			return A;
 		}
-	},
+	},  */
 	
 	function stashify(watchKey, targetPrefix, ctx, stash, cb) {
 	/*
@@ -794,7 +860,7 @@ var
 	},
 	CRYPTO = require('crypto'),
 	IMP = require('jimp'),
-	EM = require("expectation-maximization"),
+	EM = require("expectation-maximization"),  // there is a mljs version as well that uses this one
 	MVN = require("multivariate-normal").default,
 	LM = require("./mljs/node_modules/ml-levenberg-marquardt"),
 	ML = require("./mljs/node_modules/ml-matrix"),
@@ -1114,7 +1180,70 @@ $.extensions = $.extensions = {
 		
 	// regressors
 	
-	dtr_train: function (x,y,solve,cb) {
+	qda_train: function (x,y,solve) {  // quadratic discriminant analysis (aka bayesian ridge)
+
+		var 
+			mixes = solve.mixes || 5,
+			x = solve.x || "x",
+			y = solve.y || "y",
+			z = solve.z || "z",			
+			evs = [];
+
+		x.forEach( ev => evs.push( [ev[x],ev[y],ev[z]] )  );
+
+		return $.EM( evs, mixes );
+	},
+	
+	qda_predict(cls, x) {
+		var
+			X = x._data,
+			N = X.length,
+			mles = cls,
+			mixes = mles.length,
+			MVN = $.MVN,
+			P = $(mixes),
+			Y = $(N, (n,y) => {
+				var x = X[n];
+				P.$( k => P[k] = {idx: k, val: MVN( x, mles[k].mu, mles[k].sigma )} );
+				y[n] = P.sort( (a,b) => b.val - a.val );
+			});
+		
+		return $.matrix(Y);
+	},
+	
+	lda_train: function (x,y,solve) { // linear discriminant analysis (aka bayesian ridge)
+
+		var 
+			mixes = solve.mixes || 5,
+			x = solve.x || "x",
+			y = solve.y || "y",
+			z = solve.z || "z",			
+			evs = [];
+
+		x.forEach( ev => evs.push( [ev[x],ev[y],ev[z]] )  );
+
+		return $.EM( evs, mixes );
+	},
+	
+	lda_predict(cls, x) {
+		var
+			X = x._data,
+			N = X.length,
+			mles = cls,
+			mixes = mles.length,
+			MVN = $.MVN,
+			P = $(mixes),
+			sigma = mles[0].sigma,
+			Y = $(N, (n,y) => {
+				var x = X[n];
+				P.$( k => P[k] = {idx: k, val: MVN( x, mles[k].mu, sigma )} );
+				y[n] = P.sort( (a,b) => b.val - a.val );
+			});
+		
+		return $.matrix(Y);
+	},
+	
+	dtr_train: function (x,y,solve) {
 		var
 			X = x._data,
 			Y = y._data,
@@ -1124,9 +1253,7 @@ $.extensions = $.extensions = {
 				minNumSamples: 3
 			}) );
 
-		//X.$( (n,x) => x[n] = x[n][0] );
 		cls.train(X,Y);
-		if (cb) cb(cls);
 		return cls;
 	},
 
@@ -1138,7 +1265,7 @@ $.extensions = $.extensions = {
 		return $.matrix(Y);
 	},
 
-	raf_train: function (x,y,solve,cb) {
+	raf_train: function (x,y,solve) {
 		
 		var
 			X = x._data,
@@ -1157,7 +1284,6 @@ $.extensions = $.extensions = {
 		});
 		
 		cls.train(X,Y);
-		if (cb) cb(cls);
 		return cls;
 	},
 
@@ -1169,15 +1295,14 @@ $.extensions = $.extensions = {
 		return $.matrix(Y);
 	},
 
-	nab_train: function (x,y,solve,cb) {
+	nab_train: function (x,y,solve) {
 		var
 			X = x._data,
 			Y = y._data,
 			cls = new NAB( );
 
 		cls.train(X,Y);
-		if (cb) cb( cls.export() );
-		return cls;
+		return cls.export();
 	},
 
 	nab_predict: function (cls, x) {
@@ -1188,7 +1313,7 @@ $.extensions = $.extensions = {
 		return $.matrix(Y);
 	},
 	
-	som_train: function (x,y,solve,cb) {
+	som_train: function (x,y,solve) {
 		var
 			X = x._data,
 			cls = new SOM( solve.dims.x || 20, solve.dims.y || 20, Copy( solve, {
@@ -1196,8 +1321,7 @@ $.extensions = $.extensions = {
 			}) );
 
 		cls.train(X);
-		if (cb) cb( cls.export() );
-		return cls;
+		return cls.export();
 	},
 
 	som_predict: function (cls, x) {
@@ -1208,7 +1332,7 @@ $.extensions = $.extensions = {
 		return $.matrix(Y);
 	},
 
-	ols_train: function (x,y,solve,cb) {
+	ols_train: function (x,y,solve) {
 		var
 			X = x._data,
 			Y = y._data,
@@ -1217,7 +1341,6 @@ $.extensions = $.extensions = {
 			Y = degree ? Y : $(N, (n,y) => y[n] = [ Y[n] ] ),
 			cls = degree ? new SPR(X,Y,solve.degree) : new MLR(X,Y);
 
-		if (cb) cb(cls);		
 		return cls;
 	},
 
@@ -1229,7 +1352,7 @@ $.extensions = $.extensions = {
 		return $.matrix(Y);
 	},
 
-	svm_train: function (x,y,solve,cb) {
+	svm_train: function (x,y,solve) {
 		/*
 		// legacy version
 		var
@@ -1253,7 +1376,9 @@ $.extensions = $.extensions = {
 		*/
 		
 		var 
-			opts = {
+			X = x._data,
+			Y = y._data.$( (n,y) => y[n] = y[n][0] ),
+			cls = new SVM( Copy( solve, {
 				C: 0.01,
 				tol: 10e-4,
 				maxPasses: 10,
@@ -1262,14 +1387,9 @@ $.extensions = $.extensions = {
 				kernelOptions: {
 					sigma: 0.5
 				}
-			},
-			X = x._data,
-			Y = y._data.$( (n,y) => y[n] = y[n][0] ),
-			cls = new SVM(opts);
+			}) );
 		
-		//Log(X,Y);
 		cls.train(X,Y);
-		if (cb) cb(cls);
 		return cls;
 	},
 
@@ -1287,7 +1407,7 @@ $.extensions = $.extensions = {
 		return $.matrix(Y);
 	},
 
-	lrm_train: function (x,y,solve,cb) {
+	lrm_train: function (x,y,solve) {
 		
 		function categorize(x) {
 			var cats = {}, ncats = 1;
@@ -1316,7 +1436,6 @@ $.extensions = $.extensions = {
 		});
 		
 		cls.train(X,Y);
-		if (cb) cb(cls);		
 		return cls;
 	},
 
@@ -1329,14 +1448,13 @@ $.extensions = $.extensions = {
 		return $.matrix(Y);
 	},
 
-	knn_train: function (x,y,solve,cb) {
+	knn_train: function (x,y,solve) {
 		var
 			X = new ml$(x._data),
 			Y = ml$.columnVector(y._data),
 			cls = new KNN(X,Y,solve);
 
 		Log("knn training", "k", solve.k);
-		if (cb) cb(cls);		
 		return cls;
 	},
 
@@ -1348,7 +1466,7 @@ $.extensions = $.extensions = {
 		return $.matrix(Y);
 	},
 
-	pls_train: function (x,y,solve,cb) {
+	pls_train: function (x,y,solve) {
 		var
 			X = new ml$(x._data),
 			Y = ml$.columnVector(y._data),
@@ -1359,7 +1477,6 @@ $.extensions = $.extensions = {
 
 		Log("pls training", solve);
 		cls.train(X,Y);
-		if (cb) cb(cls);		
 		return cls;
 	},
 
@@ -1707,7 +1824,7 @@ vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
 	
 	// linear algebra
 	
-	svd: function (a) {
+	svd: function (a) {		// singular vakue decomposition
 		var svd = new ML.SVD( a._data );
 		Log(svd);
 	},
@@ -1727,7 +1844,7 @@ vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
 		return $.matrix( $( N || max-min, (n,R) => { R[n] = min; min+=del; } ) );
 	},
 
-	xcorr: function ( xccf ) { 
+	xcorr: function ( xccf ) { 	// sampled correlation matrix
 	/* 
 	Returns N x N complex correlation matrix Xccf [unitless] sampled from the given 2N+1, odd
 	length, complex correlation function xccf [unitless].  Because Xccf is band symmetric, its 
@@ -1783,7 +1900,7 @@ vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
 		return $.matrix( $( N, (n, lor) => lor[n] = 2 / (1 + (2*pi*x[n]**2)) ));
 	},
 	
-	dht: function (f) {  
+	dht: function (f) {  //  discrete Hilbert transform
 	/*
 	Returns discrete Hilbert transform of an odd length array f
 	*/
@@ -1806,7 +1923,7 @@ vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
 		}) );
 	},
 		
-	pwrem: function (nu, z) {
+	pwrem: function (nu, z) {  // paley-weiner remainder
 	/*
 	Returns paley-weiner remainder given zeros z in complex UHP at frequencies 
 	nu = [ -f0, ... +f0 ] [Hz]
@@ -1827,7 +1944,7 @@ vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
 		return ctx.rem;
 	},
 	
-	pwt: function (modH, z) { 
+	pwt: function (modH, z) {   //  paley-weiner theorem reconstruction
 	/* 
 	Returns paley-weiner recovery of H(nu) = |H(nu)| exp( j*argH(nu) ) given its modulous 
 	and its zeros z=[z1,...] in complex UHP
@@ -1845,7 +1962,7 @@ vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
 		return ctx.argH;
 	},
 	
-	dft: function (F) {
+	dft: function (F) {		// discrete Fouier transform (unwrapped and correctly signed)
 	/*
 	Returns unnormalized dft/idft of an odd length, real or complex array F.
 	*/
@@ -1873,9 +1990,9 @@ vecres: R.vectors*diag(R.values) - Xccf*R.vectors,
 		return $.matrix(g);
 	},
 	
-	wkpsd: function (ccf, T) {  
+	wkpsd: function (ccf, T) {  // weiner-kinchine psd
 	/* 
-	Return weiner-kinchine psd [Hz] at frequencies nu [Hz] = [-f0 ... +f0] of a complex corr func 
+	Returns weiner-kinchine psd [Hz] at frequencies nu [Hz] = [-f0 ... +f0] of a complex corr func 
 	ccf [Hz^2] of len N = 2^K + 1 defined overan interval T [1/Hz], where the cutoff f0 is 1/2 the
 	implied	sampling rate N/T.
 	*/
@@ -1897,9 +2014,9 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		return ctx.psd;
 	},
 		  
-	psd: function (t,nu,T) {  
+	psd: function (t,nu,T) {  // power spectral density
 	/*
-	return power spectral density [Hz] of events at times [t1,t2,...] over interval T [1/Hz] at the
+	Returns power spectral density [Hz] of events at times [t1,t2,...] over interval T [1/Hz] at the
 	specified frequencies nu [Hz].
 	*/
 		var
@@ -1926,7 +2043,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		return ctx.Gu;
 	},
 
-	evpsd: function (evs,nu,T,idKey,tKey) {
+	evpsd: function (evs,nu,T,idKey,tKey) {  // event based PSD
 	/* 
 	Return psd [Hz] at the specified frequencies nu [Hz], and the mean event rate [Hz] given 
 	events evs = [{tKey: t1,idKey: id}, {tKey: t2, idKey: id}, ... ] over an observation 
@@ -1968,16 +2085,16 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		return $.eval(" {psd: re(Gu)/ids, rate:  mean(Ks)/T } ", ctx); 
 	},
 	
-	// deviates
+	// deviate generators
 	
-	udev: function (N,a) {  
+	udev: function (N,a) {  // uniform
 	/* 
 	Returns uniform random deviate on [0...a]
 	*/
 		return $.matrix( $(N, (n,R) => R[n] = a*random() ) );
 	},
 	
-	expdev: function (N,a) {  
+	expdev: function (N,a) {  // exponential
 	/* 
 	Returns exp random deviate with prescribed mean a
 	*/
@@ -1992,11 +2109,10 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		return $.matrix( $(N, (n,X) => X[n] = n ? X[n-1] + x[n] : x[0] ) );
 	},
 	
-	// special
+	// special functions
 	
 	zeta: function (a) {},
 	infer: function (a) {},
-	va: function (a) {},
 	mle: function (a) {},
 	mvn: function (a) {},
 	lfa: function (a) {},
