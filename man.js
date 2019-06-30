@@ -1179,6 +1179,18 @@ $.extensions = $.extensions = {
 	}, */
 		
 	// regressors
+
+	ann_train: function (x,y,solve) {
+	},
+	
+	ann_predict: function (x,y,solve) {
+	},
+	
+	dnn_train: function (x,y,solve) {
+	},
+	
+	dnn_predict: function (x,y,solve) {
+	},
 	
 	qda_train: function (x,y,solve) {  // quadratic discriminant analysis (aka bayesian ridge)
 
