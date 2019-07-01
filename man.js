@@ -1,4 +1,5 @@
 // UNCLASSIFIED
+// UNCLASSIFIED
 
 /**
 @class man
@@ -279,8 +280,8 @@ function saveStash(sql, stash, ID, host) {
 			return A;
 	},
 	
-	function $(idx,db) {
-		return this.get(idx,db);
+	function $(idx,cb) {
+		return this.get(idx,cb);
 	},
 	
 	/*
@@ -1532,7 +1533,7 @@ $.extensions = $.extensions = {
 
 	// data generators
 	
-	gen: function (ctx, res) {	// generate gauss, wiener, markov, bayesian, ornstein process
+	gen: function (opts, res) {	// generate gauss, wiener, markov, bayesian, ornstein process
 	
 		function genTest(N, beta0, beta1, seed) {
 			var 
@@ -1642,8 +1643,7 @@ $.extensions = $.extensions = {
 							[ coints, coints*(1-lims.coints), coints*(1+lims.coints), lims.mineig, {
 								max_intervals: lims.dim, 
 								correlation_model: model
-							}],
-							(err, pcs) => {
+							}], (err, pcs) => {
 								if ( err ) 
 									Log( err );
 
@@ -1719,91 +1719,10 @@ $.extensions = $.extensions = {
 			ran.pipe(cb);   // run process and capture results
 		}
 		
-		var opts = { // supervisor config 
-			N: ctx.Members,  // ensemble size
-			symbols: ctx.Symbols,  // state symbols
-			
-			wiener: ctx.type_Wiener, // walks
-			markov: ctx.type_Markov, // trans probs
-			gauss: ctx.type_Gauss, // [mean count, coherence intervals]
-			bayes: ctx.type_Bayes, // equlib probs
-			ornstein: ctx.type_Ornstein,   // theta,  a = sigma / sqrt(2*theta)
-			
-			dt: 1/ctx.Nyquist, // oversampling factor
-			steps: ctx.Steps, // process steps
-			emP: ctx.emProbs,  	// mixing/emission/observation parms
-			batch: ctx.Batch || 0,   // supervised learning every batch steps
-			filter: function (str, ev) {  // filter output events
-				switch ( ev.at ) {
-					case "jump":
-						var 
-							ys = ev.obs || [];
-
-						str.push({
-							at: ev.at,  // step name
-							t: ev.t, // time sampled
-							u: ev.state,   // state occupied
-							n: ev.index, 	// unique identifier
-							x: ys[0],  	// lat
-							y: ys[1],  	// lon
-							z: ys[2] 	// alt
-						});
-						break;
-
-					case "_step":
-						if (walking) {
-							var ev = { 
-								at: ev.at,
-								t: ran.t,
-								u: 0,
-								k: 0,
-								n: 0
-							};
-
-							ran.WU.each(function (id, state) {
-								ev[ labels[id] || ("w"+id) ] = state;
-							});
-
-							str.push(ev);
-							//Log(ev);
-						}
-
-						else
-							ran.U.each( function (index, state) {
-								var ys = ran.Y[index];
-								str.push({ 
-									at: ev.at,  // step name
-									t: ran.t, // time sampled
-									u: state,   // state occupied
-									n: index, 	// unique identifier
-									x: ys[0],  	// lat
-									y: ys[1],  	// lon
-									z: ys[2] 	// alt
-								});
-							});
-
-						break;
-
-					case "_end":
-						Log(ev);
-						
-					case "batch":
-					case "config":
-					case "end":
-						str.push(ev);
-						break;
-
-					default:
-						//str.push(ev);
-				}			
-			}  // event saver 
-		};
-
 		if (gauss = opts.gauss) {	// generate gaussian process using exact pcs or approx negbin
 			var 
-				N = ctx.Steps, 
-				T = N,
-				dt = 1/ctx.Nyquist;
+				N = T = opts.steps, 
+				dt = 1/opts.nyquist;
 			
 			if (gauss.model && gauss.coints)	// exact using pcs with specified coherence intervals
 				KL({  // parms for Karhunen Loeve solver
@@ -1817,8 +1736,15 @@ $.extensions = $.extensions = {
 				}, pcs => {
 
 					if (pcs) {  // use eigen expansion to generate counts
-						opts.gauss = pcs;
+						opts.gauss = {
+							values: pcs.values,   // pc eigen values  [unitless]
+							vectors: pcs.vectors, // pc eigen values	[sqrt Hz]
+							ref: pcs.ref,	// ref eigenvalue
+							dim: pcs.dim,	// max pc dim = obs interval
+							mean: gauss.mean  // mean count
+						};
 						
+						Log("gauss pr", opts.gauss);
 						genProc(opts, res);
 					}
 
@@ -1834,8 +1760,8 @@ $.extensions = $.extensions = {
 		}
 		
 		else
-		if (beta = ctx.beta) 
-			res( genTest(ctx.N, beta[0], beta[1], ctx.seed) );
+		if (beta = opts.beta) 
+			res( genTest(opts.N, beta[0], beta[1], opts.seed) );
 		
 		else
 			genProc(opts, res);
