@@ -1,5 +1,4 @@
 // UNCLASSIFIED
-// UNCLASSIFIED
 
 /**
 @class man
@@ -284,11 +283,10 @@ function saveStash(sql, stash, ID, host) {
 		return this.get(idx,cb);
 	},
 	
-	/*
-	function Get(idx) {
-		return [this].get(idx)[0];
+	function indexor(idx) {
+		var A = this;
+		return $(idx.length, (n,B) => B[n] = A[ idx[n] ] );
 	},
-	*/
 	/*
 	function feed( key, cb) {  
 	// thread key-grouped events to callback cb(evs) or cb(null) at end
@@ -1140,6 +1138,7 @@ Copy({
 	EM: EM,
 	RAF: RAF,
 	DTR: DTR,
+	NAB: NAB,
 	MVN: MVN,
 	LM: LM,
 	GAMMA: GAMMA,
@@ -1161,7 +1160,7 @@ $.import({ // overrides
 	override: true
 });
 
-$.extensions = $.extensions = {
+$.extensions = {		// extensions
 	// misc and samplers
 	
 	isDefined: x => x ? true : false,
@@ -1287,6 +1286,7 @@ $.extensions = $.extensions = {
 	},
 
 	dtr_train: function (x,y,solve) {
+		Log("in dtr", x._size, y._size);
 		var
 			X = x._data,
 			Y = y._data,
@@ -1297,6 +1297,7 @@ $.extensions = $.extensions = {
 			}) );
 
 		cls.train(X,Y);
+		Log("dec tree", cls);
 		return cls;
 	},
 
@@ -1359,6 +1360,7 @@ $.extensions = $.extensions = {
 	som_train: function (x,y,solve) {
 		var
 			X = x._data,
+			solve = Copy( solve, {dims: {}} ),
 			cls = new SOM( solve.dims.x || 20, solve.dims.y || 20, Copy( solve, {
 				fields: [ {name: "r", range: [0,255]}, {name: "g", range: [0,255]}, {name: "b", range: [0,255]} ]
 			}) );
