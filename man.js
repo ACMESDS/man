@@ -503,7 +503,8 @@ function saveStash(sql, stash, ID, host) {
 						Log("save jpg", {
 							dims: [img.bitmap.height, img.bitmap.width], 
 							save: stat.save,
-							gen: [rows, cols]
+							gen: [rows, cols],
+							empty: isEmpty
 						});
 						
 						if ( !isEmpty )
@@ -511,7 +512,7 @@ function saveStash(sql, stash, ID, host) {
 								//Log("vals", vals);
 								for ( var row=0; row<rows; row++ ) {
 									var L = max(0,min(255,floor(vals[row][0])));
-									//Log(row, col, L, index[row]);
+									//Log(L, col, row, "->", index[row]);
 									img.setPixelColor( toColor(L,L,L,255), col, index[row] );
 								}
 							}
@@ -2807,7 +2808,7 @@ $( $.extensions );
 		return img;
 	},
 	
-	function sym( maps, lims, levs ) {	// symmetry over vertical axis
+	function sym( opts ) {	// symmetry over vertical axis (maps, limits, levels, noreflect)
 		
 		function remap(idx, levels, pix) {
 			pix.X = pix.R - pix.G;
@@ -2836,54 +2837,62 @@ $( $.extensions );
 			},
 			bitmap = img.bitmap,
 			data = bitmap.data,
-			lims = lims || {rows:0, cols:0},
-			levs = levs || {x: 0, y: 0},
-			maps = maps || {x: "RGB", y: "L"},
-			levs = levs || {x: 0, y: 0},
+			
+			opts = Copy( opts || {}, {
+				limits: {rows:0, cols:0},
+				levels: {x: 0, y: 0},
+				maps: {x: "RGB", y: "L"},
+				reflect: true
+			}, "."),
+			limits = opts.limits, //Copy(limits || {}, {rows:0, cols:0}),
+			levels = opts.levels, //Copy(levels || {}, {x: 0, y: 0}),
+			maps = opts.maps, //Copy(maps || {}, {x: "RGB", y: "L"}),
+			reflect = opts.reflect,
+			
 			Rows = bitmap.height,
 			Cols = bitmap.width,
-			Row0 = floor(Rows/2), 	// halfway row
-			rows = lims.rows ? min( lims.rows, Row0 ) : Row0,
-			cols = lims.cols ? min( lims.cols, Cols ) : Cols,
+			rowReflect = floor(Rows/2), 	// halfway row
+			rows = limits.rows ? min( limits.rows, rowReflect ) : rowReflect,
+			cols = limits.cols ? min( limits.cols, Cols ) : Cols,
 			X = $(cols),
 			Y = $(cols),
 			X0 = $(cols),
 			Row = Rows-1,
-			n0 = $(Row0, (n, n0) => n0[n] = Row-- ),
-			rowS = $.rng(0,Row0)._data.shuffle(rows),
+			n0 = $(rowReflect, (n, n0) => n0[n] = Row-- ),
+			rowSamples = $.rng(0,rowReflect)._data.shuffle(rows),
 			red = 0, green = 1, blue = 2;
 
-		Log( "sym", [Rows, Cols] , "->", [rows, cols], maps, lims, rowS.length );
+		Log( "sym", [Rows, Cols] , "->", [rows, cols], maps, limits, rowSamples.length );
 		
 		for (var col = 0; col<cols; col++) {
 			var 
 				x = X[col] = $(rows),
 				y = Y[col] = $(rows),
-				x0 = X0[col] = $(Row0);
+				x0 = X0[col] = $(rowReflect);
 
-			rowS.forEach( (row,n) => { // define (x,y) random training sets
+			rowSamples.forEach( (row,n) => { // define (x,y) random training sets
 				var
 					Row = Rows - row - 1,	// reflected row
 					idx = img.getPixelIndex( col, row ),
 					pix = {R: data[ idx+red ] , G: data[ idx+green] , B: data[ idx+blue] },
-					map = x[n] = remap( maps.x || "RGB", levs.x, pix),
-					Idx = img.getPixelIndex( col, true ? Row : row ),	// row-reflected
+					map = x[n] = remap( maps.x || "RGB", levels.x, pix),
+					Idx = img.getPixelIndex( col, reflect ? Row : row ),	// sample is reflected by default
 					Pix = {R: data[ Idx+red ] , G: data[ Idx+green] , B:data[ Idx+blue] },
-					Map = y[n] = remap( maps.y || "L", levs.y, Pix);
+					Map = y[n] = remap( maps.y || "L", levels.y, Pix);
 			});
 
 			n0.forEach( (row,n) => {		// define x0,n0 test set and index set
 				var
 					idx = img.getPixelIndex( col, row ),
 					pix = {R: data[ idx+red ] , G: data[ idx+green] , B: data[ idx+blue] },
-					map = x0[n] = remap( maps.x || "RGB", levs.x, pix);	// test data x0
+					map = x0[n] = remap( maps.x || "RGB", levels.x, pix);	// test data x0
 			});
 			
 		}
 
 		img.symmetries = {x: X, y: Y, x0: X0, n0: n0, input: img};
 		return(img);
-	}
+	}	
 ].Extend( IMP );
 
 function Trace(msg,sql) {
