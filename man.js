@@ -159,15 +159,6 @@ function saveStash(sql, stash, ID, host) {
 		return index ? $( N, (n,B) => B[n] = devs[n].idx ) : $( N, (n,B) => B[n] = A[ devs[n].idx ] ) ;
 	},
 	
-	/*
-	function pick(keys) {
-		return this.$( (n,recs) => {
-			var rec = recs[n], rtn = {};
-			for ( var key in keys ) rtn[key] = rec[ keys[key] ];
-			recs[n] = rtn;
-		});		
-	}, */
-	
 	function match(where, get) {
 		var rtns = [];
 		
@@ -266,10 +257,8 @@ function saveStash(sql, stash, ID, host) {
 			});		
 			
 		else
-		if ( count = idx.len || idx.count ) {
-			Log("get", idx);
+		if ( count = idx.len || idx.count ) 
 			return $(N, (n,B) => B[n] = A[n].slice(idx.start,idx.start+count) );
-		}
 		
 		else
 		if ( idx.draws ) 
