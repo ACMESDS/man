@@ -63,27 +63,31 @@ function saveStash(sql, stash, ID, host) {
 		var query = this+"";
 		
 		//Log(">>>>fetching", query);
-		$.thread( sql => {  
-			var recs = [];
+		if (cb)
+			$.thread( sql => {  
+				var recs = [];
 
-			if (idx)
-				sql.forEach( TRACE, query , [], rec => {  // feed db events to grouper
-					if ( recs.group(idx, rec) ) recs.flush(cb);
-					recs.push(rec);
-				})
-				.on("end", () => {
-					recs.flush(cb);
-					cb( null );   // signal end-of-events
-				});
+				if (idx)
+					sql.forEach( TRACE, query , idx, rec => {  // feed db events to grouper
+						if ( recs.batch(idx, rec) ) recs.flush(cb);
+						recs.push(rec);
+					})
+					.on("end", () => {
+						recs.flush(cb);
+						cb( null );   // signal end-of-events
+					});
 
-			else
-				sql.forAll( TRACE, query, [], recs => {  // feed all db events w/o a grouper
-					recs.flush(cb);
-					cb( null );  // signal end-of-events
-				});
-			
-			sql.release();	
-		});
+				else
+					sql.forAll( TRACE, query, idx, recs => {  // feed all db events w/o a grouper
+						recs.flush(cb);
+						cb( null );  // signal end-of-events
+					});
+
+				sql.release();	
+			});
+		
+		else {
+		}
 	},
 	
 	function save(ctx,cb) {
@@ -142,7 +146,7 @@ function saveStash(sql, stash, ID, host) {
 	
 	// samplers
 	
-	function group(key, rec) { 
+	function batch(key, rec) { 
 		return this.length ? rec[key] > this[0][key] : false;
 	},
 
@@ -204,13 +208,18 @@ function saveStash(sql, stash, ID, host) {
 			var 
 				recs = [];
 
-			if ( idx ) {
-				A.forEach( rec => { 
-					if ( recs.group(idx, rec) ) recs.flush(cb);
-					recs.push(rec);
-				});
-				recs.flush( cb );
-			}
+			if ( idx ) 
+				if (idx == "url") 
+					A.forEach( rec => { 
+					});
+			
+				else {
+					A.forEach( rec => { 
+						if ( recs.batch(idx, rec) ) recs.flush(cb);
+						recs.push(rec);
+					});
+					recs.flush( cb );
+				}
 
 			else 
 				cb(A);
