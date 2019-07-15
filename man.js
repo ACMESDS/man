@@ -202,30 +202,40 @@ function saveStash(sql, stash, ID, host) {
 	},
 	
 	function get(idx, cb) {	
-		var A = this, N = A.length;
+		var A = this, N = A.length, fetcher = DEBE.fetcher;
 
-		if ( cb ) {  // thread idx-grouped events to callback cb(evs) or cb(null) at end
-			var 
-				recs = [];
-
-			if ( idx ) 
-				if (idx == "url") 
+		if ( cb ) 
+			switch (cb.name) {
+				case "imp":
+				case "image":
 					A.forEach( rec => { 
+						if ( path == rec.url || rec.image )
+							$.IMP.read( path )
+							.then( img => { 
+								Log("read", path, img.bitmap.height, img.bitmap.width);
+								cb( img); 
+							})
+							.catch( err => Log(err) );
 					});
-			
-				else {
-					A.forEach( rec => { 
-						if ( recs.batch(idx, rec) ) recs.flush(cb);
-						recs.push(rec);
-					});
-					recs.flush( cb );
-				}
+					break;
+					
+				default:  // thread idx-grouped events to callback cb(evs) or cb(null) at end
+					var 
+						recs = [];
 
-			else 
-				cb(A);
-			
-			cb( null );   // signal end-of-events
-		}
+					if ( idx ) {  // record batching index specified
+						A.forEach( rec => { 
+							if ( recs.batch(idx, rec) ) recs.flush(cb);
+							recs.push(rec);
+						});
+						recs.flush( cb );
+					}
+
+					else 
+						cb(A);
+
+					cb( null );   // signal end-of-events
+			}
 		
 		else
 		if ( isString(idx) )
