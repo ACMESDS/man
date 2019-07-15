@@ -202,20 +202,257 @@ function saveStash(sql, stash, ID, host) {
 	},
 	
 	function get(idx, cb) {	
+		
+		function paste(img, src, left, top, cb) {
+			if ( left+src.width() > img.width() )
+				left = img.width() - src.width();
+
+			if ( top+src.height() > img.height() )
+				top = img.height() - src.height();
+
+			if (cb)
+				img.paste(left, top, src, function (erm,img) {
+					img.clone(function (err,img) {
+						cb(img);
+					});
+				});
+			else
+				img.paste(left, top, src);
+		}
+
+		function rotate(img, angle, cb) {
+			var bgcolor = [255,255,255,0];
+			if (cb)
+				img.rotate(angle, bgcolor, function (err,img) {
+					img.clone(function (err,img) {
+						cb(img);
+					});
+				});
+			else
+				img.rotate(angle, bgcolor);
+		}
+
+		function border(img, pad, cb) {
+			if ( isArray(pad) ) 
+				pad.each(function (n,val) {
+					img.clone(function (err,image) {
+						border(image, val, cb);
+					});
+				});
+
+			else
+			if (pad)
+				img.border(pad, [0,0,0,0], function (err,image) {
+					cb(image);
+				});
+
+			else
+				cb(img);
+		}
+
+		function flip(img, axis, cb) {
+			if (axis)
+				if (cb)
+					img.flip(axis, function (err,img) {
+						img.close(function (err,img) {
+							cb(img);
+						});
+					});
+			else
+			if (cb)
+				cb(img);
+		}
+
+		function resize(img, width, height, cb) {
+			if (cb) 
+				img.resize(width, height, function (err, img) {
+					img.clone(function (err,img) {
+						cb(img);
+					});
+				});
+			else
+				img.resize(width, height);
+		}
+
+		function open(src, args, cb) {
+			IMP.open(src, "jpg", function (err,img) {
+				if (err)
+					console.log(err);
+				else
+				if (cb)
+					cb(img.batch(), Copy({open:{width: img.width(), height: img.height()}}, args));
+			});
+		}
+
+		function embedPositives(bgname, fcname, draws, cb) { 
+		/** 
+		create a forcasting jpg fcname by dropping random source jpgs at random 
+		scales, flips and rotations into a background jpg bgname.
+		*/
+			var drops  = 0; for (var n in draws) drops++;
+
+			if (drops) 
+				open(ENV.HACK+bgname, [], function (bg, args) {
+
+					var 
+						bgwidth = args.open.width,
+						bgheight = args.open.height;
+
+					for (var n in draws) 
+						open(ENV.PROOFS+draws[n].src, draws[n], function (img, drop) {
+							resize( img, drop.width, drop.height);
+							flip( img, drop.flip);
+							rotate( img, drop.rot);
+
+							img.exec( (err,img) => {
+
+								if (drop.left+img.width() > bgwidth )
+									drop.left = img.wdith() - img.width();
+
+								if (drop.top+img.height() > bgheight )
+									drop.top = img.height() - img.heigth();
+
+								bg.paste(drop.left, drop.top, img);
+
+								if (! --drops)
+									bg.exec( (err,bgimg) => {
+										bgimg.writeFile(ENV.HACK+"forecast_"+fcname, "jpg", {}, function (err) {
+											if (cb) cb(fcname);
+										});
+									});
+							});
+						});
+				});
+
+			else
+				cb(bgname);
+		}
+
+		function runForecast(chip,aoicase,cb) {
+			if (model = HACK.models.none) {  // use forecasting model
+				var 
+					aoi = chip.aoi,
+					Npixels = aoi.chipPixels,
+					sites = Npixels * Npixels,   // Nfeatures ^ 2 ??
+					gfs = aoi.gfs,
+					name = aoicase.Name,
+					obs = aoicase.oevents.length,  // max observation sites say 64 ??
+					bgname = chip.fileID,
+					emeds = 0;
+
+				model.levels.forEach( (f,n) => { // n'th forecast at level f
+					chip.forecast(f, name, model.name, obs, function (roc,fchip) { // forecast at level f
+						var
+							Nnew = roc.Npos - embeds,
+							draws = {},
+							srcs = models.srcs,
+							flips = models.flips,
+							rots = model.rots,
+							aspect = 40/100,
+							scales = model.scales;
+
+						for (var n=0; n<Nnew; ) {
+							if (! draws[ i = round(random() * sites) ] )
+								draws[i] = { // draw a random embed
+									idx: n++,
+									height: round(gfs*scale.samp()*aspect),
+									width: gfs*scale.samp(),
+									src: srcs.samp(),
+									flip: flips.samp(),
+									rot: rots.samp(),
+									top: round(i / Npixels),
+									left: i % Npixels
+								};
+
+							else
+								console.log(["skip",n,i]);
+						}
+
+						embedPositives(
+							bgname, // name of background image to embed forecasting jpgs
+							fchip.ID, 	// name of forecast jpg
+							draws, 	// random draw for embeds
+							name => {  // run detector against forecasting chip
+								fchip.ID = name;
+								cb(fchip);		
+						});
+
+						embeds += Nnew;
+						bgname = fchip.ID;
+					});
+				});
+			}
+
+			else  // no forecasting model
+				cb(chip);
+		}
+
 		var A = this, N = A.length, fetcher = DEBE.fetcher;
 
 		if ( cb ) 
 			switch (cb.name) {
 				case "imp":
 				case "image":
+					/*
+					var 
+						chipName = this,
+						fetchImage = HACK.fetchImage,
+						aoicase = {},
+						chipPath = fetchImage.wgetout = HACK.paths.images + chipName;
+					
+					FS.stat(chipPath, err => { // check if chip in cache
+						if (err)  // not in cache
+							fetchImage( {bbox:chip.bbox.join(",")}, err => {
+								//console.log({fetchimage: rtn});
+
+								Trace("FETCH "+chip.fileID);
+								if ( !err) runForecast(chip, aoicase, cb);
+							});
+
+						else { 	// in cache
+							Trace("CACHE "+chip.fileID);
+							runForecast(chip, aoicase, cb);
+						}
+					});  */
+					var proc = 0;
+					
 					A.forEach( rec => { 
-						if ( path == rec.url || rec.image )
+						if ( path == rec[idx] )
 							$.IMP.read( path )
 							.then( img => { 
-								Log("read", path, img.bitmap.height, img.bitmap.width);
-								cb( img); 
+								Log("read image", path, img.bitmap.height, img.bitmap.width);
+								img.rec = rec;
+								cb(img, img => {
+									if (img) img.rec.H0 = img.H0;
+								});
+								
+								if ( ++proc == N ) {
+									// run and save ROC given recs.H0 results
+								}
 							})
-							.catch( err => Log(err) );
+							.catch( err => {
+								img.rec = rec;
+								
+								if ( url = rec.fetch ) 
+									fetcher( url, null, msg => {
+										if ( msg == "ok" )
+											$.IMP.read( path )
+											.then( img => { 
+												Log("read via fetch", path, img.bitmap.height, img.bitmap.width);
+												cb(img, img => {
+													if (img) img.rec.H0 = img.H0;
+												}); 
+												
+												if ( ++proc == N ) {
+													// run and save ROC fiven recs.H0 results
+												}
+											})
+											.catch( err => Log("image read failed via fetch") );
+									});
+								
+								else
+									Log("no way to fetch image");								
+							});
 					});
 					break;
 					
@@ -925,213 +1162,6 @@ Copy({
 		if (cb) cb(null);	
 	},
 	
-	supervisedROC: function (chip,aoicase,cb) { // Load chip with Npixels then callback(cb).  Auto-forecasting when needed.
-
-		function paste(img, src, left, top, cb) {
-			if ( left+src.width() > img.width() )
-				left = img.width() - src.width();
-
-			if ( top+src.height() > img.height() )
-				top = img.height() - src.height();
-
-			if (cb)
-				img.paste(left, top, src, function (erm,img) {
-					img.clone(function (err,img) {
-						cb(img);
-					});
-				});
-			else
-				img.paste(left, top, src);
-		}
-
-		function rotate(img, angle, cb) {
-			var bgcolor = [255,255,255,0];
-			if (cb)
-				img.rotate(angle, bgcolor, function (err,img) {
-					img.clone(function (err,img) {
-						cb(img);
-					});
-				});
-			else
-				img.rotate(angle, bgcolor);
-		}
-
-		function border(img, pad, cb) {
-			if ( isArray(pad) ) 
-				pad.each(function (n,val) {
-					img.clone(function (err,image) {
-						border(image, val, cb);
-					});
-				});
-
-			else
-			if (pad)
-				img.border(pad, [0,0,0,0], function (err,image) {
-					cb(image);
-				});
-
-			else
-				cb(img);
-		}
-
-		function flip(img, axis, cb) {
-			if (axis)
-				if (cb)
-					img.flip(axis, function (err,img) {
-						img.close(function (err,img) {
-							cb(img);
-						});
-					});
-			else
-			if (cb)
-				cb(img);
-		}
-
-		function resize(img, width, height, cb) {
-			if (cb) 
-				img.resize(width, height, function (err, img) {
-					img.clone(function (err,img) {
-						cb(img);
-					});
-				});
-			else
-				img.resize(width, height);
-		}
-
-		function open(src, args, cb) {
-			IMP.open(src, "jpg", function (err,img) {
-				if (err)
-					console.log(err);
-				else
-				if (cb)
-					cb(img.batch(), Copy({open:{width: img.width(), height: img.height()}}, args));
-			});
-		}
-
-		function embedPositives(bgname, fcname, draws, cb) { 
-		/** 
-		create a forcasting jpg fcname by dropping random source jpgs at random 
-		scales, flips and rotations into a background jpg bgname.
-		*/
-			var drops  = 0; for (var n in draws) drops++;
-
-			if (drops) 
-				open(ENV.HACK+bgname, [], function (bg, args) {
-
-					var 
-						bgwidth = args.open.width,
-						bgheight = args.open.height;
-
-					for (var n in draws) 
-						open(ENV.PROOFS+draws[n].src, draws[n], function (img, drop) {
-							resize( img, drop.width, drop.height);
-							flip( img, drop.flip);
-							rotate( img, drop.rot);
-
-							img.exec( (err,img) => {
-
-								if (drop.left+img.width() > bgwidth )
-									drop.left = img.wdith() - img.width();
-
-								if (drop.top+img.height() > bgheight )
-									drop.top = img.height() - img.heigth();
-
-								bg.paste(drop.left, drop.top, img);
-
-								if (! --drops)
-									bg.exec( (err,bgimg) => {
-										bgimg.writeFile(ENV.HACK+"forecast_"+fcname, "jpg", {}, function (err) {
-											if (cb) cb(fcname);
-										});
-									});
-							});
-						});
-				});
-
-			else
-				cb(bgname);
-		}
-
-		function runForecast(chip,aoicase,cb) {
-			if (model = HACK.models.none) {  // use forecasting model
-				var 
-					aoi = chip.aoi,
-					Npixels = aoi.chipPixels,
-					sites = Npixels * Npixels,   // Nfeatures ^ 2 ??
-					gfs = aoi.gfs,
-					name = aoicase.Name,
-					obs = aoicase.oevents.length,  // max observation sites say 64 ??
-					bgname = chip.fileID,
-					emeds = 0;
-
-				model.levels.forEach( (f,n) => { // n'th forecast at level f
-					chip.forecast(f, name, model.name, obs, function (roc,fchip) { // forecast at level f
-						var
-							Nnew = roc.Npos - embeds,
-							draws = {},
-							srcs = models.srcs,
-							flips = models.flips,
-							rots = model.rots,
-							aspect = 40/100,
-							scales = model.scales;
-
-						for (var n=0; n<Nnew; ) {
-							if (! draws[ i = round(random() * sites) ] )
-								draws[i] = { // draw a random embed
-									idx: n++,
-									height: round(gfs*scale.samp()*aspect),
-									width: gfs*scale.samp(),
-									src: srcs.samp(),
-									flip: flips.samp(),
-									rot: rots.samp(),
-									top: round(i / Npixels),
-									left: i % Npixels
-								};
-
-							else
-								console.log(["skip",n,i]);
-						}
-
-						embedPositives(
-							bgname, // name of background image to embed forecasting jpgs
-							fchip.ID, 	// name of forecast jpg
-							draws, 	// random draw for embeds
-							name => {  // run detector against forecasting chip
-								fchip.ID = name;
-								cb(fchip);		
-						});
-
-						embeds += Nnew;
-						bgname = fchip.ID;
-					});
-				});
-			}
-
-			else  // no forecasting model
-				cb(chip);
-		}
-
-		var 
-			chipName = this,
-			fetchImage = HACK.fetchImage,
-			chipPath = fetchImage.wgetout = HACK.paths.images + chipName;
-
-		FS.stat(chipPath, err => { // check if chip in cache
-			if (err)  // not in cache
-				fetchImage( {bbox:chip.bbox.join(",")}, err => {
-					//console.log({fetchimage: rtn});
-
-					Trace("FETCH "+chip.fileID);
-					if ( !err) runForecast(chip, aoicase, cb);
-				});
-
-			else { 	// in cache
-				Trace("CACHE "+chip.fileID);
-				runForecast(chip, aoicase, cb);
-			}
-		});
-	},											
-			
 	// libraries
 		
 	JSON: JSON,
