@@ -417,42 +417,44 @@ function saveStash(sql, stash, ID, host) {
 					var proc = 0;
 					
 					A.forEach( rec => { 
-						if ( path == rec[idx] )
-							$.IMP.read( path )
-							.then( img => { 
-								Log("read image", path, img.bitmap.height, img.bitmap.width);
-								img.rec = rec;
-								cb(img, img => {
-									if (img) img.rec.H0 = img.H0;
-								});
-								
-								if ( ++proc == N ) {
-									// run and save ROC given recs.H0 results
-								}
-							})
-							.catch( err => {
-								img.rec = rec;
-								
-								if ( url = rec.fetch ) 
-									fetcher( "wget:", null, msg => {
+						if ( path == rec[idx] ) {
+							var 
+								parts = path.split("////"),
+								urlPath = parts[0],
+								filePath = parts[1];
+							
+								$.IMP.read( filePath )
+								.then( img => { 
+									Log("read image", filePath, img.bitmap.height, img.bitmap.width);
+									img.rec = rec;
+									cb(img, img => {
+										if (img) img.rec.H0 = img.H0;
+									});
+
+									if ( ++proc == N ) {
+										// run and save ROC given recs.H0 results
+									}
+								})
+								.catch( err => {
+									img.rec = rec;
+
+									fetcher( urlPath, null, msg => {
 										if ( msg == "ok" )
-											$.IMP.read( path )
+											$.IMP.read( filePath )
 											.then( img => { 
-												Log("read via fetch", path, img.bitmap.height, img.bitmap.width);
+												Log("read via fetch", filePath, img.bitmap.height, img.bitmap.width);
 												cb(img, img => {
 													if (img) img.rec.H0 = img.H0;
 												}); 
-												
+
 												if ( ++proc == N ) {
 													// run and save ROC fiven recs.H0 results
 												}
 											})
 											.catch( err => Log("image read failed via fetch") );
 									});
-								
-								else
-									Log("no way to fetch image");								
-							});
+								});
+						}
 					});
 					break;
 					
