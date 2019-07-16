@@ -434,7 +434,7 @@ function saveStash(sql, stash, ID, host) {
 								img.rec = rec;
 								
 								if ( url = rec.fetch ) 
-									fetcher( url, null, msg => {
+									fetcher( "wget:", null, msg => {
 										if ( msg == "ok" )
 											$.IMP.read( path )
 											.then( img => { 
