@@ -20,6 +20,7 @@
 @requires multivariate-normal
 @requires newton-raphson
 @requires random-seed
+@requires geohack
 */
 
 const { Copy,Each,Log,isArray,isNumber,isString,isObject,isFunction } = require("enum");
@@ -1103,6 +1104,7 @@ var
 	SOM = require("./mljs/node_modules/ml-som"),
 	SVM = require("./mljs/node_modules/ml-svm"), // require("node-svm"),
 	GAMMA = require("gamma"),
+	HACK = require("geohack"),
 	DSP = require("fft-js"),
 	//RAN: require("randpr"),  // added by debe to avoid recursive requires
 	//SVD: require("node-svd"),
@@ -1164,6 +1166,7 @@ Copy({
 	LM: LM,
 	GAMMA: GAMMA,
 	GEN: GEN,
+	HACK: HACK,
 
 	// basic enumerators
 	Copy: Copy,
@@ -1200,6 +1203,14 @@ $.extensions = {		// extensions
 		};
 	}, */
 		
+	// chippers
+	voxelize: function (query) {
+		$.thread( sql => {
+			HACK.voxelizeAOI(sql,query);
+			sql.release();
+		});
+	},
+	
 	// regressors
 
 	rnn_train: function (x,y,solve) {
