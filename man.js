@@ -393,27 +393,6 @@ function saveStash(sql, stash, ID, host) {
 			switch (cb.name) {
 				case "imp":
 				case "image":
-					/*
-					var 
-						chipName = this,
-						fetchImage = HACK.fetchImage,
-						aoicase = {},
-						chipPath = fetchImage.wgetout = HACK.paths.images + chipName;
-					
-					FS.stat(chipPath, err => { // check if chip in cache
-						if (err)  // not in cache
-							fetchImage( {bbox:chip.bbox.join(",")}, err => {
-								//console.log({fetchimage: rtn});
-
-								Trace("FETCH "+chip.fileID);
-								if ( !err) runForecast(chip, aoicase, cb);
-							});
-
-						else { 	// in cache
-							Trace("CACHE "+chip.fileID);
-							runForecast(chip, aoicase, cb);
-						}
-					});  */
 					var proc = 0;
 					
 					A.forEach( rec => { 
@@ -433,6 +412,7 @@ function saveStash(sql, stash, ID, host) {
 
 									if ( ++proc == N ) {
 										// run and save ROC given recs.H0 results
+										// runForecast(chip, aoicase, cb);
 									}
 								})
 								.catch( err => {
