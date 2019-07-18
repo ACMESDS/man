@@ -388,7 +388,7 @@ function saveStash(sql, stash, ID, host) {
 				cb(chip);
 		}
 
-		var A = this, N = A.length, fetcher = DEBE.fetcher;
+		var A = this, N = A.length, fetcher = $.fetcher;
 
 		if ( cb ) 
 			switch (cb.name) {
@@ -1122,7 +1122,7 @@ Copy({
 	// methods
 	
 	thread: () => Trace("sql threader not configured"), //< define on config
-
+	fetcher: () => Trace("fetcher not configured"), //< define on config
 	tasker: () => Trace("tasker not configured"), //< define on config
 
 	saveKeys: { //< define plugin save-keys on config
