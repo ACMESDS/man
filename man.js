@@ -397,19 +397,18 @@ function saveStash(sql, stash, ID, host) {
 					var proc = 0;
 					
 					A.forEach( rec => { 
-						if ( path == rec[idx] ) {
+						if ( path = rec[idx] ) {
 							var 
 								parts = path.split("////"),
 								urlPath = parts[0],
 								filePath = parts[1];
 							
+								Log("get image", filePath, urlPath);
 								$.IMP.read( filePath )
 								.then( img => { 
 									Log("read image", filePath, img.bitmap.height, img.bitmap.width);
 									img.rec = rec;
-									cb(img, img => {
-										if (img) img.rec.H0 = img.H0;
-									});
+									cb(img);
 
 									if ( ++proc == N ) {
 										// run and save ROC given recs.H0 results
@@ -417,23 +416,23 @@ function saveStash(sql, stash, ID, host) {
 									}
 								})
 								.catch( err => {
-									img.rec = rec;
+									Log("fetch image", path, err);
+									if ( urlPath )
+										fetcher( path, null, stat => {
+											Log("fetch stat", stat);
+											if ( stat == "ok" )
+												$.IMP.read( filePath )
+												.then( img => { 
+													Log("fetch image", filePath, img.bitmap.height, img.bitmap.width);
+													img.rec = rec;
+													cb(img); 
 
-									fetcher( urlPath, null, msg => {
-										if ( msg == "ok" )
-											$.IMP.read( filePath )
-											.then( img => { 
-												Log("read via fetch", filePath, img.bitmap.height, img.bitmap.width);
-												cb(img, img => {
-													if (img) img.rec.H0 = img.H0;
-												}); 
-
-												if ( ++proc == N ) {
-													// run and save ROC fiven recs.H0 results
-												}
-											})
-											.catch( err => Log("image read failed via fetch") );
-									});
+													if ( ++proc == N ) {
+														// run and save ROC fiven recs.H0 results
+													}
+												})
+												.catch( err => Log("get image failed") );
+										});
 								});
 						}
 					});
