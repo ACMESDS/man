@@ -21,6 +21,7 @@
 @requires newton-raphson
 @requires random-seed
 @requires geohack
+@requires reader
 */
 
 const { Copy,Each,Log,isArray,isNumber,isString,isObject,isFunction } = require("enum");
@@ -1104,6 +1105,7 @@ var
 	SVM = require("./mljs/node_modules/ml-svm"), // require("node-svm"),
 	GAMMA = require("gamma"),
 	HACK = require("geohack"),
+	READ = require("reader"),
 	DSP = require("fft-js"),
 	//RAN: require("randpr"),  // added by debe to avoid recursive requires
 	//SVD: require("node-svd"),
@@ -1148,6 +1150,7 @@ Copy({
 	// libraries
 		
 	JSON: JSON,
+	READ: READ,
 	IMP: IMP,
 	CRYPTO: CRYPTO,
 	LRM: LRM,
