@@ -387,7 +387,7 @@ function saveStash(sql, stash, ID, host) {
 				cb(chip);
 		}
 
-		var A = this, N = A.length, fetcher = $.fetcher;
+		var A = this, N = A.length, getSite = $.getSite;
 
 		if ( cb ) 
 			switch (cb.name) {
@@ -417,7 +417,7 @@ function saveStash(sql, stash, ID, host) {
 								.catch( err => {
 									Log("fetch image", path, err);
 									if ( urlPath )
-										fetcher( path, null, stat => {
+										getSite( path, null, stat => {
 											Log("fetch stat", stat);
 											if ( stat == "ok" )
 												$.IMP.read( filePath )
@@ -831,7 +831,7 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 			
 		case Object:
 			if (task = ctx)
-				$.tasker( code, task, cb );
+				$.runTask( code, task, cb );
 			
 			else {
 				for (var key in code) Trace(`IMPORTING ${key}`);
@@ -1119,8 +1119,8 @@ Copy({
 	// methods
 	
 	thread: () => Trace("sql threader not configured"), //< define on config
-	fetcher: () => Trace("fetcher not configured"), //< define on config
-	tasker: () => Trace("tasker not configured"), //< define on config
+	getSite: () => Trace("getSite not configured"), //< define on config
+	runTask: () => Trace("runTask not configured"), //< define on config
 
 	saveKeys: { //< define plugin save-keys on config
 	},
