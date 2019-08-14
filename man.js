@@ -90,18 +90,16 @@ function saveStash(sql, stash, ID, host) {
 		}
 	},
 	
-	function save(ctx,cb) {
+	function save(sql, ctx, cb) {
 		var stash = {}, rem = {};
-		$.thread( (sql) => {
-			Each(ctx, (key,val) => {
-				if ( key.indexOf("Save_") == 0 )
-					stash[key] = val;
-				else
-					rem[key] = val;
-			});
-			saveStash( sql, stash, ctx.ID, ctx.Host );
-			cb( rem, sql );
+		Each(ctx, (key,val) => {
+			if ( key.indexOf("Save_") == 0 )
+				stash[key] = val;
+			else
+				rem[key] = val;
 		});
+		saveStash( sql, stash, ctx.ID, ctx.Host );
+		cb( rem );
 	},
 	
 	function $(idx,cb) {
@@ -534,7 +532,7 @@ function saveStash(sql, stash, ID, host) {
 		cb( null );   // signal end-of-events		
 	},	*/
 	
-	function save( ctx, cb ) {
+	function save( sql, ctx, cb ) {
 	// stash aggregated events evs into context ctx[ Save_KEYs ] then callback(remaining evs) 
 
 		function updateFile( sql, file, stats ) {
@@ -590,64 +588,59 @@ function saveStash(sql, stash, ID, host) {
 
 		var evs = this;
 		
-		$.thread( (sql) => {
-			var 
-				stash = { remainder: [] },  // stash for aggregated keys 
-				rem = stash.remainder;
+		var 
+			stash = { remainder: [] },  // stash for aggregated keys 
+			rem = stash.remainder;
 
-			evs.stashify("at", "Save_", ctx, stash, (ev, stat) => {  // add {at:"KEY",...} evs to the Save_KEY stash
+		evs.stashify("at", "Save_", ctx, stash, (ev, stat) => {  // add {at:"KEY",...} evs to the Save_KEY stash
 
-				if (ev)
-					try {
-						for (var key in stat) ev[key].push( stat[key] );
-					}
-					catch (err) {
-						ev[key] = [ stat[key] ];
-					}
-
-				else {
-					var ev = new Object();
-					for (var key in stat) ev[key] = [ ];
-					return ev;
+			if (ev)
+				try {
+					for (var key in stat) ev[key].push( stat[key] );
+				}
+				catch (err) {
+					ev[key] = [ stat[key] ];
 				}
 
-			});
-
-			if (rem.length) {  // there is a remainder to save
-				if (cb) cb(rem, sql);
-
-				saveStash(sql, {Save_rem: rem}, ctx.ID, ctx.Host);				
+			else {
+				var ev = new Object();
+				for (var key in stat) ev[key] = [ ];
+				return ev;
 			}
 
-			delete stash.remainder;	
-
-			if ( stash.Save_end ) 
-				if ( stats = stash.Save_end.stats ) {   // there are stats that may need to be updated
-					var
-						file = ctx.File || {ID: 0},
-						voxel = ctx.Voxel || {ID: 0};
-
-					updateStats(sql, file.ID, voxel.ID, stats);
-				}
-
-				/*
-				if ( File = ctx.File )
-					updateFile( sql, File, stats);
-
-				else
-					sql.forFirst( "", "SELECT * FROM app.files WHERE ? LIMIT 1", {Name: ctx.Host+"."+ctx.Name}, function (File) {
-						if (File) 
-							updateFile(sql, File, stats);
-					});
-				*/
-
-			saveStash(sql, stash, ctx.ID, ctx.Host);
-
-			sql.release();
 		});
 
-		return ctx.Share ? evs : ("updated").tag("a",{href: "/files.view"});
+		if (rem.length) {  // there is a remainder to save
+			if (cb) cb(rem);
 
+			saveStash(sql, {Save_rem: rem}, ctx.ID, ctx.Host);				
+		}
+
+		delete stash.remainder;	
+
+		if ( stash.Save_end ) 
+			if ( stats = stash.Save_end.stats ) {   // there are stats that may need to be updated
+				var
+					file = ctx.File || {ID: 0},
+					voxel = ctx.Voxel || {ID: 0};
+
+				updateStats(sql, file.ID, voxel.ID, stats);
+			}
+
+			/*
+			if ( File = ctx.File )
+				updateFile( sql, File, stats);
+
+			else
+				sql.forFirst( "", "SELECT * FROM app.files WHERE ? LIMIT 1", {Name: ctx.Host+"."+ctx.Name}, function (File) {
+					if (File) 
+						updateFile(sql, File, stats);
+				});
+			*/
+
+		saveStash(sql, stash, ctx.ID, ctx.Host);
+
+		return ctx.Share ? evs : ("updated").tag("a",{href: "/files.view"});
 	},
 	
 	/*
@@ -859,7 +852,7 @@ var
 
 			var detName = ctx._Plugin;
 
-			$.thread( function (sql) {
+			$.thread( sql => {
 				var vers = [0]; //ctx.Overhead ? [0,90] : [0];
 				var labels = ctx.Labels.split(",");
 
