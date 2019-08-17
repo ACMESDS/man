@@ -1222,14 +1222,12 @@ $.extensions = {		// extensions
 
 		var 
 			mixes = solve.mixes || 5,
-			x = solve.x || "x",
-			y = solve.y || "y",
-			z = solve.z || "z",			
-			evs = [];
-
-		x.forEach( ev => evs.push( [ev[x],ev[y],ev[z]] )  );
-
-		return $.EM( evs, mixes );
+			X = x._data,
+			cls = $.EM( X, mixes );
+		
+		Log(cls);
+		
+		return cls;
 	},
 	
 	qda_predict(cls, x) {
@@ -1732,9 +1730,13 @@ $.extensions = {		// extensions
 		}
 		
 		function genProc(opts, cb) {  // generate gaussian process
+			opts.filter = (str,ev,ran) => {
+				if ( ev.at == "step" ) str.push( ran.emP.obs );
+			};
+				
 			var ran = new $.RAN(opts);  // create a random process compute thread
 
-			ran.pipe(cb);   // run process and capture results
+			ran.pipe( evs => cb(evs) );   // run process and capture results
 		}
 		
 		if (gauss = opts.gauss) {	// generate gaussian process using exact pcs or approx negbin
@@ -2811,6 +2813,8 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 };
 
 $( $.extensions );
+
+$.RAN = require("randpr");
 
 [ // add Jimp methods
 	function save( file ) {
