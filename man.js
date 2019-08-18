@@ -123,6 +123,10 @@ function saveStash(sql, stash, ID, host) {
 ].Extend(String);
 
 [	// Array processing
+	function copy() {
+		var x = this;
+		return $(x.length, (n,y) => y[n] = x[n]);
+	},
 	
 	function dist(b) { 
 		var 
@@ -771,18 +775,19 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 			if (cb) {
 				var vmctx = {};
 
-				for (key in ctx) 
-					if ( val = ctx[key] ) 
+				Each(ctx, (key,val) => {
+					if ( val ) 
 						vmctx[key] = isArray(val) ? $.matrix(val) : val;
 				
 					else
 						vmctx[key] = val;
-
+				});
+				
 				try {
 					$.eval(code, vmctx);
 				}
 				catch (err) {
-					Log(err);
+					Log("$eval>>>>>", err);
 				}
 
 				for (key in vmctx) 
@@ -1221,11 +1226,11 @@ $.extensions = {		// extensions
 	qda_train: function (x,y,solve) {  // quadratic discriminant analysis (aka bayesian ridge)
 
 		var 
-			mixes = solve.mixes || 5,
+			mixes = solve.mixes || 2,
 			X = x._data,
 			cls = $.EM( X, mixes );
 		
-		Log(cls);
+		Log( JSON.stringify(cls) );
 		
 		return cls;
 	},
@@ -1731,7 +1736,8 @@ $.extensions = {		// extensions
 		
 		function genProc(opts, cb) {  // generate gaussian process
 			opts.filter = (str,ev,ran) => {
-				if ( ev.at == "step" ) str.push( ran.emP.obs );
+				if ( ev.at == "step" ) 
+					ran.emP.obs.forEach( ob => str.push( ob ) );
 			};
 				
 			var ran = new $.RAN(opts);  // create a random process compute thread
