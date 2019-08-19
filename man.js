@@ -13,6 +13,7 @@
 @requires node-svd
 @requires node-svm
 @requires mljs
+@requires jimp
 @requires jsbayes
 @requires recurrentjs
 @requires gamma
@@ -277,7 +278,7 @@ function saveStash(sql, stash, ID, host) {
 		}
 
 		function open(src, args, cb) {
-			IMP.open(src, "jpg", function (err,img) {
+			JIMP.open(src, "jpg", function (err,img) {
 				if (err)
 					console.log(err);
 				else
@@ -405,7 +406,7 @@ function saveStash(sql, stash, ID, host) {
 								filePath = parts[1];
 							
 								Log("get image", filePath, urlPath);
-								$.IMP.read( filePath )
+								$.JIMP.read( filePath )
 								.then( img => { 
 									Log("read image", filePath, img.bitmap.height, img.bitmap.width);
 									img.rec = rec;
@@ -422,7 +423,7 @@ function saveStash(sql, stash, ID, host) {
 										getSite( path, null, stat => {
 											Log("fetch stat", stat);
 											if ( stat == "ok" )
-												$.IMP.read( filePath )
+												$.JIMP.read( filePath )
 												.then( img => { 
 													Log("fetch image", filePath, img.bitmap.height, img.bitmap.width);
 													img.rec = rec;
@@ -721,7 +722,7 @@ function saveStash(sql, stash, ID, host) {
 							cols = values.length,
 							rows = index.length,
 							isEmpty = values[0] ? false : true,
-							toColor = IMP.rgbaToInt;
+							toColor = JIMP.rgbaToInt;
 							
 						Log("save jpg", {
 							dims: [img.bitmap.height, img.bitmap.width], 
@@ -1083,7 +1084,7 @@ var
 		}
 	},
 	CRYPTO = require('crypto'),
-	IMP = require('jimp'),
+	JIMP = require('jimp'),
 	EM = require("expectation-maximization"),  // there is a mljs version as well that uses this one
 	MVN = require("multivariate-normal").default,
 	LM = require("./mljs/node_modules/ml-levenberg-marquardt"),
@@ -1144,7 +1145,7 @@ Copy({
 	// libraries
 		
 	JSON: JSON,
-	IMP: IMP,
+	JIMP: JIMP,
 	CRYPTO: CRYPTO,
 	LRM: LRM,
 	SVM: SVM,
@@ -1229,6 +1230,11 @@ $.extensions = {		// extensions
 			mixes = solve.mixes || 2,
 			X = x._data,
 			cls = $.EM( X, mixes );
+		
+		cls.forEach( classif => classif.eigen = $.evd( $.matrix(classif.sigma) ) );
+		
+		// (x-mu) * sigma * (x-mu) = 1 is equation for an ellipsoid, the eigenvectors of sigma corresponding to its principle axes, and eigenvalues
+		// corresponding to the squared reciprocals of its semi-axes, i.e. x^2 / a^2 + y^2 / b^2 + z^2 / c^2 = 1 where lambda = [a^-2, b^-2, c^-2].
 		
 		Log( JSON.stringify(cls) );
 		
@@ -2915,7 +2921,7 @@ $.RAN = require("randpr");
 		img.symmetries = {x: X, y: Y, x0: X0, n0: n0, input: img};
 		return(img);
 	}	
-].Extend( IMP );
+].Extend( JIMP );
 
 function Trace(msg,sql) {
 	TRACE.trace(msg,sql);
