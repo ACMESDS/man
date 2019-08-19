@@ -32,7 +32,7 @@ function saveStash(sql, stash, ID, host) {
 		sql.query(
 			`UPDATE app.?? SET ${key}=? WHERE ID=?`, 
 			[host, JSON.stringify(save) || "null", ID], 
-			(err) => // will fail if key does not exist or mysql server buffer too small (see my.cnf)
+			err => // will fail if key does not exist or mysql server buffer too small (see my.cnf)
 				Trace(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` )
 		);
 	}
@@ -93,8 +93,9 @@ function saveStash(sql, stash, ID, host) {
 	
 	function save(sql, ctx, cb) {
 		var stash = {}, rem = {};
+		
 		Each(ctx, (key,val) => {
-			if ( key.indexOf("Save_") == 0 )
+			if ( key.startsWith("Save_") )
 				stash[key] = val;
 			else
 				rem[key] = val;
@@ -1236,7 +1237,7 @@ $.extensions = {		// extensions
 		// (x-mu) * sigma * (x-mu) = 1 is equation for an ellipsoid, the eigenvectors of sigma corresponding to its principle axes, and eigenvalues
 		// corresponding to the squared reciprocals of its semi-axes, i.e. x^2 / a^2 + y^2 / b^2 + z^2 / c^2 = 1 where lambda = [a^-2, b^-2, c^-2].
 		
-		Log( JSON.stringify(cls) );
+		//Log( JSON.stringify(cls) );
 		
 		return cls;
 	},
