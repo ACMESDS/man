@@ -774,36 +774,28 @@ function saveStash(sql, stash, ID, host) {
 var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 	switch (code.constructor) {
 		case String:
-			if (cb) {
-				var vmctx = {};
-
+			
+			var vmctx = {};
+			
+			if (ctx)
 				Each(ctx, (key,val) => {
 					if ( val ) 
 						vmctx[key] = isArray(val) ? $.matrix(val) : val;
-				
+
 					else
 						vmctx[key] = val;
 				});
 				
-				try {
-					$.eval(code, vmctx);
-				}
-				catch (err) {
-					Log("$eval>>>>>", err);
-				}
-
-				for (key in vmctx) 
-					if ( val = vmctx[key] ) 
-						vmctx[key] = val._data ? val._data : val;
-				
-					else
-						vmctx[key] = val;
-
-				cb(vmctx);
+			try {
+				$.eval(code, vmctx);
+			}
+			catch (err) {
+				Log("$eval", err);
 			}
 			
-			else
-				return $.eval(code, ctx || {} );
+			for (key in vmctx) vmctx[key] = ctx[key] = $.list( vmctx[key] );
+
+			return cb ? cb(vmctx) : ctx;
 			
 			break;
 			
@@ -1183,6 +1175,14 @@ $.import({ // overrides
 $.extensions = {		// extensions
 	// misc and samplers
 	
+	list: function (mat) {
+		if ( mat ) 
+			return mat._data ? mat._data : mat;
+
+		else
+			return mat;
+	},
+
 	isDefined: x => x ? true : false,
 	
 	/*
@@ -1232,7 +1232,12 @@ $.extensions = {		// extensions
 			X = x._data,
 			cls = $.EM( X, mixes );
 		
-		cls.forEach( classif => classif.eigen = $.evd( $.matrix(classif.sigma) ) );
+		cls.forEach( classif => {
+			//Log("sigma", classif.sigma, "mu", classif.mu);
+			$( "eg = evd( sigma ); B = sqrt( diag(eg.values) ) * eg.vectors; b = - B * mu; ", classif );
+			
+			Log( "qda", classif);
+		});
 		
 		// (x-mu) * sigma * (x-mu) = 1 is equation for an ellipsoid, the eigenvectors of sigma corresponding to its principle axes, and eigenvalues
 		// corresponding to the squared reciprocals of its semi-axes, i.e. x^2 / a^2 + y^2 / b^2 + z^2 / c^2 = 1 where lambda = [a^-2, b^-2, c^-2].
