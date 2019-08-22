@@ -775,9 +775,33 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 	switch (code.constructor) {
 		case String:
 			
-			var vmctx = {};
+			if (cb) {
+				var vmctx = {};
+
+				if (ctx)
+					Each(ctx, (key,val) => {
+						if ( val ) 
+							vmctx[key] = isArray(val) ? $.matrix(val) : val;
+
+						else
+							vmctx[key] = val;
+					});
+
+				try {
+					$.eval(code, vmctx);
+				}
+				catch (err) {
+					Log("$eval", err);
+				}
+
+				for (key in vmctx) vmctx[key] = $.list( vmctx[key] );
+
+				return cb(vmctx);
+			}
 			
-			if (ctx)
+			else
+			if (ctx) {
+				var vmctx = {};
 				Each(ctx, (key,val) => {
 					if ( val ) 
 						vmctx[key] = isArray(val) ? $.matrix(val) : val;
@@ -786,16 +810,26 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 						vmctx[key] = val;
 				});
 				
-			try {
-				$.eval(code, vmctx);
-			}
-			catch (err) {
-				Log("$eval", err);
+				try {
+					$.eval(code, vmctx);
+				}
+				catch (err) {
+					Log("$eval", err);
+				}
+
+				for (key in vmctx) ctx[key] = $.list( vmctx[key] );
+				
+				return ctx;
 			}
 			
-			for (key in vmctx) vmctx[key] = ctx[key] = $.list( vmctx[key] );
-
-			return cb ? cb(vmctx) : ctx;
+			else {
+				try {
+					return $.eval(code);
+				}
+				catch (err) {
+					Log("$eval", err);
+				}
+			}
 			
 			break;
 			
@@ -1176,9 +1210,9 @@ $.extensions = {		// extensions
 	// misc and samplers
 	
 	list: function (mat) {
-		if ( mat ) 
-			return mat._data ? mat._data : mat;
-
+		if (mat)
+			return mat._data || mat;
+		
 		else
 			return mat;
 	},
@@ -1235,8 +1269,7 @@ $.extensions = {		// extensions
 		cls.forEach( classif => {
 			//Log("sigma", classif.sigma, "mu", classif.mu);
 			$( "eg = evd( sigma ); B = sqrt( diag(eg.values) ) * eg.vectors; b = - B * mu; ", classif );
-			
-			Log( "qda", classif);
+			//Log( "qda", classif);
 		});
 		
 		// (x-mu) * sigma * (x-mu) = 1 is equation for an ellipsoid, the eigenvectors of sigma corresponding to its principle axes, and eigenvalues
@@ -1244,10 +1277,51 @@ $.extensions = {		// extensions
 		
 		//Log( JSON.stringify(cls) );
 		
+		Log("qda classes", cls.length);
 		return cls;
 	},
 	
 	qda_predict(cls, x) {
+		var
+			X = x._data,	// feature vectors
+			Cls = cls._data, 		// classifiers
+			K = Cls.length, 	// #classes
+			N = X.length, // #feature vectors
+			D = X[0].length, // feature vector dim
+			Y = $(N, (n,y) => {  // flag as unlabeled
+				y[n] = -1;
+			}),
+			p0 = 1e-2; 	// prob density level [1/m^D]
+			
+		//Log( "cls0", Cls[0]);
+		Log("predict", K,N,D,p0 );
+		//Log("eg test", $(" d = xi' * sigma * xi; ", {xi: Cls[0].eg.vectors, sigma: Cls[0].sigma, lambda: Cls[0].eg.values}) );
+		
+		for ( var k=0; k<K; k++) {		// go through all classes (modes)
+			const {sigma,mu,B,b} = Cls[k];
+			const {kinv,r0} = $( "kinv = (2*pi)^D * sqrt( det( sigma ) ); r0 = -2*log( p0 * kinv ); " , {D: D, sigma: sigma, p0: p0} );
+			
+			Log("r0", r0,k);
+
+			/*
+			var R = $(N, (n,R) => {
+				R[n] = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: B, b: b, x: X[n]} ).r;
+			});
+			Log( "sort", k, R.sort( (a,b) => a-b ).slice(0,10) );
+			*/
+			
+			var m = 0;
+			X.$( (n,X) => {
+				const {y,r} = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: B, b: b, x: X[n]} );
+				if ( r < 3 ) {
+					Y[n] = k;  m++;
+					//Log({ k:k, n:n, x: X[n], y:y, r: r });
+				}
+			});			
+			Log("labeled", m, k);
+		}
+		
+		/*
 		var
 			X = x._data,
 			N = X.length,
@@ -1263,6 +1337,7 @@ $.extensions = {		// extensions
 				P.$( k => { if (P[k]<P0) y[n] = k; } );
 				//y[n] = P.sort( (a,b) => b.val - a.val )[0];
 			});
+			*/
 		
 		return $.matrix(Y);
 	},
@@ -2524,7 +2599,10 @@ x = rng(-1/2, 1/2, N); ` ,
 	},
 
 	evd: function (a) {	// eigen vector decomposition
-		var evd = new ML.EVD( a._data );  //, {assumeSymmetric: true}
+		var 
+			A = a._data,
+			evd = new ML.EVD( A );  //, {assumeSymmetric: true}
+		
 		return {
 			values: $.matrix(evd.d), 
 			vectors: $.matrix(evd.V)
