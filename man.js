@@ -1281,28 +1281,28 @@ $.extensions = {		// extensions
 		return cls;
 	},
 	
-	qda_predict(cls, x) {
+	qda_predict(cls, x, solve) {
 		var
+			nsigma = solve.nsigma || 1, // ellipsoid surface in number of sigma 
 			X = x._data,	// feature vectors
 			Cls = cls._data, 		// classifiers
 			K = Cls.length, 	// #classes
 			N = X.length, // #feature vectors
 			D = X[0].length, // feature vector dim
-			Y = $(N, (n,y) => {  // flag as unlabeled
-				y[n] = -1;
-			}),
-			p0 = 1e-2; 	// prob density level [1/m^D]
+			Y = $(N, (n,Y) => {  // flag as unlabeled
+				Y[n] = "";
+			});
 			
 		//Log( "cls0", Cls[0]);
-		Log("predict", K,N,D,p0 );
+		Log("predict", K,N,D, solve );
 		//Log("eg test", $(" d = xi' * sigma * xi; ", {xi: Cls[0].eg.vectors, sigma: Cls[0].sigma, lambda: Cls[0].eg.values}) );
 		
 		for ( var k=0; k<K; k++) {		// go through all classes (modes)
 			const {sigma,mu,B,b} = Cls[k];
-			const {kinv,r0} = $( "kinv = (2*pi)^D * sqrt( det( sigma ) ); r0 = -2*log( p0 * kinv ); " , {D: D, sigma: sigma, p0: p0} );
 			
-			Log("r0", r0,k);
-
+			const {p0} = $( "p0 = exp(-1/2*nsigma) / ( (2*pi)^D * sqrt( det( sigma ) )); " , {D: D, sigma: sigma, nsigma: nsigma} );
+			var labels = Cls[k].labels = { tagged: 0, prob: p0, sigmas: nsigma, collisions: 0 };
+				
 			/*
 			var R = $(N, (n,R) => {
 				R[n] = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: B, b: b, x: X[n]} ).r;
@@ -1310,15 +1310,15 @@ $.extensions = {		// extensions
 			Log( "sort", k, R.sort( (a,b) => a-b ).slice(0,10) );
 			*/
 			
-			var m = 0;
 			X.$( (n,X) => {
 				const {y,r} = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: B, b: b, x: X[n]} );
-				if ( r < 3 ) {
-					Y[n] = k;  m++;
-					//Log({ k:k, n:n, x: X[n], y:y, r: r });
+				if ( r < nsigma ) {
+					Y[n] += k;  labels.tagged++;
+					if ( Y[n].length > 1 ) labels.collisions++;
 				}
-			});			
-			Log("labeled", m, k);
+			});	
+			
+			Log( "lab", labels);
 		}
 		
 		/*
