@@ -1288,6 +1288,7 @@ $.extensions = {		// extensions
 			Cls = cls._data, 		// classifiers
 			K = Cls.length, 	// #classes
 			N = X.length, // #feature vectors
+			M = N / K, 	// presumed number of fectures in each class
 			D = X[0].length, // feature vector dim
 			Y = $(N, (n,Y) => {  // flag as unlabeled
 				Y[n] = "";
@@ -1301,7 +1302,7 @@ $.extensions = {		// extensions
 			const {sigma,mu,B,b} = Cls[k];
 			
 			const {p0} = $( "p0 = exp(-1/2*nsigma) / ( (2*pi)^D * sqrt( det( sigma ) )); " , {D: D, sigma: sigma, nsigma: nsigma} );
-			var labels = Cls[k].labels = { tagged: 0, prob: p0, sigmas: nsigma, collisions: 0 };
+			var labels = Cls[k].labels = { tagged: 0, prob: p0, sigmas: nsigma, collisions: 0, hits: 0 };
 				
 			/*
 			var R = $(N, (n,R) => {
@@ -1314,10 +1315,15 @@ $.extensions = {		// extensions
 				const {y,r} = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: B, b: b, x: X[n]} );
 				if ( r < nsigma ) {
 					Y[n] += k;  labels.tagged++;
-					if ( Y[n].length > 1 ) labels.collisions++;
+					if ( Y[n].length > 1 ) 
+						labels.collisions++;
+					else
+						labels.hits++;
 				}
 			});	
 			
+			labels.hitRate = labels.hits / M;
+			labels.farRate = labels.collisions / M;
 			Log( "lab", labels);
 		}
 		
