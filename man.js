@@ -1264,11 +1264,12 @@ $.extensions = {		// extensions
 		var 
 			mixes = solve.mixes || 2,
 			X = x._data,
-			cls = $.EM( X, mixes );
+			cls = { mix: $.EM( X, mixes ) },
+			mix = cls.mix;
 		
-		cls.forEach( classif => {
+		mix.forEach( classif => {
 			//Log("sigma", classif.sigma, "mu", classif.mu);
-			$( "eg = evd( sigma ); B = sqrt( diag(eg.values) ) * eg.vectors; b = - B * mu; ", classif );
+			$( "eigen = evd( sigma ); keys = {B: sqrt( diag(eigen.values) ) * eigen.vectors}; keys.b = - keys.B * mu; ", classif );
 			//Log( "qda", classif);
 		});
 		
@@ -1277,7 +1278,7 @@ $.extensions = {		// extensions
 		
 		//Log( JSON.stringify(cls) );
 		
-		Log("qda classes", cls.length);
+		//Log("qda classes", mix.length);
 		return cls;
 	},
 	
@@ -1285,25 +1286,26 @@ $.extensions = {		// extensions
 		var
 			nsigma = solve.nsigma || 1, // ellipsoid surface in number of sigma 
 			X = x._data,	// feature vectors
-			Cls = cls._data, 		// classifiers
-			K = Cls.length, 	// #classes
+			mix = cls.mix,
+			K = mix.length, 	// #classes
 			N = X.length, // #feature vectors
-			M = N / K, 	// presumed number of fectures in each class
 			D = X[0].length, // feature vector dim
 			Y = $(N, (n,Y) => {  // flag as unlabeled
 				Y[n] = "";
 			});
 			
-		//Log( "cls0", Cls[0]);
 		Log("predict", K,N,D, solve );
+		cls.p0 = $(K);
+		cls.collisions = 0;
+		cls.hits = 0;
+		cls.sigmas = nsigma;
 		//Log("eg test", $(" d = xi' * sigma * xi; ", {xi: Cls[0].eg.vectors, sigma: Cls[0].sigma, lambda: Cls[0].eg.values}) );
 		
 		for ( var k=0; k<K; k++) {		// go through all classes (modes)
-			const {sigma,mu,B,b} = Cls[k];
+			const {sigma,mu,keys} = mix[k];
 			
 			const {p0} = $( "p0 = exp(-1/2*nsigma) / ( (2*pi)^D * sqrt( det( sigma ) )); " , {D: D, sigma: sigma, nsigma: nsigma} );
-			var labels = Cls[k].labels = { tagged: 0, prob: p0, sigmas: nsigma, collisions: 0, hits: 0 };
-				
+			cls.p0[k] = p0;
 			/*
 			var R = $(N, (n,R) => {
 				R[n] = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: B, b: b, x: X[n]} ).r;
@@ -1312,21 +1314,20 @@ $.extensions = {		// extensions
 			*/
 			
 			X.$( (n,X) => {
-				const {y,r} = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: B, b: b, x: X[n]} );
+				const {y,r} = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: keys.B, b: keys.b, x: X[n]} );
 				if ( r < nsigma ) {
-					Y[n] += k;  labels.tagged++;
+					Y[n] += k;
 					if ( Y[n].length > 1 ) 
-						labels.collisions++;
+						cls.collisions++;
 					else
-						labels.hits++;
+						cls.hits++;
 				}
 			});	
-			
-			labels.hitRate = labels.hits / M;
-			labels.farRate = labels.collisions / M;
-			Log( "lab", labels);
 		}
 		
+		cls.hitRate = cls.hits/N;
+		cls.farRate = cls.collisions/N;
+		Log(cls);
 		/*
 		var
 			X = x._data,
