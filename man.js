@@ -863,7 +863,9 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 				for (var key in code) Trace(`IMPORTING ${key}`);
 
 				Copy(code,$);		// mixin them for access from $[name]
-				$.import(code);		// import them for access from $(" name(...) ")
+				$.import(code, {
+					override: true
+				});		// import them for access from $(" name(...) ")
 			}
 			
 			break;
