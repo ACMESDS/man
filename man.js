@@ -28,7 +28,7 @@ const { Copy,Each,Log,isArray,isNumber,isString,isObject,isFunction } = require(
 const {random, sin, cos, exp, log, PI, floor, abs, min, max} = Math;
 
 function saveStash(sql, stash, ID, host) {
-	function saveKey( sql, key, save ) {		
+	function saveKey( sql, key, save ) {	
 		sql.query(
 			`UPDATE app.?? SET ${key}=? WHERE ID=?`, 
 			[host, JSON.stringify(save) || "null", ID], 
@@ -1557,13 +1557,15 @@ $.extensions = {		// extensions
 		var
 			N = x._size[0],
 			X = x._data,
-			predict = cls.predictSync,
-			Y = $( N, (n,y) => y[n] = predict( X[n] ) );
+			Y = cls.predict(X);
+		
+			//predict = cls.predictSync,
+			//Y = $( N, (n,y) => y[n] = predict( X[n] ) );
 
-		Log("X", X, "pred", predict, cls.isTrained);
-		Log("svm", JSON.stringify(cls));
+		Log("svm pred", Y);
+		//Log("svm", JSON.stringify(cls));
 
-		Log("y",Y);
+		//Log("y",Y);
 		return $.matrix(Y);
 	},
 
@@ -1609,12 +1611,13 @@ $.extensions = {		// extensions
 	},
 
 	knn_train: function (x,y,solve) {
+		//Log({x:x, y:y});
 		var
 			X = new ml$(x._data),
 			Y = ml$.columnVector(y._data),
-			cls = new KNN(X,Y,solve);
+			cls = new KNN(X,Y,Copy(solve,{k:3}));
 
-		Log("knn training", "k", solve.k);
+		Log("knn training", cls);
 		return cls;
 	},
 
@@ -1831,9 +1834,15 @@ $.extensions = {		// extensions
 		}
 		
 		function genProc(opts, cb) {  // generate gaussian process
-			opts.filter = (str,ev,ran) => {
-				if ( ev.at == "step" ) 
-					ran.emP.obs.forEach( ob => str.push( ob ) );
+			opts.filter = (str,ev,ran) => {		
+				if ( opts.emP ) { 	// save gaussian mixing process
+					if ( ev.at == "step" ) 
+						ran.emP.obs.forEach( ob => str.push( ob ) );
+				}
+
+				else {
+					if ( ev.at == "jump" )  str.push( ev );
+				}
 			};
 				
 			var ran = new $.RAN(opts);  // create a random process compute thread
