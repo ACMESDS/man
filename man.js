@@ -460,50 +460,73 @@ function saveStash(sql, stash, ID, host) {
 			}
 		
 		else
-		if ( isString(idx) )
-			return $(N, (n,B) => B[n] = idx.parseEval( A[n] ) );
-	 
-		else
-		if ( isArray(idx) )
-			return $(N, (n,B) => B[n] = $( idx.length, (n,B) => B[n] = A[ idx[n] ] ) );
+		if (idx) {
+			if ( isString(idx) )
+				return $(N, (n,B) => B[n] = idx.parseEval( A[n] ) );
 
-		else
-		if ( isNumber(idx) )
-			return $(N, (n,B) => B[n] = A[n].slice(0,idx) );
-		
-		else
-		if ( isFunction(idx) ) {
-			if (A.rows) {
-				var M = A.rows, N = A.columns;
+			else
+			if ( isArray(idx) )
+				return $(N, (n,B) => B[n] = $( idx.length, (n,B) => B[n] = A[ idx[n] ] ) );
 
-				for (var m=0; m<M; m++) 
-					for (var n=0, Am = A[m]; n<N; n++) 
-						idx(m,n,A,Am);
-				
+			else
+			if ( isNumber(idx) )
+				return $(N, (n,B) => B[n] = A[n].slice(0,idx) );
+
+			else
+			if ( isFunction(idx) ) {
+				if (A.rows) {
+					var M = A.rows, N = A.columns;
+
+					for (var m=0; m<M; m++) 
+						for (var n=0, Am = A[m]; n<N; n++) 
+							idx(m,n,A,Am);
+
+					return A;
+				}
+
+				else 
+					for (var n=0; n<N; n++) idx(n,A);
+
 				return A;
 			}
 
-			else 
-				for (var n=0; n<N; n++) idx(n,A);
+			else
+			if ( keys = idx.keys || idx.rekey )
+				return A.$( (n,recs) => {
+					var rec = recs[n], rtn = {};
+					for ( var key in keys ) rtn[key] = rec[ keys[key] ];
+					recs[n] = rtn;
+				});
 
-			return A;
+			else
+			if ( count = idx.len || idx.count ) 
+				return $(N, (n,B) => B[n] = A[n].slice(idx.start,idx.start+count) );
+
+			else
+			if ( idx.draws ) 
+				return $(N, (n,B) => B[n] = A[n].shuffle( idx.draws, idx.index ) );
+
+			else  { // get( { KEY_starts: "VALUE" } )
+				var rtns = [];
+				A.$( (n,recs) => {
+					var rec = recs[n], rtn = {}, use = false;
+					for ( var key in idx ) {
+						if ( x = key.match( /(.*)_starts/ ) )
+							use = use && rec[ x[1] ].startsWith( idx[key] );
+							
+						else
+						if ( x = key.match( /(.*)_ends/ ) ) 
+							use = use && rec[ x[1] ].endsWith( idx[key] );
+						
+						else
+							use = use && ( rec[ key ] == idx[key] );
+					}
+					
+					if (use) rtns.push( new Object(rec) );
+				});
+				return rtns;
+			}
 		}
-		
-		else
-		if ( keys = idx.keys )
-			return A.$( (n,recs) => {
-				var rec = recs[n], rtn = {};
-				for ( var key in keys ) rtn[key] = rec[ keys[key] ];
-				recs[n] = rtn;
-			});		
-			
-		else
-		if ( count = idx.len || idx.count ) 
-			return $(N, (n,B) => B[n] = A[n].slice(idx.start,idx.start+count) );
-		
-		else
-		if ( idx.draws ) 
-			return $(N, (n,B) => B[n] = A[n].shuffle( idx.draws, idx.index ) );
 		
 		else
 			return A;
