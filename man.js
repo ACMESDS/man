@@ -28,13 +28,20 @@ const { Copy,Each,Log,isArray,isNumber,isString,isObject,isFunction } = require(
 const {random, sin, cos, exp, log, PI, floor, abs, min, max} = Math;
 
 function saveStash(sql, stash, ID, host) {
-	function saveKey( sql, key, save ) {	
-		sql.query(
-			`UPDATE app.?? SET ${key}=? WHERE ID=?`, 
-			[host, JSON.stringify(save) || "null", ID], 
-			err => // will fail if key does not exist or mysql server buffer too small (see my.cnf)
-				Trace(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` )
-		);
+	function saveKey( sql, key, save ) {
+		try {
+			sql.query(
+				`UPDATE app.?? SET ${key}=? WHERE ID=?`, 
+				[host, JSON.stringify(save) || "null", ID], 
+				err => // will fail if key does not exist or mysql server buffer too small (see my.cnf)
+					Trace(err ? `DROP ${host}.${key}` : `SAVE ${host}.${key}` )
+			);
+		}
+		
+		catch (err) {
+			Trace( `DROP ${host}.${key}` )
+			Log(err,save);
+		}
 	}
 
 	for (var key in stash) 
@@ -94,7 +101,9 @@ function saveStash(sql, stash, ID, host) {
 	function save(sql, ctx, cb) {
 		var stash = {}, rem = {};
 		
+		Log("!!!save", ctx.Save_qda);
 		Each(ctx, (key,val) => {
+			Log(">>save", key);
 			if ( key.startsWith("Save_") )
 				stash[key] = val;
 			else
@@ -613,7 +622,7 @@ function saveStash(sql, stash, ID, host) {
 			});
 		}
 
-		//Log("save host", ctx.Host);
+		//Log("save host", ctx.Host, ctx);
 
 		var evs = this;
 		
@@ -1484,7 +1493,7 @@ $.extensions = {		// extensions
 			cls = new NAB( );
 
 		cls.train(X,Y);
-		return cls.export();
+		return cls;
 	},
 
 	nab_predict: function (cls, x) {
@@ -1504,7 +1513,7 @@ $.extensions = {		// extensions
 			}) );
 
 		cls.train(X);
-		return cls.export();
+		return cls;
 	},
 
 	som_predict: function (cls, x) {
