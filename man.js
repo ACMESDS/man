@@ -23,7 +23,7 @@
 @requires random-seed
 */
 
-const { Copy,Each,Log,isArray,isNumber,isString,isObject,isFunction } = require("enum");
+const { Copy,Each,Log,isArray,isNumber,isString,isFunction } = require("enum");
 
 const {random, sin, cos, exp, log, PI, floor, abs, min, max} = Math;
 
@@ -400,7 +400,7 @@ function saveStash(sql, stash, ID, host) {
 				cb(chip);
 		}
 
-		var A = this, N = A.length, getSite = $.getSite;
+		var A = this, N = A.length, probeSite = $.probeSite;
 
 		if ( cb ) 
 			switch (cb.name) {
@@ -430,7 +430,7 @@ function saveStash(sql, stash, ID, host) {
 								.catch( err => {
 									Log("fetch image", path, err);
 									if ( urlPath )
-										getSite( path, null, stat => {
+										probeSite( path, stat => {
 											Log("fetch stat", stat);
 											if ( stat == "ok" )
 												$.JIMP.read( filePath )
@@ -1179,7 +1179,7 @@ Copy({
 	// methods
 	
 	thread: () => Trace("sql threader not configured"), //< define on config
-	getSite: () => Trace("getSite not configured"), //< define on config
+	probeSite: () => Trace("probeSite not configured"), //< define on config
 	runTask: () => Trace("runTask not configured"), //< define on config
 
 	saveKeys: { //< define plugin save-keys on config
@@ -2946,13 +2946,9 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 	rnn: function (a) {},
 	
 	disp: function (a) {
-		if ( isObject(a) )
-			if (a._data)
-				Log( a._data );
-		
-			else
-			for (var key in a) Log(key, a[key]);
-		
+		if (a._data)
+			Log( a._data );
+
 		else
 			Log( a );
 	}
