@@ -1885,7 +1885,7 @@ SNR = sqrt(mu' * mu) / sum(eigen.values);
 			ran.pipe( evs => cb(evs) );   // run process and capture results
 		}
 		
-		if (gauss = opts.gauss) {	// generate gaussian process using exact pcs or approx negbin
+		if (gauss = opts.gauss) {	// generate correlated gaussian process using exact pcs or approx negbin
 			var 
 				N = T = opts.steps, 
 				dt = 1/opts.nyquist;
@@ -1925,11 +1925,11 @@ SNR = sqrt(mu' * mu) / sum(eigen.values);
 			}	
 		}
 		
-		else
+		else	// generate logistic process with known beta parameters
 		if (beta = opts.beta) 
 			res( genTest(opts.N, beta[0], beta[1], opts.seed) );
 		
-		else
+		else	// generate random gauss/markov/etc process
 			genProc(opts, res);
 		
 	},
