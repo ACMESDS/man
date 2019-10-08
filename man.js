@@ -76,7 +76,7 @@ function saveStash(sql, stash, ID, host) {
 				var recs = [];
 
 				if (idx)
-					sql.forEach( TRACE, query , idx, rec => {  // feed db events to grouper
+					sql.forEach( "$>", query , idx, rec => {  // feed db events to grouper
 						if ( recs.batch(idx, rec) ) recs.flush(cb);
 						recs.push(rec);
 					})
@@ -86,7 +86,7 @@ function saveStash(sql, stash, ID, host) {
 					});
 
 				else
-					sql.forAll( TRACE, query, idx, recs => {  // feed all db events w/o a grouper
+					sql.forAll( "$>", query, idx, recs => {  // feed all db events w/o a grouper
 						recs.flush(cb);
 						cb( null );  // signal end-of-events
 					});
@@ -905,9 +905,6 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 Copy( require("mathjs"), $ );
 
 var
-	// globals
-	TRACE = "$>",
-
 	// node modules
 	FS = require("fs"),
 		
@@ -1297,25 +1294,28 @@ $.extensions = {		// extensions
 			mixes = solve.mixes || 2,
 			X = x._data,
 			cls = { mix: $.EM( X, mixes ) },
-			mix = cls.mix;
-		
-		mix.forEach( classif => {
-			//Log("sigma", classif.sigma, "mu", classif.mu);
-			$(`
+			mix = cls.mix,
+			pcScipts = {
+				"default": `
 eigen = evd( sigma ); 
 keys = {B: sqrt( diag(eigen.values) ) * eigen.vectors}; 
 keys.b = - keys.B * mu; 
 SNR = sqrt(mu' * mu) / sum(eigen.values);
-`, classif );
+`
+			},
+			pcScipt = pcScipts[ solve.solver || "" ] || solve.solver || pcScipts.default;
+			
+		Log("qda solver", pcScipt);
+		mix.forEach( classif => {
+			$( pcScipt, classif );
 			//Log( "qda", classif);
 		});
 		
-		// (x-mu) * sigma * (x-mu) = 1 is equation for an ellipsoid, the eigenvectors of sigma corresponding to its principle axes, and eigenvalues
-		// corresponding to the squared reciprocals of its semi-axes, i.e. x^2 / a^2 + y^2 / b^2 + z^2 / c^2 = 1 where lambda = [a^-2, b^-2, c^-2].
+		/*
+		(x-mu) * sigma * (x-mu) = 1 is equation for an ellipsoid, the eigenvectors of sigma corresponding to its principle axes, and eigenvalues
+		corresponding to the squared reciprocals of its semi-axes, i.e. x^2 / a^2 + y^2 / b^2 + z^2 / c^2 = 1 where lambda = [a^-2, b^-2, c^-2].
+		*/
 		
-		//Log( JSON.stringify(cls) );
-		
-		//Log("qda classes", mix.length);
 		return cls;
 	},
 	
@@ -3057,7 +3057,7 @@ $.RAN = require("randpr");
 ].Extend( JIMP );
 
 function Trace(msg,sql) {
-	TRACE.trace(msg,sql);
+	"$".trace(msg,sql);
 }
 
 function _logp0(a,k,x) {  // for case 6.x unit testing
