@@ -101,9 +101,7 @@ function saveStash(sql, stash, ID, host) {
 	function save(sql, ctx, cb) {
 		var stash = {}, rem = {};
 		
-		Log("!!!save", ctx.Save_qda);
 		Each(ctx, (key,val) => {
-			Log(">>save", key);
 			if ( key.startsWith("Save_") )
 				stash[key] = val;
 			else
@@ -1303,7 +1301,12 @@ $.extensions = {		// extensions
 		
 		mix.forEach( classif => {
 			//Log("sigma", classif.sigma, "mu", classif.mu);
-			$( "eigen = evd( sigma ); keys = {B: sqrt( diag(eigen.values) ) * eigen.vectors}; keys.b = - keys.B * mu; ", classif );
+			$(`
+eigen = evd( sigma ); 
+keys = {B: sqrt( diag(eigen.values) ) * eigen.vectors}; 
+keys.b = - keys.B * mu; 
+SNR = sqrt(mu' * mu) / sum(eigen.values);
+`, classif );
 			//Log( "qda", classif);
 		});
 		
@@ -1336,9 +1339,9 @@ $.extensions = {		// extensions
 		//Log("eg test", $(" d = xi' * sigma * xi; ", {xi: Cls[0].eg.vectors, sigma: Cls[0].sigma, lambda: Cls[0].eg.values}) );
 		
 		for ( var k=0; k<K; k++) {		// go through all classes (modes)
-			const {sigma,mu,keys} = mix[k];
-			
+			const {sigma,mu,keys,SNR} = mix[k];			
 			const {p0} = $( "p0 = exp(-1/2*nsigma) / ( (2*pi)^D * sqrt( det( sigma ) )); " , {D: D, sigma: sigma, nsigma: nsigma} );
+			
 			cls.p0[k] = p0;
 			/*
 			var R = $(N, (n,R) => {
