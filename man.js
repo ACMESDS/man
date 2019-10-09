@@ -1307,12 +1307,12 @@ keys.b = - keys.B * mu;
 SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 `
 			},
-			pcScipt = pcScipts[ solve.solver || "" ] || solve.solver || pcScipts.default;
+			pcScript = pcScipts[ solve.solver || "" ] || solve.solver || pcScipts.default;
 			
-		Log("qda solver", pcScipt);
+		Log("qda solver", pcScript, solve, mixes);
 		mix.forEach( classif => {
-			$( pcScipt, classif );
-			//Log( "qda", classif);
+			$( pcScript, classif );
+			//Log( "qda snr=", classif.SNR);
 		});
 		
 		/*
@@ -1328,25 +1328,27 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			nsigma = solve.nsigma || 1, // ellipsoid surface in number of sigma 
 			X = x._data,	// feature vectors
 			mix = cls.mix,
-			K = mix.length, 	// #classes
-			N = X.length, // #feature vectors
+			mixes = mix.length, 	// #classes = #mixes = #modes
+			SNRs = cls.SNRs = $(mixes),
+			N = cls.N = X.length, // #feature vectors
 			D = X[0].length, // feature vector dim
 			Y = $(N, (n,Y) => {  // flag as unlabeled
 				Y[n] = "";
 			});
 			
-		Log("predict", K,N,D, solve );
-		cls.p0 = $(K);
+		Log("predict", mixes,N,D, solve );
+		cls.p0 = $(mixes);
 		cls.collisions = 0;
 		cls.hits = 0;
 		cls.sigmas = nsigma;
 		//Log("eg test", $(" d = xi' * sigma * xi; ", {xi: Cls[0].eg.vectors, sigma: Cls[0].sigma, lambda: Cls[0].eg.values}) );
 		
-		for ( var k=0; k<K; k++) {		// go through all classes (modes)
+		for ( var k=0; k<mixes; k++) {		// go through the mix
 			const {sigma,mu,keys,SNR} = mix[k];			
 			const {p0} = $( "p0 = exp(-1/2*nsigma) / ( (2*pi)^D * sqrt( det( sigma ) )); " , {D: D, sigma: sigma, nsigma: nsigma} );
 			
 			cls.p0[k] = p0;
+			SNRs[k] = SNR;
 			/*
 			var R = $(N, (n,R) => {
 				R[n] = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: B, b: b, x: X[n]} ).r;
@@ -1366,8 +1368,13 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			});	
 		}
 		
+		cls.Nhit = N;
+		cls.Nfar = N*mixes;
+		$("hitRate=hits/Nhit; farRate=collisions/Nfar; SNR=mean(SNRs); SNRsnr = SNR/std(SNRs);", cls);
+		/*
 		cls.hitRate = cls.hits/N;
 		cls.farRate = cls.collisions/N;
+		*/
 		Log(cls);
 		/*
 		var
