@@ -23,6 +23,10 @@
 @requires random-seed
 */
 
+function Trace(msg,req,fwd) {
+	"$".trace(msg,req,fwd);
+}
+
 const { Copy,Each,Log,isArray,isNumber,isString,isFunction } = require("enum");
 
 const {random, sin, cos, exp, log, PI, floor, abs, min, max} = Math;
@@ -1300,7 +1304,7 @@ $.extensions = {		// extensions
 eigen = evd( sigma ); 
 keys = {B: sqrt( diag(eigen.values) ) * eigen.vectors}; 
 keys.b = - keys.B * mu; 
-SNR = sqrt(mu' * mu) / sum(eigen.values);
+SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 `
 			},
 			pcScipt = pcScipts[ solve.solver || "" ] || solve.solver || pcScipts.default;
@@ -3055,10 +3059,6 @@ $.RAN = require("randpr");
 		return(img);
 	}	
 ].Extend( JIMP );
-
-function Trace(msg,sql) {
-	"$".trace(msg,sql);
-}
 
 function _logp0(a,k,x) {  // for case 6.x unit testing
 	var
