@@ -1309,7 +1309,7 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			},
 			pcScript = pcScipts[ solve.solver || "" ] || solve.solver || pcScipts.default;
 			
-		Log("qda solver", pcScript, solve, mixes);
+		Log("qda solver", pcScript, mixes);
 		mix.forEach( classif => {
 			$( pcScript, classif );
 			//Log( "qda snr=", classif.SNR);
@@ -1368,12 +1368,16 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			});	
 		}
 		
-		Y = Y.sort( (a,b) => b.length - a.length );
-		cls.maxCollisions = Y[0].length;
-		cls.Nhit = N;
-		cls.Nfar = N*cls.maxCollisions;
-		Log(">>>>>>>>>>>>>>>> maxcol", cls.maxCollisions);
-		$("hitRate=hits/Nhit; farRate=collisions/Nfar; SNR=mean(SNRs); SNRsnr = SNR/std(SNRs);", cls);
+		if ( debuf = false ) {
+			var Ntot = 0; Y.$(n => Ntot += Y[n].length);
+			Y = Y.sort( (a,b) => b.length - a.length );		
+			cls.maxCollisions = Y[0].length;
+			Log(">>>>>>>>>>>>>>>> col stats", "max", [cls.maxCollisions, mixes], "tot", [Ntot, N*mixes]);
+		}
+		//Y.$(n => {Log(n,Y[n]); });
+		cls.maxHits = N;
+		cls.maxCols = N * mixes;
+		$("hitRate=hits/maxHits; farRate=collisions/maxCols; SNR=mean(SNRs); SNRsnr = SNR/std(SNRs);", cls);
 		/*
 		cls.hitRate = cls.hits/N;
 		cls.farRate = cls.collisions/N;
