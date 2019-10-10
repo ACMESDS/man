@@ -1355,7 +1355,7 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			});
 			Log( "sort", k, R.sort( (a,b) => a-b ).slice(0,10) );
 			*/
-			
+
 			X.$( (n,X) => {
 				const {y,r} = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: keys.B, b: keys.b, x: X[n]} );
 				if ( r < nsigma ) {
@@ -1368,8 +1368,11 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			});	
 		}
 		
+		Y = Y.sort( (a,b) => b.length - a.length );
+		cls.maxCollisions = Y[0].length;
 		cls.Nhit = N;
-		cls.Nfar = N*mixes;
+		cls.Nfar = N*cls.maxCollisions;
+		Log(">>>>>>>>>>>>>>>> maxcol", cls.maxCollisions);
 		$("hitRate=hits/Nhit; farRate=collisions/Nfar; SNR=mean(SNRs); SNRsnr = SNR/std(SNRs);", cls);
 		/*
 		cls.hitRate = cls.hits/N;
