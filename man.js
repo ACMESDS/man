@@ -485,6 +485,21 @@ function saveStash(sql, stash, ID, host) {
 
 			else
 			if ( isFunction(idx) ) {
+				var [rows,cols] = A._size || [A.length, A[0].length];
+				
+				Log(">>>>index", rows, cols, A);
+				if ( cols ) {
+					for (var m=0; m<rows; m++) 
+						for (var n=0, Am = A[m]; n<cols; n++) 
+							idx(m,n,A,Am);
+
+					return A;
+				}
+					
+				else 
+					for (var n=0; n<rows; n++) idx(n,A);
+					
+				/*
 				if (A.rows) {
 					var M = A.rows, N = A.columns;
 
@@ -497,7 +512,8 @@ function saveStash(sql, stash, ID, host) {
 
 				else 
 					for (var n=0; n<N; n++) idx(n,A);
-
+				*/
+				
 				return A;
 			}
 
@@ -876,6 +892,15 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 			return cb ? A.$(cb) : A;
 			
 		case Array:
+			var 
+				[rows,cols] = code,
+				cb = ctx,
+				A = new Array(rows);
+			
+			if ( cols )
+				for (var m=0; m<rows; m++) A[m] = new Array(cols);
+			
+			/*
 			var
 				dims = code,
 				M = dims[0] || 0,
@@ -886,7 +911,8 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 			A.rows = M;
 			A.columns = N;
 			for (var m=0; m<M; m++) A[m] = new Array(N);
-
+			*/
+			
 			return cb ? A.$(cb) : A;
 			
 		case Object:
@@ -1244,7 +1270,14 @@ $.extensions = {		// extensions
 	
 	list: function (mat) {
 		if (mat)
-			return mat._data || mat;
+			if ( A = mat._data ) {
+				A._size = mat._size;
+				//Log(">>>>>>list", A);
+				return A;
+			}
+		
+			else
+				return mat;
 		
 		else
 			return mat;
