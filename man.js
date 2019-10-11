@@ -487,7 +487,7 @@ function saveStash(sql, stash, ID, host) {
 			if ( isFunction(idx) ) {
 				var [rows,cols] = A._size || [A.length, A[0].length];
 				
-				Log(">>>>index", rows, cols, A);
+				//Log(">>>>index", rows, cols, A);
 				if ( cols ) {
 					for (var m=0; m<rows; m++) 
 						for (var n=0, Am = A[m]; n<cols; n++) 
@@ -885,10 +885,11 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 			
 		case Number:
 			var 
-				N = code,
+				rows = code,
 				cb = ctx,
-				A = new Array(N);
+				A = new Array(rows);
 			
+			A._size = [rows];
 			return cb ? A.$(cb) : A;
 			
 		case Array:
@@ -897,6 +898,7 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 				cb = ctx,
 				A = new Array(rows);
 			
+			A._size = [rows,cols];
 			if ( cols )
 				for (var m=0; m<rows; m++) A[m] = new Array(cols);
 			
@@ -1266,6 +1268,52 @@ $.import({ // overrides
 });
 
 $.extensions = {		// extensions
+	
+	proj: (v,u) => $.multiply( $.dot(v,u) / $.dot(u,u), u ),		// returns projection of v on u
+	GS: V => {	// gram-schmidt returns K orthonormalized vectors E given K random vectors V
+		function res(k,E,U,V) {
+			var 
+				_E = $.list(E),
+				_U = $.list(U),
+				v = $.squeeze( $.column( V, k ) ),
+				sum = $( K, (n,x) => x[n] = 0 );
+
+			//Log("res",k, v, sum);
+			for (var j=0; j<k-1; j++) {
+				var
+					u = $.squeeze( $.column( U, j ) );
+				
+				Log( [k,j], u);
+				var
+					p = $.proj(v,u);
+
+				sum.$( n => sum[n] += p[n] );
+				Log("res", [k, j], sum );
+			}
+			u.$( n => u[n] = v[n] - sum[n] );
+			
+			Log("u=", k, u);
+			u.$( n => _U[k][n] = u[n] );
+
+			var e = $.multiply( u, 1/$.norm(u) );
+			Log("e=", e);
+			e.$( n => _E[k][n] = e[n] );
+		}
+
+		var 
+			K = $.len(V),
+			U = $.matrix( $( [K,K] ) ),
+			E = $.matrix( $( [K,K] ) );
+
+			for (var k=0; k<K; k++ ) res(k,E,U,V);
+			Log("GS=", E._data);
+	},
+	randRot: K => {
+		var V = $( [K,K], (m,n,V) => V[m][n] = 1 - 2*Math.random() );
+		Log("randrot", K, V);
+		return $.GS( $.matrix( V ) );
+	},	// returns a KxK random rotation matrix
+	
 	// misc and samplers
 	
 	list: function (mat) {
@@ -1389,7 +1437,7 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			Log( "sort", k, R.sort( (a,b) => a-b ).slice(0,10) );
 			*/
 
-			X.$( (n,X) => {
+			X.$( (n,X) => {		// convert x to y ~ NRV(0,1) 
 				const {y,r} = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: keys.B, b: keys.b, x: X[n]} );
 				if ( r < nsigma ) {
 					Y[n] += k;
@@ -1407,7 +1455,6 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			cls.maxCollisions = Y[0].length;
 			Log(">>>>>>>>>>>>>>>> col stats", "max", [cls.maxCollisions, mixes], "tot", [Ntot, N*mixes]);
 		}
-		//Y.$(n => {Log(n,Y[n]); });
 		cls.maxHits = N;
 		cls.maxCols = N * mixes;
 		$("hitRate=hits/maxHits; farRate=collisions/maxCols; SNR=mean(SNRs); SNRsnr = SNR/std(SNRs);", cls);
@@ -1930,7 +1977,8 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 					if ( ev.at == "jump" )  str.push( ev );
 				}
 			};
-				
+
+			//Log("new ran", opts);
 			var ran = new $.RAN(opts);  // create a random process compute thread
 
 			ran.pipe( evs => cb(evs) );   // run process and capture results
