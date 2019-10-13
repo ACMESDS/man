@@ -485,35 +485,7 @@ function saveStash(sql, stash, ID, host) {
 
 			else
 			if ( isFunction(idx) ) {
-				var [rows,cols] = A._size || [A.length, A[0].length];
-				
-				//Log(">>>>index", rows, cols, A);
-				if ( cols ) {
-					for (var m=0; m<rows; m++) 
-						for (var n=0, Am = A[m]; n<cols; n++) 
-							idx(m,n,A,Am);
-
-					return A;
-				}
-					
-				else 
-					for (var n=0; n<rows; n++) idx(n,A);
-					
-				/*
-				if (A.rows) {
-					var M = A.rows, N = A.columns;
-
-					for (var m=0; m<M; m++) 
-						for (var n=0, Am = A[m]; n<N; n++) 
-							idx(m,n,A,Am);
-
-					return A;
-				}
-
-				else 
-					for (var n=0; n<N; n++) idx(n,A);
-				*/
-				
+				for (var n=0,N=A.length; n<N; n++) idx(n,A);
 				return A;
 			}
 
@@ -561,6 +533,14 @@ function saveStash(sql, stash, ID, host) {
 	
 	function $(idx,cb) {
 		return this.get(idx,cb);
+	},
+	
+	function $$(cb) {
+		return this.$( (row,A) => {
+			A[row].$( col => {
+				cb( row, col, A );
+			});
+		});
 	},
 	
 	function indexor(idx) {
@@ -889,7 +869,6 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 				cb = ctx,
 				A = new Array(rows);
 			
-			A._size = [rows];
 			return cb ? A.$(cb) : A;
 			
 		case Array:
@@ -898,9 +877,7 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 				cb = ctx,
 				A = new Array(rows);
 			
-			A._size = [rows,cols];
-			if ( cols )
-				for (var m=0; m<rows; m++) A[m] = new Array(cols);
+			for (var m=0; m<rows; m++) A[m] = new Array(cols);
 			
 			/*
 			var
@@ -915,7 +892,7 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 			for (var m=0; m<M; m++) A[m] = new Array(N);
 			*/
 			
-			return cb ? A.$(cb) : A;
+			return cb ? A.$$(cb) : A;
 			
 		case Object:
 			if (task = ctx)
@@ -1269,63 +1246,52 @@ $.import({ // overrides
 
 $.extensions = {		// extensions
 	
-	proj: (v,u) => $.multiply( $.dot(v,u) / $.dot(u,u), u ),		// returns projection of v on u
-	GS: V => {	// gram-schmidt returns K orthonormalized vectors E given K random vectors V
-		function res(k,E,U,V) {
+	// Linear algebra methods
+	
+	proj: (v,u) => $.multiply( $.dot(v,u) / $.dot(u,u), u ) ,  // returns projection of v on u
+	orthoNorm: V => {	// returns K orthonormalized vectors E given K random vectors V
+		function GramSchmidt(k,E,U,V) {
 			var 
-				_E = $.list(E),
-				_U = $.list(U),
-				v = $.squeeze( $.column( V, k ) ),
+				v = $(K, (n,v) => v[n] = V[k][n] ),
 				sum = $( K, (n,x) => x[n] = 0 );
 
-			//Log("res",k, v, sum);
-			for (var j=0; j<k-1; j++) {
+			for (var j=0; j<k; j++) {
 				var
-					u = $.squeeze( $.column( U, j ) );
-				
-				Log( [k,j], u);
-				var
+					u = $(K, (n,u) => u[n] = U[j][n] ),
 					p = $.proj(v,u);
 
 				sum.$( n => sum[n] += p[n] );
-				Log("res", [k, j], sum );
+				//Log("GramSchmidt", k, j, u,p,sum );
 			}
-			u.$( n => u[n] = v[n] - sum[n] );
 			
-			Log("u=", k, u);
-			u.$( n => _U[k][n] = u[n] );
-
+			var u = $( K, (n,u) => U[k][n] = u[n] = v[n] - sum[n] );
+			
 			var e = $.multiply( u, 1/$.norm(u) );
-			Log("e=", e);
-			e.$( n => _E[k][n] = e[n] );
+			//Log(k, "e=", e, "u=", u, "v=", v, "s=", sum);
+			e.$( n => E[k][n] = e[n] );
 		}
 
 		var 
 			K = $.len(V),
-			U = $.matrix( $( [K,K] ) ),
-			E = $.matrix( $( [K,K] ) );
+			U = $( [K,K] ),
+			E = $( [K,K] );
 
-			for (var k=0; k<K; k++ ) res(k,E,U,V);
-			Log("GS=", E._data);
+		for (var k=0; k<K; k++ ) GramSchmidt( k, E, U, $.list(V) );
+		//Log("orthoNorm=", E);
+		return $.matrix( E );
 	},
-	randRot: K => {
-		var V = $( [K,K], (m,n,V) => V[m][n] = 1 - 2*Math.random() );
-		Log("randrot", K, V);
-		return $.GS( $.matrix( V ) );
-	},	// returns a KxK random rotation matrix
+	randRot: K => {		// returns a KxK random rotation matrix
+		var R = $( [K,K], (m,n,R) => R[m][n] = 1 - 2*Math.random() );
+		var U = $.orthoNorm( $.matrix( R ) );
+		return U;
+		// Log( $("T = U' * U", {U: U} ) );
+	},	
 	
 	// misc and samplers
 	
-	list: function (mat) {
+	list: mat => {		// covert Matrix back to a JS-native Array
 		if (mat)
-			if ( A = mat._data ) {
-				A._size = mat._size;
-				//Log(">>>>>>list", A);
-				return A;
-			}
-		
-			else
-				return mat;
+			return mat._data || mat;
 		
 		else
 			return mat;
@@ -1784,7 +1750,7 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 		return $.matrix(Y);
 	},
 
-	// process generator
+	// random process generator
 	
 	gen: function (opts, res) {	// generate gauss, wiener, markov, bayesian, ornstein process
 	
@@ -1967,14 +1933,16 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 		}
 		
 		function genProc(opts, cb) {  // generate gaussian process
-			opts.filter = (str,ev,ran) => {		
-				if ( opts.emP ) { 	// save gaussian mixing process
-					if ( ev.at == "step" ) 
-						ran.emP.obs.forEach( ob => str.push( ob ) );
-				}
-
-				else {
-					if ( ev.at == "jump" )  str.push( ev );
+			opts.filter = (str,ev,ran) => {
+				switch (ev.at) {
+					case "step":
+						if ( opts.emP ) 	// save gaussian mixing process
+							ran.emP.obs.forEach( ob => str.push( ob ) );
+						break;
+						
+					case "jump":
+					case "config":
+						str.push( ev );
 				}
 			};
 
@@ -2743,17 +2711,17 @@ x = rng(-1/2, 1/2, N); ` ,
 		});
 	},
 	
-	// linear algebra
+	// more linear algebra
 	
-	svd: function (a) {		// singular vakue decomposition
-		var svd = new ML.SVD( a._data );
-		Log(svd);
+	svd: A => {		// singular value decomposition of matrix A
+		var svd = new ML.SVD( $.list(A) );
+		//Log(svd);
+		return svd;
 	},
 
-	evd: function (a) {	// eigen vector decomposition
+	evd: A => {	// eigen decomposition of matrix A
 		var 
-			A = a._data,
-			evd = new ML.EVD( A );  //, {assumeSymmetric: true}
+			evd = new ML.EVD( $.list(A) );  //, {assumeSymmetric: true}
 		
 		return {
 			values: $.matrix(evd.d), 
@@ -2761,7 +2729,7 @@ x = rng(-1/2, 1/2, N); ` ,
 		}; 
 	},
 	
-	rng: function (min,max,N) { 	// range
+	rng: function (min,max,N) { 	// generate index range
 		var
 			del = N ? (max-min) / (N-1) : 1;
 		
@@ -2781,7 +2749,7 @@ x = rng(-1/2, 1/2, N); ` ,
 			N0 = floor( (N+1)/2 ),		// eg N0 = 5
 			M0 = floor( (N0-1)/2 ),		// eq M0 = 2 for 5x5 Xccf
 			K0 = N0-1,	// 0-based index to 0-lag
-			Xccf = $$( N0, N0, (m,n,X) => X[m][n] = 0 );
+			Xccf = $( [N0, N0], (m,n,X) => X[m][n] = 0 );
 
 		//Log("xcorr",N,N0,M0);
 		
