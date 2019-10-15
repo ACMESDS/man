@@ -1344,14 +1344,14 @@ $.extensions = {		// extensions
 			cls = { mix: $.EM( X, mixes ) },
 			mix = cls.mix,
 			pcScipts = {
-				"default": `
+				default: `
 eigen = evd( sigma ); 
 keys = {B: sqrt( diag(eigen.values) ) * eigen.vectors}; 
 keys.b = - keys.B * mu; 
 SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 `
 			},
-			pcScript = pcScipts[ solve.solver || "" ] || solve.solver || pcScipts.default;
+			pcScript = pcScipts[ solve.solver || "default" ] || solve.solver || pcScipts.default;
 			
 		Log("qda solver", pcScript);
 		mix.forEach( classif => {
