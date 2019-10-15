@@ -76,7 +76,7 @@ function saveStash(sql, stash, ID, host) {
 		
 		//Log(">>>>fetching", query);
 		if (cb)
-			$.thread( sql => {  
+			$.sqlThread( sql => {  
 				var recs = [];
 
 				if (idx)
@@ -94,8 +94,6 @@ function saveStash(sql, stash, ID, host) {
 						recs.flush(cb);
 						cb( null );  // signal end-of-events
 					});
-
-				sql.release();	
 			});
 		
 		else {
@@ -923,7 +921,7 @@ var
 
 			var detName = ctx._Plugin;
 
-			$.thread( sql => {
+			$.sqlThread( sql => {
 				var vers = [0]; //ctx.Overhead ? [0,90] : [0];
 				var labels = ctx.Labels.split(",");
 
@@ -1182,9 +1180,9 @@ var
 Copy({
 	// methods
 	
-	thread: () => Trace("sql threader not configured"), //< define on config
-	probeSite: () => Trace("probeSite not configured"), //< define on config
-	runTask: () => Trace("runTask not configured"), //< define on config
+	probeSite: (url,opt) => { throw new Error("man never configured probeSite method"); } ,  //< data probeSite
+	sqlThread: () => { throw new Error("man never configured thread method"); },  //< sql threader
+	runTask: () => Trace("man never configured runTask method"), //< define on config
 
 	saveKeys: { //< define plugin save-keys on config
 	},
@@ -1195,13 +1193,12 @@ Copy({
 		var
 			saveKeys = $.saveKeys;
 
-		$.thread( sql => {
+		$.sqlThread( sql => {
 			sql.getFields("app._stats", null, [], function (keys) {
 				keys.forEach(function (key) {
 					saveKeys[key] = true;
 				});
 			});
-			sql.release();
 		});
 
 		if (cb) cb(null);	
@@ -1356,7 +1353,7 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			},
 			pcScript = pcScipts[ solve.solver || "" ] || solve.solver || pcScipts.default;
 			
-		Log("qda solver", pcScript, mixes);
+		Log("qda solver", pcScript);
 		mix.forEach( classif => {
 			$( pcScript, classif );
 			//Log( "qda snr=", classif.SNR);
@@ -1415,19 +1412,22 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			});	
 		}
 		
-		if ( debuf = false ) {
+		if ( debug = false ) {
 			var Ntot = 0; Y.$(n => Ntot += Y[n].length);
 			Y = Y.sort( (a,b) => b.length - a.length );		
 			cls.maxCollisions = Y[0].length;
-			Log(">>>>>>>>>>>>>>>> col stats", "max", [cls.maxCollisions, mixes], "tot", [Ntot, N*mixes]);
+			Log("debug stats", "max", [cls.maxCollisions, mixes], "tot", [Ntot, N*mixes]);
 		}
 		cls.maxHits = N;
 		cls.maxCols = N * mixes;
-		$("hitRate=hits/maxHits; farRate=collisions/maxCols; SNR=mean(SNRs); SNRsnr = SNR/std(SNRs);", cls);
-		/*
-		cls.hitRate = cls.hits/N;
-		cls.farRate = cls.collisions/N;
-		*/
+		cls.dataDim = D;
+		
+		$(`
+hitRate=hits/maxHits; 
+farRate=collisions/maxCols; 
+SNR=mean(SNRs); 
+SNRsnr = SNR/std(SNRs);
+`, cls);
 		Log(cls);
 		/*
 		var
@@ -1776,7 +1776,7 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			
 			function getpcs(model, coints, dim, cb) {  // get pcs with callback cb(pcs) || cb(null)
 
-				$.thread( sql => {
+				$.sqlThread( sql => {
 					function genpcs( coints, model, dim, cb) {  // make pcs with callback cb(pcs = {values,vectors,ref})
 						function evd( models, coints, dim, cb) {   // eigen value decomp with callback cb(pcs)
 							models.forEach( function (model) {	// enumerate over all models
@@ -1915,8 +1915,6 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 									cb( null );
 							});
 					});
-				
-					sql.release();
 				});
 			}
 	
@@ -2459,7 +2457,7 @@ x = t/T; `,
 
 		function getpcs(model, Emin, M, Mwin, Mmax, cb) {  // get or gen Principle Components with callback(pcs)
 
-			$.thread( sql => {
+			$.sqlThread( sql => {
 				function genpcs(dim, steps, model, cb) {
 					Log("gen pcs", dim, steps, model); 
 
@@ -2587,8 +2585,6 @@ x = t/T; `,
 							sendpcs(pcs);
 					});							
 				});
-				
-				sql.release();
 			});
 		}
 
