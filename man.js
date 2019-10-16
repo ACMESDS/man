@@ -1269,7 +1269,7 @@ $.extensions = {		// extensions
 		}
 
 		var 
-			K = $.len(V),
+			K = V._size[0],
 			U = $( [K,K] ),
 			E = $( [K,K] );
 
@@ -1277,12 +1277,12 @@ $.extensions = {		// extensions
 		//Log("orthoNorm=", E);
 		return $.matrix( E );
 	},
-	randRot: K => {		// returns a KxK random rotation matrix
-		var R = $( [K,K], (m,n,R) => R[m][n] = 1 - 2*Math.random() );
-		var U = $.orthoNorm( $.matrix( R ) );
-		return U;
-		// Log( $("T = U' * U", {U: U} ) );
-	},	
+	
+	// KxK random matrix
+	rand: K => $.matrix( $( [K,K], (m,n,R) => R[m][n] = 1 - 2*Math.random() ) ),
+	
+	// KxK random rotation matrix
+	randRot: K => $.orthoNorm( $.rand(K) ),
 	
 	// misc and samplers
 	
