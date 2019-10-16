@@ -27,7 +27,7 @@ function Trace(msg,req,fwd) {
 	"$".trace(msg,req,fwd);
 }
 
-const { Copy,Each,Log,isArray,isNumber,isString,isFunction } = require("enum");
+const { Copy,Each,Log,isArray,isNumber,isString,isFunction,isEmpty } = require("enum");
 
 const {random, sin, cos, exp, log, PI, floor, abs, min, max} = Math;
 
@@ -139,6 +139,11 @@ function saveStash(sql, stash, ID, host) {
 		return $(x.length, (n,y) => y[n] = x[n]);
 	},
 	
+	/*
+	function mash(y) {
+		return [this,y];
+	}, */
+	
 	function dist(b) { 
 		var 
 			a = this,
@@ -168,12 +173,21 @@ function saveStash(sql, stash, ID, host) {
 		this.length = 0;
 	},
 	
+	/*
 	function shuffle(N, index) {
 		var 
 			A = this,
 			devs = $( A.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
 
 		return index ? $( N, (n,B) => B[n] = devs[n].idx ) : $( N, (n,B) => B[n] = A[ devs[n].idx ] ) ;
+	}, */
+	
+	function shuffle(N, mash) {
+		var 
+			A = this,
+			devs = $( A.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
+
+		return mash ? $( N, (n,B) => B[n] =[A[ devs[n].idx ], mash[ devs[n].idx ]] ) : $( N, (n,B) => B[n] = A[ devs[n].idx ] ) ;
 	},
 	
 	function match(where, get) {
@@ -478,8 +492,15 @@ function saveStash(sql, stash, ID, host) {
 				return $(N, (n,B) => B[n] = $( idx.length, (n,B) => B[n] = A[ idx[n] ] ) );
 
 			else
-			if ( isNumber(idx) )
-				return $(N, (n,B) => B[n] = A[n].slice(0,idx) );
+			if ( isNumber(idx) ) {
+				//return $(N, (n,B) => B[n] = A[n].slice(0,idx) );
+				var [x,y] = A;
+				Log(">>>>>>>>>>>get", x, y);
+				if ( x && isArray(x) ) 
+					return idx ? x.shuffle( idx, y ) : A;
+				else
+					return idx ? A.shuffle( idx ) : A;
+			}
 
 			else
 			if ( isFunction(idx) ) {
@@ -499,10 +520,17 @@ function saveStash(sql, stash, ID, host) {
 			if ( count = idx.len || idx.count ) 
 				return $(N, (n,B) => B[n] = A[n].slice(idx.start,idx.start+count) );
 
+			/*
 			else
-			if ( idx.draws ) 
-				return $(N, (n,B) => B[n] = A[n].shuffle( idx.draws, idx.index ) );
-
+			if ( N = idx.sample || idx.draws ) 
+				return A.shuffle( N, idx.mash );
+				//$(N, (n,B) => B[n] = A[n].shuffle( idx.draws, idx.index ) );
+			
+			else
+			if ( idx.sample ==  0 )
+				return idx.mash ? [A,idx.mash] : A;
+			*/
+			
 			else  { // get( { KEY_starts: "VALUE" } )
 				var rtns = [];
 				A.$( (n,recs) => {
