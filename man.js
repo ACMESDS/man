@@ -173,19 +173,11 @@ function saveStash(sql, stash, ID, host) {
 		this.length = 0;
 	},
 	
-	/*
-	function shuffle(N, index) {
-		var 
-			A = this,
-			devs = $( A.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
-
-		return index ? $( N, (n,B) => B[n] = devs[n].idx ) : $( N, (n,B) => B[n] = A[ devs[n].idx ] ) ;
-	}, */
-	
 	function shuffle(N, mash) {
 		var 
 			A = this,
-			devs = $( A.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
+			devs = $( A.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val ),
+			N = Math.min(N, A.length);		
 
 		return mash 
 			? [
@@ -1283,32 +1275,32 @@ $.extensions = {		// extensions
 	orthoNorm: V => {	// returns K orthonormalized vectors E given K random vectors V
 		function GramSchmidt(k,E,U,V) {
 			var 
-				v = $(K, (n,v) => v[n] = V[k][n] ),
+				v = $( K, (n,v) => v[n] = V[n][k] ),	// get k'th V vector
 				sum = $( K, (n,x) => x[n] = 0 );
 
 			for (var j=0; j<k; j++) {
 				var
-					u = $(K, (n,u) => u[n] = U[j][n] ),
+					u = $(K, (n,u) => u[n] = U[n][j] ),	// get j'th U vector
 					p = $.proj(v,u);
 
 				sum.$( n => sum[n] += p[n] );
 				//Log("GramSchmidt", k, j, u,p,sum );
 			}
 			
-			var u = $( K, (n,u) => U[k][n] = u[n] = v[n] - sum[n] );
+			var u = $( K, (n,u) => U[n][k] = u[n] = v[n] - sum[n] );
 			
 			var e = $.multiply( u, 1/$.norm(u) );
 			//Log(k, "e=", e, "u=", u, "v=", v, "s=", sum);
-			e.$( n => E[k][n] = e[n] );
+			e.$( n => E[n][k] = e[n] );  // save k'th E vector
 		}
 
 		var 
-			K = V._size[0],
-			U = $( [K,K] ),
-			E = $( [K,K] );
+			[K,M] = V._size,  // rows,cols
+			U = $( [K,M] ),
+			E = $( [K,M] );
 
-		for (var k=0; k<K; k++ ) GramSchmidt( k, E, U, $.list(V) );
-		//Log("orthoNorm=", E);
+		for (var k=0; k<M; k++ ) GramSchmidt( k, E, U, $.list(V) );
+		//Log("orthoNorm=", E, $.multiply($.transpose(E), E) );
 		return $.matrix( E );
 	},
 	
