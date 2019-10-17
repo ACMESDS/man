@@ -139,11 +139,6 @@ function saveStash(sql, stash, ID, host) {
 		return $(x.length, (n,y) => y[n] = x[n]);
 	},
 	
-	/*
-	function mash(y) {
-		return [this,y];
-	}, */
-	
 	function dist(b) { 
 		var 
 			a = this,
@@ -176,9 +171,10 @@ function saveStash(sql, stash, ID, host) {
 	function shuffle(N, mash) {
 		var 
 			A = this,
-			devs = $( A.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val ),
-			N = Math.min(N, A.length);		
-
+			rand = Math.random,
+			devs = $( A.length, (n, devs) => devs[n] = {idx: n, val: rand()} ).sort( (a,b) => a.val - b.val ),
+			N = Math.min(N,A.length);
+		
 		return mash 
 			? [
 					$( N, (n,B) => B[n] = A[ devs[n].idx ] ),
@@ -491,7 +487,10 @@ function saveStash(sql, stash, ID, host) {
 
 			else
 			if ( isNumber(idx) ) {
-				//return $(N, (n,B) => B[n] = A[n].slice(0,idx) );
+				Log(">>>>>>>>>>>>>get", idx);
+				return $(N, (n,B) => B[n] = A[n].slice(0,idx) );
+			}
+			/*
 				var [x,y] = A;
 				//Log(">>>>>>>>>>>get", x, y);
 				if ( x && isArray(x) ) 
@@ -499,7 +498,8 @@ function saveStash(sql, stash, ID, host) {
 				else
 					return idx ? A.shuffle( idx ) : A;
 			}
-
+			*/
+			
 			else
 			if ( isFunction(idx) ) {
 				for (var n=0,N=A.length; n<N; n++) idx(n,A);
@@ -555,8 +555,10 @@ function saveStash(sql, stash, ID, host) {
 			return A;
 	},
 	
-	function $(idx,cb) {
-		return this.get(idx,cb);
+	function $(cb) {
+		var A = this;
+		for ( var n = 0, N=A.length; n<N; n++) cb(n,A);	// cant use forEach as an empty A wont be enumerated
+		return A;
 	},
 	
 	function $$(cb) {
@@ -1322,20 +1324,6 @@ $.extensions = {		// extensions
 
 	isDefined: x => x ? true : false,
 	
-	/*
-	shuffle: function (x,y,N) {
-		var
-			x = x._data,
-			y = y._data,
-			idx = $.rng(0,x.length)._data.sampler(N);
-
-		//Log("shuffle", idx);
-		return {
-			x: $.matrix( x.$( idx ) ),
-			y: $.matrix( y.$( idx ) )
-		};
-	}, */
-		
 	// regressors
 
 	rnn_train: function (x,y,solve) {
@@ -1406,7 +1394,7 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 				Y[n] = "";
 			});
 			
-		Log("predict", mixes,N,D, solve );
+		Log("qda predict", mixes,N,D, solve );
 		cls.p0 = $(mixes);
 		cls.collisions = 0;
 		cls.hits = 0;
