@@ -187,7 +187,13 @@ function saveStash(sql, stash, ID, host) {
 			A = this,
 			devs = $( A.length, (n, devs) => devs[n] = {idx: n, val: random()} ).sort( (a,b) => a.val - b.val );
 
-		return mash ? $( N, (n,B) => B[n] =[A[ devs[n].idx ], mash[ devs[n].idx ]] ) : $( N, (n,B) => B[n] = A[ devs[n].idx ] ) ;
+		return mash 
+			? [
+					$( N, (n,B) => B[n] = A[ devs[n].idx ] ),
+					$( N, (n,B) => B[n] = mash[ devs[n].idx ] )
+				]
+		
+			: $( N, (n,B) => B[n] = A[ devs[n].idx ] ) ;
 	},
 	
 	function match(where, get) {
@@ -495,7 +501,7 @@ function saveStash(sql, stash, ID, host) {
 			if ( isNumber(idx) ) {
 				//return $(N, (n,B) => B[n] = A[n].slice(0,idx) );
 				var [x,y] = A;
-				Log(">>>>>>>>>>>get", x, y);
+				//Log(">>>>>>>>>>>get", x, y);
 				if ( x && isArray(x) ) 
 					return idx ? x.shuffle( idx, y ) : A;
 				else
@@ -1306,11 +1312,11 @@ $.extensions = {		// extensions
 		return $.matrix( E );
 	},
 	
-	// KxK random matrix
-	rand: K => $.matrix( $( [K,K], (m,n,R) => R[m][n] = 1 - 2*Math.random() ) ),
+	// KxN random matrix
+	rand: (K,N) => $.matrix( $( [K,N], (m,n,R) => R[m][n] = 1 - 2*Math.random() ) ),
 	
 	// KxK random rotation matrix
-	randRot: K => $.orthoNorm( $.rand(K) ),
+	randRot: K => $.orthoNorm( $.rand(K,K) ),
 	
 	// misc and samplers
 	
@@ -1729,7 +1735,7 @@ SNRsnr = SNR/std(SNRs);
 	},
 
 	lrm_predict: function (cls,x) {
-		//Log("predict", x);
+		Log("predict", x);
 		var 
 			X = new ml$(x._data),
 			Y = cls.predict(X);
