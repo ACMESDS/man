@@ -1396,7 +1396,7 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			
 		Log("qda predict", mixes,N,D, solve );
 		cls.p0 = $(mixes);
-		cls.collisions = 0;
+		cls.cols = 0;
 		cls.hits = 0;
 		cls.sigmas = nsigma;
 		//Log("eg test", $(" d = xi' * sigma * xi; ", {xi: Cls[0].eg.vectors, sigma: Cls[0].sigma, lambda: Cls[0].eg.values}) );
@@ -1419,7 +1419,7 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 				if ( r < nsigma ) {
 					Y[n] += k;
 					if ( Y[n].length > 1 ) 
-						cls.collisions++;
+						cls.cols++;
 					else
 						cls.hits++;
 				}
@@ -1429,17 +1429,18 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 		if ( debug = false ) {
 			var Ntot = 0; Y.$(n => Ntot += Y[n].length);
 			Y = Y.sort( (a,b) => b.length - a.length );		
-			cls.maxCollisions = Y[0].length;
-			Log("debug stats", "max", [cls.maxCollisions, mixes], "tot", [Ntot, N*mixes]);
+			cls.maxCols = Y[0].length;
+			Log("debug stats", "max", [cls.maxCols, mixes], "tot", [Ntot, N*mixes]);
 		}
+		
 		cls.maxHits = N;
 		cls.maxCols = N * mixes;
 		cls.dataDim = D;
 		
 		$(`
-hitRate=hits/maxHits; 
-farRate=collisions/maxCols; 
-SNR=mean(SNRs); 
+hitRate = hits/maxHits; 
+colRate = cols/maxCols; 
+SNR = mean(SNRs); 
 SNRsnr = SNR/std(SNRs);
 `, cls);
 		Log(cls);
