@@ -486,19 +486,8 @@ function saveStash(sql, stash, ID, host) {
 				return $(N, (n,B) => B[n] = $( idx.length, (n,B) => B[n] = A[ idx[n] ] ) );
 
 			else
-			if ( isNumber(idx) ) {
-				Log(">>>>>>>>>>>>>get", idx);
+			if ( isNumber(idx) ) 
 				return $(N, (n,B) => B[n] = A[n].slice(0,idx) );
-			}
-			/*
-				var [x,y] = A;
-				//Log(">>>>>>>>>>>get", x, y);
-				if ( x && isArray(x) ) 
-					return idx ? x.shuffle( idx, y ) : A;
-				else
-					return idx ? A.shuffle( idx ) : A;
-			}
-			*/
 			
 			else
 			if ( isFunction(idx) ) {
