@@ -168,7 +168,7 @@ function saveStash(sql, stash, ID, host) {
 		this.length = 0;
 	},
 	
-	function shuffle(N, mash) {
+	function draw(N, mash) {
 		var 
 			A = this,
 			rand = Math.random,
@@ -478,16 +478,17 @@ function saveStash(sql, stash, ID, host) {
 		
 		else
 		if (idx) {
+			/*
 			if ( isString(idx) )
 				return $(N, (n,B) => B[n] = idx.parseEval( A[n] ) );
 
-			else
-			if ( isArray(idx) )
+			else */
+			if ( isArray(idx) ) 
 				return $(N, (n,B) => B[n] = $( idx.length, (n,B) => B[n] = A[ idx[n] ] ) );
 
 			else
-			if ( isNumber(idx) ) 
-				return $(N, (n,B) => B[n] = A[n].slice(0,idx) );
+			if ( isNumber(idx) || isString(idx) ) 
+				return $(N, (n,B) => B[n] = A[n][idx] );
 			
 			else
 			if ( isFunction(idx) ) {
@@ -496,13 +497,20 @@ function saveStash(sql, stash, ID, host) {
 			}
 
 			else
-			if ( keys = idx.keys || idx.rekey )
+			if ( keys = idx.rekey )
 				return A.$( (n,recs) => {
 					var rec = recs[n], rtn = {};
 					for ( var key in keys ) rtn[key] = rec[ keys[key] ];
 					recs[n] = rtn;
 				});
 
+			if ( count = idx.draw ) 
+				return A.draw( count , idx.mash );
+
+			else
+			if ( keys = idx.where ) {
+			}
+			
 			else
 			if ( count = idx.len || idx.count ) 
 				return $(N, (n,B) => B[n] = A[n].slice(idx.start,idx.start+count) );
@@ -518,7 +526,7 @@ function saveStash(sql, stash, ID, host) {
 				return idx.mash ? [A,idx.mash] : A;
 			*/
 			
-			else  { // get( { KEY_starts: "VALUE" } )
+			else  { // get( { KEY_starts: "with", KEY_ends: "with", ...  } )
 				var rtns = [];
 				A.$( (n,recs) => {
 					var rec = recs[n], rtn = {}, use = false;
@@ -1938,8 +1946,10 @@ SNRsnr = SNR/std(SNRs);
 			opts.filter = (str,ev,ran) => {
 				switch (ev.at) {
 					case "step":
-						if ( opts.emP ) 	// save gaussian mixing process
-							ran.emP.obs.forEach( ob => str.push( ob ) );
+						if ( opts.emP ) {	// save gaussian mixing process
+							var mixes = ran.emP.gen.length;
+							ran.emP.obs.forEach( (ob,n) => str.push({ x: ob, n: n % mixes }) );
+						}
 						break;
 						
 					case "jump":
@@ -3087,7 +3097,7 @@ $.RAN = require("randpr");
 			X0 = $(cols),
 			Row = Rows-1,
 			n0 = $(rowReflect, (n, n0) => n0[n] = Row-- ),
-			rowSamples = $.rng(0,rowReflect)._data.shuffle(rows),
+			rowSamples = $.rng(0,rowReflect)._data.draw(rows),
 			red = 0, green = 1, blue = 2;
 
 		Log( "sym", [Rows, Cols] , "->", [rows, cols], maps, limits, rowSamples.length );
