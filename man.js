@@ -27,6 +27,8 @@ function Trace(msg,req,fwd) {
 	"$".trace(msg,req,fwd);
 }
 
+
+
 const { Copy,Each,Log,isArray,isNumber,isString,isFunction,isEmpty } = require("enum");
 
 const {random, sin, cos, exp, log, PI, floor, abs, min, max} = Math;
@@ -53,6 +55,17 @@ function saveStash(sql, stash, ID, host) {
 }
 		 
 [  // String processing
+	function toVector(K,ref) {	// label to K-dim hypo vector
+		var 
+			v = $(K, (k,v) => v[k] = -1 ),
+			ref0 = ref.charCodeAt(0);
+		
+		for ( var n=0; N=this.length; n<N )
+			v[ this.charCodeAt(n) - ref0 ] = +1;
+
+		return v;
+	},
+	
 	function parseEval($) {
 	/**
 	@member String
@@ -117,23 +130,22 @@ function saveStash(sql, stash, ID, host) {
 		return this.get(idx,cb);
 	}
 	
-	/*
-	function $(ctx, cb) {	// index string
-		if (cb) // load/save data
-			if ( isString(ctx) )
-				return this.get(ctx, cb);
-		
-			else
-				return this.put(ctx,cb);
-
-		else
-			return null;
-	}
-	*/
-	
 ].Extend(String);
 
 [	// Array processing
+	
+	function toLabel(K,ref) {	// label to K-dim hypo vector
+		var 
+			lab = "",
+			ref0 = ref.charCodeAt(0);
+		
+		this.$( (n,v) => {
+			if ( v[n] > 0) lab += String.fromCharCode(ref0+n);
+		});
+
+		return lab;
+	},
+	
 	function copy() {
 		var x = this;
 		return $(x.length, (n,y) => y[n] = x[n]);
@@ -484,7 +496,7 @@ function saveStash(sql, stash, ID, host) {
 
 			else */
 			if ( isArray(idx) ) 
-				return $(N, (n,B) => B[n] = $( idx.length, (n,B) => B[n] = A[ idx[n] ] ) );
+				return $(N, (n,B) => B[n] = $( idx.length, (k,X) => X[k] = A[n][ idx[k] ] ) );
 
 			else
 			if ( isNumber(idx) || isString(idx) ) 
@@ -1268,9 +1280,120 @@ $.import({ // overrides
 
 $.extensions = {		// extensions
 	
+	// min-man
+	
+	argmin: ( idxKey, argKey, ctx, arg ) => {
+		var 
+			x = ctx[idxKey],
+			N = x.length,
+			argctx = Copy(ctx, {}),
+			eps = $( N , (n,eps) => {
+				argctx[idxKey] = x[n];
+				arg( argctx );
+				eps[n] = argctx[argKey];
+			});
+		
+		for ( var t=N, min=1e12, n=0; n<N; n++ ) 
+			if ( eps[n] < min ) { min = eps[n]; t = n };
+		
+		return [t,min];
+	},
+		
+	argmax: ( idxKey, argKey, ctx, arg ) => {
+		var 
+			x = ctx[idxKey],
+			N = x.length,
+			argctx = Copy(ctx, {}),
+			eps = $( N , (n,eps) => {
+				argctx[idxKey] = x[n];
+				arg( argctx )
+				eps[n] = argctx[argKey];
+			});
+		
+		for ( var t=N, max=-1e12, n=0; n<N; n++ ) 
+			if ( eps[n] > max ) { max = eps[n]; t = n };
+		
+		return [t,max];
+	},
+	
+	// boosting
+	
+	ind: arg => {		// indicator
+		var 
+			sum = 0,
+			tests = arg._data;
+		
+		tests.$( n => sum += tests[n] ? 1 : 0 );
+		return sum;
+	},
+	
+	boost: ( T, _x, _y, _h, solve, hypo ) => {
+		
+		function weight(h) {
+			var eps = 0;
+			
+			D.$( (i,D) => {
+				var 
+					yi = y[i],
+					xi = x[i],
+					hi = h( xi ),
+					test = $(K, (k,test) => test[k] = yi[k] == hi[k] ),
+					ind = 0;
+			
+				test.$( (k,test) => ind += test[k] ? 1 : 0 );
+				eps += D[i] * ind;
+			});
+
+			return eps;
+		}
+
+		const { D, alpha, keys } = solve;
+		
+		var 
+			x = _x._data,
+			y = _y._data,
+			M = D.length,
+			K = y[0].length,
+			log = Math.log,
+			sqrt = Math.sqrt,
+			exp = Math.exp;
+		
+		if ( T ) {
+			var 
+				eps = $( T, (t,eps) => {
+					var h0 = solve.h[t];
+					
+					eps[t] = weight( x => {
+						// use the K keys against this x and return vector h
+						return hypo( x, h0 );
+					});
+				}),
+				t = T;
+
+			for ( var min=1e12, n=0; n<T; n++ ) 
+				if ( eps[n] < min ) { min = eps[n]; t = n; }
+			
+			var
+				eps0 = eps[t],
+				h0 = solve.h[t],
+				alpha0 = alpha[t] = 0.5 * log( ( 1 - eps0 ) / eps0 ),
+				Z = 2*sqrt( eps0 * ( 1 - eps0 ) );
+			
+			D.$( (i,D) => D[i] = D[i] / Z * exp( alpha0 * $.dot( y[i], hypo( x[i], h0 ) ) ) );
+		}
+		
+		else 	// return to initial state
+			Copy({
+				alpha: [1],
+				D: $(M, (i,D) => D[i]  = 1/M ),
+				h: [ h ]
+			}, solve);
+	},
+	
 	// Linear algebra methods
 	
 	proj: (v,u) => $.multiply( $.dot(v,u) / $.dot(u,u), u ) ,  // returns projection of v on u
+	
 	orthoNorm: V => {	// returns K orthonormalized vectors E given K random vectors V
 		function GramSchmidt(k,E,U,V) {
 			var 
