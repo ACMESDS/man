@@ -28,7 +28,6 @@ function Trace(msg,req,fwd) {
 }
 
 
-
 const { Copy,Each,Log,isArray,isNumber,isString,isFunction,isEmpty } = require("enum");
 
 const {random, sin, cos, exp, log, PI, floor, abs, min, max} = Math;
@@ -1327,17 +1326,17 @@ $.extensions = {		// extensions
 		return sum;
 	},
 	
-	boost: ( T, _x, _y, _h, solve, hypo ) => {
+	boost: ( t, _x, _y, _h, solve, hypo ) => {
 		
 		function weight(h) {
 			var eps = 0;
 			
 			D.$( (i,D) => {
 				var 
-					yi = y[i],
-					xi = x[i],
-					hi = h( xi ),
-					test = $(K, (k,test) => test[k] = yi[k] == hi[k] ),
+					y_i = y[i],
+					x_i = x[i],
+					h_i = hypo( x_i ),
+					test = $(K, (k,test) => test[k] = y_i[k] == h_i[k] ),
 					ind = 0;
 			
 				test.$( (k,test) => ind += test[k] ? 1 : 0 );
@@ -1347,47 +1346,43 @@ $.extensions = {		// extensions
 			return eps;
 		}
 
-		const { D, alpha, keys } = solve;
+		const { D, alpha, eps, h } = solve;
+		const {	log, sqrt, exp } = Math;
 		
 		var 
 			x = _x._data,
 			y = _y._data,
-			M = D.length,
 			K = y[0].length,
-			log = Math.log,
-			sqrt = Math.sqrt,
-			exp = Math.exp;
+			min = 1e12,
+			h_t = h[ t ] = _h;
 		
-		if ( T ) {
-			var 
-				eps = $( T, (t,eps) => {
-					var h0 = solve.h[t];
-					
-					eps[t] = weight( x => {
-						// use the K keys against this x and return vector h
-						return hypo( x, h0 );
-					});
-				}),
-				t = T;
+		if ( t ) {
+			for ( var n=1; n<=t; n++) {  // enumerate all hypo keys (aka params) up to this cycle t
+				eps[ n ] = weight( x => {	// update weights at previous cycles
+					// use the K keys in h_t against this x and return K-vector h
+					return hypo( x, h_t );
+				});
+			});
 
-			for ( var min=1e12, n=0; n<T; n++ ) 
-				if ( eps[n] < min ) { min = eps[n]; t = n; }
-			
+			for ( var n=1; n<=t; n++ ) // retain the h having the lowest eps weight
+				if ( eps[n] < min ) { min = eps[n]; h_t = h[n]; }
+
 			var
-				eps0 = eps[t],
-				h0 = solve.h[t],
-				alpha0 = alpha[t] = 0.5 * log( ( 1 - eps0 ) / eps0 ),
-				Z = 2*sqrt( eps0 * ( 1 - eps0 ) );
-			
-			D.$( (i,D) => D[i] = D[i] / Z * exp( alpha0 * $.dot( y[i], hypo( x[i], h0 ) ) ) );
+				eps_t = eps[ t ] = min,
+				alpha_t = alpha[ t ] = 0.5 * log( ( 1 - eps_t ) / eps_t ),	// update confidence at this cycle
+				Z = 2 * sqrt( eps_t * ( 1 - eps_t ) );	// D unit normalizer
+
+			D.$( (i,D) => D[i] = D[i] / Z * exp( alpha_t * $.dot( y[i], hypo( x[i], h_t ) ) ) );	// update sampler
 		}
 		
-		else 	// return to initial state
-			Copy({
-				alpha: [1],
+		else
+			Copy({  // initial solve state
+				alpha: [ ],	// index offset 1
+				eps = [ ],	// index offset 1
 				D: $(M, (i,D) => D[i]  = 1/M ),
-				h: [ h ]
-			}, solve);
+				h: [ ]
+			}, solve );
+		
 	},
 	
 	// Linear algebra methods
