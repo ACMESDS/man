@@ -54,13 +54,13 @@ function saveStash(sql, stash, ID, host) {
 }
 		 
 [  // String processing
-	function toVector(K,ref) {	// label to K-dim hypo vector
+	function toVector(K,base) {	// label to K-dim hypo vector
 		var 
 			v = $(K, (k,v) => v[k] = -1 ),
-			ref0 = ref.charCodeAt(0);
+			ref = base.charCodeAt(0);
 		
 		for ( var n=0; N=this.length; n<N )
-			v[ this.charCodeAt(n) - ref0 ] = +1;
+			v[ this.charCodeAt(n) - ref ] = +1;
 
 		return v;
 	},
@@ -133,13 +133,13 @@ function saveStash(sql, stash, ID, host) {
 
 [	// Array processing
 	
-	function toLabel(K,ref) {	// label to K-dim hypo vector
+	function toLabel(K,base) {	// label to K-dim hypo vector
 		var 
 			lab = "",
-			ref0 = ref.charCodeAt(0);
+			ref = base.charCodeAt(0);
 		
 		this.$( (n,v) => {
-			if ( v[n] > 0) lab += String.fromCharCode(ref0+n);
+			if ( v[n] > 0) lab += String.fromCharCode(ref+n);
 		});
 
 		return lab;
@@ -495,7 +495,7 @@ function saveStash(sql, stash, ID, host) {
 
 			else */
 			if ( isArray(idx) ) 
-				return $(N, (n,B) => B[n] = $( idx.length, (k,X) => X[k] = A[n][ idx[k] ] ) );
+				return $( idx.length, (k,B) => B[k] = $( N, (n,X) => X[n] = A[n][ idx[k] ] ) );
 
 			else
 			if ( isNumber(idx) || isString(idx) ) 
@@ -1326,43 +1326,52 @@ $.extensions = {		// extensions
 		return sum;
 	},
 	
-	boost: ( t, _x, _y, _h, solve, hypo ) => {
+	boost: ( t, sql, solve, hypo ) => {
 		
-		function weight(h) {
-			var eps = 0;
-			
-			D.$( (i,D) => {
-				var 
-					y_i = y[i],
-					x_i = x[i],
-					h_i = hypo( x_i ),
-					test = $(K, (k,test) => test[k] = y_i[k] == h_i[k] ),
-					ind = 0;
-			
-				test.$( (k,test) => ind += test[k] ? 1 : 0 );
-				eps += D[i] * ind;
+		const { alpha, eps, h, points, samples, base, thresh } = solve;
+		const {	log, sqrt, exp, sign } = Math;
+		
+		sql.query(
+			"SELECT x,y,idx,D FROM app.points WHERE D>=? ORDER BY rand() LIMIT ?", 
+			[thresh*0.9, samples], 
+			(err,recs) => {
+
+			function weight(h) {
+				var eps = 0;
+
+				idx.$( m => {	// compute weight of labelled points
+					if ( y_i = y[m] ) {
+						var 
+							i = idx[m],
+							x_i = x[m],
+							h_i = hypo( x_i ),
+							test = $(K, (k,test) => test[k] = y_i[k] == h_i[k] ),
+							ind = 0;
+
+						test.$( (k,test) => ind += test[k] ? 1 : 0 );
+						eps += D[i] * ind;
+					}
+				});
+
+				return eps;
+			}
+
+			recs.forEach( rec => {
+				rec.x = JSON.parse( rec.x );
+				rec.y = rec.y ? rec.y.toVector( K, base ) : null;
 			});
 
-			return eps;
-		}
+			var 
+				[x,y,idx,D] = recs.get( ["x", "y", "idx", "D"] ),
+				K = solve.mixes,
+				min = 1e12,
+				h_t = h[ t ] = hypo( x );
 
-		const { D, alpha, eps, h } = solve;
-		const {	log, sqrt, exp } = Math;
-		
-		var 
-			x = _x._data,
-			y = _y._data,
-			K = y[0].length,
-			min = 1e12,
-			h_t = h[ t ] = _h;
-		
-		if ( t ) {
-			for ( var n=1; n<=t; n++) {  // enumerate all hypo keys (aka params) up to this cycle t
+			for ( var n=1; n<=t; n++) // enumerate all hypo keys (aka params) up to this cycle t
 				eps[ n ] = weight( x => {	// update weights at previous cycles
 					// use the K keys in h_t against this x and return K-vector h
 					return hypo( x, h_t );
 				});
-			});
 
 			for ( var n=1; n<=t; n++ ) // retain the h having the lowest eps weight
 				if ( eps[n] < min ) { min = eps[n]; h_t = h[n]; }
@@ -1372,17 +1381,18 @@ $.extensions = {		// extensions
 				alpha_t = alpha[ t ] = 0.5 * log( ( 1 - eps_t ) / eps_t ),	// update confidence at this cycle
 				Z = 2 * sqrt( eps_t * ( 1 - eps_t ) );	// D unit normalizer
 
-			D.$( (i,D) => D[i] = D[i] / Z * exp( alpha_t * $.dot( y[i], hypo( x[i], h_t ) ) ) );	// update sampler
-		}
-		
-		else
-			Copy({  // initial solve state
-				alpha: [ ],	// index offset 1
-				eps = [ ],	// index offset 1
-				D: $(M, (i,D) => D[i]  = 1/M ),
-				h: [ ]
-			}, solve );
-		
+			idx.$( m => {	// update sampler on labelled points
+				if ( y[m] ) {
+					var i = idx[m];
+					D[i] = D[i] / Z * exp( alpha_t * $.dot( y[m], hypo( x[m], h_t ) ) );
+					sql.query("UPDATE app.points SET ? WHERE ?", [ {D:D[i]}, {idx: i} ] );
+				}
+			});
+
+			//solve.cycle++;
+			//hypo(solve);
+		});
+	
 	},
 	
 	// Linear algebra methods
