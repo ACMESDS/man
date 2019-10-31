@@ -1331,7 +1331,7 @@ $.extensions = {		// extensions
 		
 		sql.query(
 			"SELECT x,y,idx,D FROM app.points WHERE D>=? ORDER BY rand() LIMIT ?", 
-			[thresh*0.9, samples], 
+			[thresh, samples], 
 			(err,recs) => {
 
 			function weight(h) {
