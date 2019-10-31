@@ -54,13 +54,12 @@ function saveStash(sql, stash, ID, host) {
 }
 		 
 [  // String processing
-	function toVector(K,base) {	// label to K-dim hypo vector
+	function toVector(K,labels) {	// label to K-dim hypo vector
 		var 
-			v = $(K, (k,v) => v[k] = -1 ),
-			ref = base.charCodeAt(0);
+			v = $(K, (k,v) => v[k] = -1 );
 		
 		for ( var n=0; N=this.length; n<N )
-			v[ this.charCodeAt(n) - ref ] = +1;
+			v[ labels.indexOf( this.charAt(n) ) ] = +1;
 
 		return v;
 	},
@@ -133,16 +132,15 @@ function saveStash(sql, stash, ID, host) {
 
 [	// Array processing
 	
-	function toLabel(K,base) {	// label to K-dim hypo vector
+	function toLabel(K,labels) {	// label to K-dim hypo vector
 		var 
-			lab = "",
-			ref = base.charCodeAt(0);
+			label = "";
 		
 		this.$( (n,v) => {
-			if ( v[n] > 0) lab += String.fromCharCode(ref+n);
+			if ( v[n] > 0) label += labels.charAt(n);
 		});
 
-		return lab;
+		return label;
 	},
 	
 	function copy() {
@@ -1328,7 +1326,7 @@ $.extensions = {		// extensions
 	
 	boost: ( t, sql, solve, hypo ) => {
 		
-		const { alpha, eps, h, points, samples, base, thresh } = solve;
+		const { alpha, eps, h, points, samples, labels, thresh } = solve;
 		const {	log, sqrt, exp, sign } = Math;
 		
 		sql.query(
@@ -1358,7 +1356,7 @@ $.extensions = {		// extensions
 
 			recs.forEach( rec => {
 				rec.x = JSON.parse( rec.x );
-				rec.y = rec.y ? rec.y.toVector( K, base ) : null;
+				rec.y = rec.y ? rec.y.toVector( K, labels ) : null;
 			});
 
 			var 
