@@ -27,7 +27,6 @@ function Trace(msg,req,fwd) {
 	"$".trace(msg,req,fwd);
 }
 
-
 const { Copy,Each,Log,isArray,isNumber,isString,isFunction,isEmpty } = require("enum");
 
 const {random, sin, cos, exp, log, PI, floor, abs, min, max} = Math;
@@ -52,13 +51,13 @@ function saveStash(sql, stash, ID, host) {
 	for (var key in stash) 
 		saveKey( sql, key, stash[key] );
 }
-		 
+
 [  // String processing
 	function toVector(K,labels) {	// label to K-dim hypo vector
 		var 
 			v = $(K, (k,v) => v[k] = -1 );
 		
-		for ( var n=0; N=this.length; n<N )
+		for ( var n=0, N=this.length; n<N; n++ )
 			v[ labels.indexOf( this.charAt(n) ) ] = +1;
 
 		return v;
@@ -1324,17 +1323,22 @@ $.extensions = {		// extensions
 		return sum;
 	},
 	
-	boost: ( t, sql, solve, hypo ) => {
+	boost: ( t, sql, solve, trace, hypo ) => {
 		
-		const { alpha, eps, h, points, samples, labels, thresh } = solve;
+		const { alpha, eps, h, points, samples, labels, mixes, thresh } = solve;
 		const {	log, sqrt, exp, sign } = Math;
+
+		/*
+		sql.query("SELECT idx,D FROM app.points LIMIT 5", (err,recs) =>
+				  Log(">>>>>boost test", recs, "HLM->", "HLM".toVector(mixes,labels) ) );
+		*/
 		
 		sql.query(
 			"SELECT x,y,idx,D FROM app.points WHERE D>=? ORDER BY rand() LIMIT ?", 
 			[thresh, samples], 
 			(err,recs) => {
 
-			function weight(h) {
+			function weight( hypo ) {
 				var eps = 0;
 
 				idx.$( m => {	// compute weight of labelled points
@@ -1343,9 +1347,10 @@ $.extensions = {		// extensions
 							i = idx[m],
 							x_i = x[m],
 							h_i = hypo( x_i ),
-							test = $(K, (k,test) => test[k] = y_i[k] == h_i[k] ),
+							test = $(mixes, (k,test) => test[k] = y_i[k] == h_i[k] ),
 							ind = 0;
 
+						//Log(">>>>>boost weight", m, i, x_i, y_i, h_i);
 						test.$( (k,test) => ind += test[k] ? 1 : 0 );
 						eps += D[i] * ind;
 					}
@@ -1354,41 +1359,59 @@ $.extensions = {		// extensions
 				return eps;
 			}
 
+			trace("boosting", {
+				select: err ? "failed" : "ok", 
+				samples: samples, 
+				read: recs.length, 
+				threshhold: thresh
+			} );
 			recs.forEach( rec => {
 				rec.x = JSON.parse( rec.x );
-				rec.y = rec.y ? rec.y.toVector( K, labels ) : null;
+				rec.y = rec.y ? rec.y.toVector( mixes, labels ) : null;
 			});
 
 			var 
 				[x,y,idx,D] = recs.get( ["x", "y", "idx", "D"] ),
-				K = solve.mixes,
 				min = 1e12,
 				h_t = h[ t ] = hypo( x );
 
-			for ( var n=1; n<=t; n++) // enumerate all hypo keys (aka params) up to this cycle t
-				eps[ n ] = weight( x => {	// update weights at previous cycles
-					// use the K keys in h_t against this x and return K-vector h
-					return hypo( x, h_t );
-				});
-
-			for ( var n=1; n<=t; n++ ) // retain the h having the lowest eps weight
-				if ( eps[n] < min ) { min = eps[n]; h_t = h[n]; }
-
-			var
-				eps_t = eps[ t ] = min,
-				alpha_t = alpha[ t ] = 0.5 * log( ( 1 - eps_t ) / eps_t ),	// update confidence at this cycle
-				Z = 2 * sqrt( eps_t * ( 1 - eps_t ) );	// D unit normalizer
-
-			idx.$( m => {	// update sampler on labelled points
-				if ( y[m] ) {
-					var i = idx[m];
-					D[i] = D[i] / Z * exp( alpha_t * $.dot( y[m], hypo( x[m], h_t ) ) );
-					sql.query("UPDATE app.points SET ? WHERE ?", [ {D:D[i]}, {idx: i} ] );
+			if ( h_t ) { // hypo provided parms (aka keys), so ...
+				for ( var n=1; n<=t; n++) { // enumerate through hypo parms up to this cycle t
+					trace("boosting", {level: n});
+					eps[ n ] = weight( x => {	// update weights at previous cycles (eps = 0 if no labels)
+						// use the K-parms in h_t against this x and return the K-vector h
+						return hypo( x, h_t ).toVector(mixes,labels);
+					});
 				}
-			});
 
-			//solve.cycle++;
-			//hypo(solve);
+				for ( var n=1; n<=t; n++ ) // retain the h having the lowest eps weight (h[1] if no labels)
+					if ( eps[n] < min ) { min = eps[n]; h_t = h[n]; }
+
+				var
+					eps_t = eps[ t ] = min,	// 0 if no labels
+					alpha_t = alpha[ t ] = 0.5 * log( ( 1 - eps_t ) / eps_t ),	// update confidence at this cycle
+					Z = 2 * sqrt( eps_t * ( 1 - eps_t ) ); 	// calc D normalizer
+
+				hypo( null ); // signal boost was updated
+
+				trace("boosting", {
+					weights: eps, 
+					minimum: min, 
+					confidence: alpha_t, 
+					normalizer: Z
+				});
+				
+				idx.$( m => {	// update D-sampler on labelled points
+					if ( y[m] ) {
+						var i = idx[m];
+						D[i] = D[i] / Z * exp( alpha_t * $.dot( y[m], hypo( x[m], h_t ).toVector(mixes,labels) ) );
+						sql.query( "UPDATE app.points SET ? WHERE ?", [ {D:D[i]}, {idx: i} ] );
+					}
+				});
+			}
+				
+			else {	// hypo failed so dont signal boost update
+			}
 		});
 	
 	},
@@ -1475,24 +1498,24 @@ $.extensions = {		// extensions
 	
 	qda_train: function (x,y,solve) {  // quadratic discriminant analysis (aka bayesian ridge)
 
+		const {mixes, nsigma} = solve;
+		
 		var 
-			mixes = solve.mixes || 2,
 			X = x._data,
-			cls = { mix: $.EM( X, mixes ) },
-			mix = cls.mix,
+			cls = { em: $.EM( X, mixes ), nsigma: nsigma },
 			pcScipts = {
 				default: `
 eigen = evd( sigma ); 
-keys = {B: sqrt( diag(eigen.values) ) * eigen.vectors}; 
-keys.b = - keys.B * mu; 
+key = {B: sqrt( diag(eigen.values) ) * eigen.vectors}; 
+key.b = - key.B * mu; 
 SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 `
 			},
 			pcScript = pcScipts[ solve.solver || "default" ] || solve.solver || pcScipts.default;
 			
-		Log("qda solver", pcScript);
-		mix.forEach( classif => {
-			$( pcScript, classif );
+		Log("qda solver", pcScript, "nsigma", nsigma);
+		cls.em.forEach( mix => {
+			$( pcScript, mix );
 			//Log( "qda snr=", classif.SNR);
 		});
 		
@@ -1505,68 +1528,89 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 	},
 	
 	qda_predict(cls, x, solve) {
+		const {em,nsigma} = cls;
+		
 		var
-			nsigma = solve.nsigma || 1, // ellipsoid surface in number of sigma 
 			X = x._data,	// feature vectors
-			mix = cls.mix,
-			mixes = mix.length, 	// #classes = #mixes = #modes
-			SNRs = cls.SNRs = $(mixes),
-			N = cls.N = X.length, // #feature vectors
-			D = X[0].length, // feature vector dim
-			Y = $(N, (n,Y) => {  // flag as unlabeled
+			mixes = em.length, 	// #classes (aka #modes, #labels)
+			N = X.length, // #feature vectors
+			Nroc = solve.roc || 1, // threshold for roc
+			Y = $(N, (n,Y) => {  // init as unlabeled
 				Y[n] = "";
-			});
+			});	// predicted labels
 			
-		Log("qda predict", mixes,N,D, solve );
-		cls.p0 = $(mixes);
-		cls.cols = 0;
-		cls.hits = 0;
-		cls.sigmas = nsigma;
-		//Log("eg test", $(" d = xi' * sigma * xi; ", {xi: Cls[0].eg.vectors, sigma: Cls[0].sigma, lambda: Cls[0].eg.values}) );
+		Log("qda predict", mixes,N,D, solve, "nsigma", nsigma );
 		
-		for ( var k=0; k<mixes; k++) {		// go through the mix
-			const {sigma,mu,keys,SNR} = mix[k];			
-			const {p0} = $( "p0 = exp(-1/2*nsigma) / ( (2*pi)^D * sqrt( det( sigma ) )); " , {D: D, sigma: sigma, nsigma: nsigma} );
-			
-			cls.p0[k] = p0;
-			SNRs[k] = SNR;
-			/*
-			var R = $(N, (n,R) => {
-				R[n] = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: B, b: b, x: X[n]} ).r;
-			});
-			Log( "sort", k, R.sort( (a,b) => a-b ).slice(0,10) );
-			*/
+		em.forEach( (mix,k) => {  // go through the mixes and make predictions
+			const {key} = mix;
+			const {B,b} = key;
 
-			X.$( (n,X) => {		// convert x to y ~ NRV(0,1) 
-				const {y,r} = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: keys.B, b: keys.b, x: X[n]} );
-				if ( r < nsigma ) {
-					Y[n] += k;
-					if ( Y[n].length > 1 ) 
-						cls.cols++;
-					else
-						cls.hits++;
-				}
+			//Log(k,B,b);
+			X.$( (n,X) => {		// map x to y ~ NRV(0,1) 
+				const {y,r} = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: B, b: b, x: X[n]} );
+				if ( r < nsigma ) Y[n] += k;		// +1 hypo
 			});	
-		}
+		});
 		
-		if ( debug = false ) {
-			var Ntot = 0; Y.$(n => Ntot += Y[n].length);
-			Y = Y.sort( (a,b) => b.length - a.length );		
-			cls.maxCols = Y[0].length;
-			Log("debug stats", "max", [cls.maxCols, mixes], "tot", [Ntot, N*mixes]);
-		}
-		
-		cls.maxHits = N;
-		cls.maxCols = N * mixes;
-		cls.dataDim = D;
-		
-		$(`
+		if ( N > Nroc ) {	//  make ROC
+			cls.SNRs = $(mixes);		// reserve 
+			cls.N = N;
+			cls.p0 = $(mixes);	// reserve 
+			cls.cols = 0;
+			cls.hits = 0;
+			cls.sigmas = nsigma;
+			//Log("eg test", $(" d = xi' * sigma * xi; ", {xi: Cls[0].eg.vectors, sigma: Cls[0].sigma, lambda: Cls[0].eg.values}) );
+
+			var D = X[0].length; // feature vector dim
+			
+			em.forEach( (mix,k) => {  // compute mix stats
+				const {sigma,mu,key,SNR} = mix;			// covar, mean, (B,b) key, and SNR
+				const {p0} = $( "p0 = exp(-1/2*nsigma) / ( (2*pi)^D * sqrt( det( sigma ) )); " , {D: D, sigma: sigma, nsigma: nsigma} );
+
+				cls.p0[k] = p0;
+				cls.SNRs[k] = SNR;
+				//Log(k,SNR,p0);
+				/*
+				X.$( (n,X) => {		// map x to y ~ NRV(0,1) 
+					const {y,r} = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: keys.B, b: keys.b, x: X[n]} );
+					if ( r < nsigma ) {	// +1 hypo
+						Y[n] += k;
+						if ( Y[n].length > 1 ) 
+							cls.cols++;
+						else
+							cls.hits++;
+					}
+				});	
+				*/
+			});
+
+			if ( false ) {
+				var Ntot = 0; Y.$(n => Ntot += Y[n].length);
+				Y = Y.sort( (a,b) => b.length - a.length );		
+				cls.maxCols = Y[0].length;
+				Log("debug stats", "max", [cls.maxCols, mixes], "tot", [Ntot, N*mixes]);
+			}
+
+			Y.$( n => {	// count hits and collisions
+				if ( y = Y[n] ) {
+					cls.hits++;
+					cls.cols += y.length-1;
+				}
+			});
+			
+			cls.maxHits = N;
+			cls.maxCols = N * mixes;
+			cls.dataDim = D;
+
+			$(`
 hitRate = hits/maxHits; 
 colRate = cols/maxCols; 
 SNR = mean(SNRs); 
 SNRsnr = SNR/std(SNRs);
 `, cls);
-		Log(cls);
+
+			Log(cls);
+		}
 		/*
 		var
 			X = x._data,
