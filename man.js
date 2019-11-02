@@ -1328,10 +1328,10 @@ $.extensions = {		// extensions
 		const { alpha, eps, h, points, samples, labels, mixes, thresh } = solve;
 		const {	log, sqrt, exp, sign } = Math;
 
-		/*
-		sql.query("SELECT idx,D FROM app.points LIMIT 5", (err,recs) =>
-				  Log(">>>>>boost test", recs, "HLM->", "HLM".toVector(mixes,labels) ) );
-		*/
+		//Log(">>>>>>test", "HLM->", "HLM".toVector(mixes,labels) );
+		//sql.query("SELECT idx,D FROM app.points LIMIT 5", (err,recs) => Log(">>>>>test", recs ) );
+		
+		//Log(">>>>boost hypos", JSON.stringify(solve.h));
 		
 		sql.query(
 			"SELECT x,y,idx,D FROM app.points WHERE D>=? ORDER BY rand() LIMIT ?", 
@@ -1347,12 +1347,12 @@ $.extensions = {		// extensions
 							i = idx[m],
 							x_i = x[m],
 							h_i = hypo( x_i ),
-							test = $(mixes, (k,test) => test[k] = y_i[k] == h_i[k] ),
+							test = $(mixes, (k,test) => test[k] = y_i[k] != h_i[k] ), // find where they disagree
 							ind = 0;
 
-						//Log(">>>>>boost weight", m, i, x_i, y_i, h_i);
-						test.$( (k,test) => ind += test[k] ? 1 : 0 );
-						eps += D[i] * ind;
+						test.$( k => ind += test[k] ? 1 : 0 );	// weight disagreement higher
+						//Log(">>>>>boost weight", m, i, x_i, y_i, h_i, test, ind );
+						eps += D[m] * ind;
 					}
 				});
 
@@ -1360,12 +1360,14 @@ $.extensions = {		// extensions
 			}
 
 			trace("boosting", {
+				cycle: t,
 				select: err ? "failed" : "ok", 
 				samples: samples, 
-				read: recs.length, 
-				threshhold: thresh
+				sampled: recs.length, 
+				threshhold: thresh,
+				stacked: solve.h.length
 			} );
-			recs.forEach( rec => {
+			recs.forEach( rec => {		// parse json and labels
 				rec.x = JSON.parse( rec.x );
 				rec.y = rec.y ? rec.y.toVector( mixes, labels ) : null;
 			});
@@ -1373,22 +1375,28 @@ $.extensions = {		// extensions
 			var 
 				[x,y,idx,D] = recs.get( ["x", "y", "idx", "D"] ),
 				min = 1e12,
-				h_t = h[ t ] = hypo( x );
+				h_t = h[ t ] = hypo( x );		// null if (x,y) are empty
 
-			if ( h_t ) { // hypo provided parms (aka keys), so ...
-				for ( var n=1; n<=t; n++) { // enumerate through hypo parms up to this cycle t
-					trace("boosting", {level: n});
-					eps[ n ] = weight( x => {	// update weights at previous cycles (eps = 0 if no labels)
-						// use the K-parms in h_t against this x and return the K-vector h
-						return hypo( x, h_t ).toVector(mixes,labels);
-					});
+			//Log(">>>>set h", h);
+			if ( h_t ) { // hypo provided its parms (aka keys), so we block eps=0
+				for ( var n=1; n<=t; n++) { // enumerate through previous hypos
+					trace("boosting", {from: n, to: t});
+					if ( h_n = h[n] )
+						eps[ n ] = weight( x => {	// update weights at previous cycles (eps=0 was blocked)
+							// use the K-parms in h_t against this x and return the K-vector for this hypo
+							return hypo( x, h_n ).toVector(mixes,labels);
+						});
+					
+					else
+						eps[ n ] = 0;
 				}
 
-				for ( var n=1; n<=t; n++ ) // retain the h having the lowest eps weight (h[1] if no labels)
+				//Log(">>>>eps", eps, "at", t);
+				for ( var n=1; n<=t; n++ ) // retain the h having the lowest eps weight (eps=0 was blocked)
 					if ( eps[n] < min ) { min = eps[n]; h_t = h[n]; }
 
 				var
-					eps_t = eps[ t ] = min,	// 0 if no labels
+					eps_t = eps[ t ] = min,	// update weight at this cycle
 					alpha_t = alpha[ t ] = 0.5 * log( ( 1 - eps_t ) / eps_t ),	// update confidence at this cycle
 					Z = 2 * sqrt( eps_t * ( 1 - eps_t ) ); 	// calc D normalizer
 
@@ -1402,16 +1410,21 @@ $.extensions = {		// extensions
 				});
 				
 				idx.$( m => {	// update D-sampler on labelled points
+					function dot(x,y) {
+						return  $.dot( $.matrix(x), $.matrix(y) );
+					}
+					
 					if ( y[m] ) {
-						var i = idx[m];
-						D[i] = D[i] / Z * exp( alpha_t * $.dot( y[m], hypo( x[m], h_t ).toVector(mixes,labels) ) );
-						sql.query( "UPDATE app.points SET ? WHERE ?", [ {D:D[i]}, {idx: i} ] );
+						D[m] = D[m] / Z * exp( alpha_t * dot( y[m], hypo( x[m], h_t ).toVector(mixes,labels) ) );
+						//Log("update", m, idx[m], D[m], eps_t, alpha_t );
+						sql.query( "UPDATE app.points SET ? WHERE ?", [ {D:D[m]}, {idx: idx[m] } ] );
 					}
 				});
 			}
-				
-			else {	// hypo failed so dont signal boost update
+			
+			else { // hypo failed (e.g. no labelled data) so dont signal boost update
 			}
+				
 		});
 	
 	},
@@ -1506,8 +1519,8 @@ $.extensions = {		// extensions
 			pcScipts = {
 				default: `
 eigen = evd( sigma ); 
-key = {B: sqrt( diag(eigen.values) ) * eigen.vectors}; 
-key.b = - key.B * mu; 
+key = {B: re( sqrt( diag(eigen.values) ) * eigen.vectors )}; 
+key.b = - re( key.B * mu ); 
 SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 `
 			},
@@ -1516,6 +1529,9 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 		Log("qda solver", pcScript, "nsigma", nsigma);
 		cls.em.forEach( mix => {
 			$( pcScript, mix );
+			mix.key.B = $.list(mix.key.B);
+			mix.key.b = $.list(mix.key.b);
+			
 			//Log( "qda snr=", classif.SNR);
 		});
 		
@@ -1546,8 +1562,8 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			const {B,b} = key;
 
 			//Log(k,B,b);
-			X.$( (n,X) => {		// map x to y ~ NRV(0,1) 
-				const {y,r} = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: B, b: b, x: X[n]} );
+			X.$( (n,X) => {		// x ~ NRV(mu,sigma) => y ~ NRV(0,1) 
+				const { r } = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: B, b: b, x: X[n]} );
 				if ( r < nsigma ) Y[n] += k;		// +1 hypo
 			});	
 		});
