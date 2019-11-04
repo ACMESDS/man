@@ -1333,6 +1333,8 @@ $.extensions = {		// extensions
 		
 		//Log(">>>>boost hypos", JSON.stringify(solve.h));
 		
+		//Log("=========solve", solve);
+		
 		sql.query(
 			"SELECT x,y,idx,D FROM app.points WHERE D>=? ORDER BY rand() LIMIT ?", 
 			[thresh, samples], 
@@ -1359,18 +1361,19 @@ $.extensions = {		// extensions
 				return eps;
 			}
 
-			trace("boosting", {
+			trace("boost", {
 				cycle: t,
 				select: err ? "failed" : "ok", 
 				samples: samples, 
 				sampled: recs.length, 
-				threshhold: thresh,
+				threshold: thresh,
 				stacked: solve.h.length
 			} );
 			recs.forEach( rec => {		// parse json and labels
 				rec.x = JSON.parse( rec.x );
 				rec.y = rec.y ? rec.y.toVector( mixes, labels ) : null;
 			});
+			//Log(">>>>set h before", h);
 
 			var 
 				[x,y,idx,D] = recs.get( ["x", "y", "idx", "D"] ),
@@ -1380,18 +1383,19 @@ $.extensions = {		// extensions
 			//Log(">>>>set h", h);
 			if ( h_t ) { // hypo provided its parms (aka keys), so we block eps=0
 				for ( var n=1; n<=t; n++) { // enumerate through previous hypos
-					trace("boosting", {from: n, to: t});
+					trace("boost", {from: n, to: t});
 					if ( h_n = h[n] )
 						eps[ n ] = weight( x => {	// update weights at previous cycles (eps=0 was blocked)
 							// use the K-parms in h_t against this x and return the K-vector for this hypo
-							return hypo( x, h_n ).toVector(mixes,labels);
+							//return hypo( x, h_n ).toVector(mixes,labels);
+							return hypo( x, h_n );
 						});
 					
 					else
 						eps[ n ] = 0;
 				}
 
-				//Log(">>>>eps", eps, "at", t);
+				//Log(">>>>eps", eps, "at", t, "ht=", h_t);
 				for ( var n=1; n<=t; n++ ) // retain the h having the lowest eps weight (eps=0 was blocked)
 					if ( eps[n] < min ) { min = eps[n]; h_t = h[n]; }
 
@@ -1402,20 +1406,25 @@ $.extensions = {		// extensions
 
 				hypo( null ); // signal boost was updated
 
-				trace("boosting", {
+				trace("boost", {
 					weights: eps, 
 					minimum: min, 
 					confidence: alpha_t, 
-					normalizer: Z
+					normalizer: Z,
+					h_t: h_t
 				});
 				
 				idx.$( m => {	// update D-sampler on labelled points
 					function dot(x,y) {
-						return  $.dot( $.matrix(x), $.matrix(y) );
+						//return  $.dot( $.matrix(x), $.matrix(y) );
+						Log("x=",x,  "y=",y);
+						return  $.dot( x, y );
 					}
 					
 					if ( y[m] ) {
-						D[m] = D[m] / Z * exp( alpha_t * dot( y[m], hypo( x[m], h_t ).toVector(mixes,labels) ) );
+						//D[m] = D[m] / Z * exp( alpha_t * dot( y[m], hypo( x[m], h_t ).toVector(mixes,labels) ) );
+						//Log("update", m, h_t);
+						D[m] = D[m] / Z * exp( alpha_t * dot( y[m], hypo( x[m], h_t ) ) );
 						//Log("update", m, idx[m], D[m], eps_t, alpha_t );
 						sql.query( "UPDATE app.points SET ? WHERE ?", [ {D:D[m]}, {idx: idx[m] } ] );
 					}
@@ -1423,6 +1432,7 @@ $.extensions = {		// extensions
 			}
 			
 			else { // hypo failed (e.g. no labelled data) so dont signal boost update
+				trace("boost", "no labelled data");
 			}
 				
 		});
