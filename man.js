@@ -1410,21 +1410,20 @@ $.extensions = {		// extensions
 					weights: eps, 
 					minimum: min, 
 					confidence: alpha_t, 
-					normalizer: Z,
-					h_t: h_t
+					normalizer: Z
 				});
 				
 				idx.$( m => {	// update D-sampler on labelled points
 					function dot(x,y) {
 						//return  $.dot( $.matrix(x), $.matrix(y) );
-						Log("x=",x,  "y=",y);
+						//Log("x=",x,  "y=",y);
 						return  $.dot( x, y );
 					}
 					
 					if ( y[m] ) {
 						//D[m] = D[m] / Z * exp( alpha_t * dot( y[m], hypo( x[m], h_t ).toVector(mixes,labels) ) );
 						//Log("update", m, h_t);
-						D[m] = D[m] / Z * exp( alpha_t * dot( y[m], hypo( x[m], h_t ) ) );
+						D[m] = D[m] / Z * exp( alpha_t * dot( y[m], hypo( x[m], h_t ) ) );		// n/c when #agreements = #disagreements or when alpha (eps) = 0 (1/2)
 						//Log("update", m, idx[m], D[m], eps_t, alpha_t );
 						sql.query( "UPDATE app.points SET ? WHERE ?", [ {D:D[m]}, {idx: idx[m] } ] );
 					}
@@ -1530,17 +1529,23 @@ $.extensions = {		// extensions
 				default: `
 eigen = evd( sigma ); 
 key = {B: re( sqrt( diag(eigen.values) ) * eigen.vectors )}; 
-key.b = - re( key.B * mu ); 
+key.b = - key.B * mu; 
 SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 `
 			},
 			pcScript = pcScipts[ solve.solver || "default" ] || solve.solver || pcScipts.default;
 			
 		Log("qda solver", pcScript, "nsigma", nsigma);
-		cls.em.forEach( mix => {
+		cls.em.forEach( (mix,k) => {
 			$( pcScript, mix );
-			mix.key.B = $.list(mix.key.B);
-			mix.key.b = $.list(mix.key.b);
+			//Log( "mix", k, mix );
+			if ( key = mix.key ) {		// provided so move on
+				key.B = $.list(key.B);
+				key.b = $.list(key.b);
+			}
+			
+			else	// missing so signal error
+				return null;
 			
 			//Log( "qda snr=", classif.SNR);
 		});
@@ -1571,10 +1576,9 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			const {key} = mix;
 			const {B,b} = key;
 
-			//Log(k,B,b);
 			X.$( (n,X) => {		// x ~ NRV(mu,sigma) => y ~ NRV(0,1) 
 				const { r } = $( "y = B*x + b; r = sqrt( y' * y ); ", {B: B, b: b, x: X[n]} );
-				if ( r < nsigma ) Y[n] += k;		// +1 hypo
+				if ( r < nsigma ) Y[n] += k;		// stack hypo (compress vector to label string)
 			});	
 		});
 		
@@ -1585,7 +1589,6 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			cls.cols = 0;
 			cls.hits = 0;
 			cls.sigmas = nsigma;
-			//Log("eg test", $(" d = xi' * sigma * xi; ", {xi: Cls[0].eg.vectors, sigma: Cls[0].sigma, lambda: Cls[0].eg.values}) );
 
 			var D = X[0].length; // feature vector dim
 			
