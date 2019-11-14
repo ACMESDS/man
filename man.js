@@ -110,6 +110,7 @@ function saveStash(sql, stash, ID, host) {
 		}
 	},
 	
+	/*
 	function save(sql, ctx, cb) {
 		var stash = {}, rem = {};
 		
@@ -121,7 +122,7 @@ function saveStash(sql, stash, ID, host) {
 		});
 		saveStash( sql, stash, ctx.ID, ctx.Host );
 		cb( rem );
-	},
+	},  */
 	
 	function $(idx,cb) {
 		return this.get(idx,cb);
@@ -680,7 +681,7 @@ function saveStash(sql, stash, ID, host) {
 		if (rem.length) {  // there is a remainder to save
 			if (cb) cb(rem);
 
-			saveStash(sql, {Save_rem: rem}, ctx.ID, ctx.Host);				
+			saveStash(sql, {Save: rem}, ctx.ID, ctx.Host);	
 		}
 
 		delete stash.remainder;	
@@ -2944,16 +2945,17 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 	
 	loggamma: x => GAMMA.log(x),
 
-	beta: (x,alpha,beta) => {
+	beta: (x,a,b) => {
 		const { f } = $(`
-logB = loggamma(alpha) + loggamma(beta) - loggamma(alpha+beta);
-f = exp( (alpha-1) * log(x) + (beta-1) * log(1-x) - logB );
+logB = loggamma(a) + loggamma(b) - loggamma(a+b);
+f = exp( (a-1) * log(x) + (b-1) * log(1-x) - logB );
 `, {
 		mathjs: true,
-		alpha: alpha,
-		beta: beta,
+		a: a,
+		b: b,
 		x: x
 	});
+		//Log("beta=", x,a,b,f);
 		return f;
 	},
 	
