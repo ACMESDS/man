@@ -832,14 +832,14 @@ function saveStash(sql, stash, ID, host) {
 	}	
 ].Extend(Array);
 
-var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
+var $ = MAN = module.exports = function $(code,ctx,cb) {
 	switch (code.constructor) {
-		case String:
+		case String:	// run a mathjs script in a mathjs || js ctx if ctx.mathjs = true || false
 			
 			if (cb) {
-				var vmctx = {};
-
-				if (ctx)
+				var vmctx = ctx.mathjs ? ctx : {};
+				
+				if ( !ctx.mathjs ) 
 					Each(ctx, (key,val) => {
 						if ( val ) 
 							vmctx[key] = isArray(val) ? $.matrix(val) : val;
@@ -855,21 +855,24 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 					Log("$eval", err);
 				}
 
-				for (key in vmctx) vmctx[key] = $.list( vmctx[key] );
+				if ( !ctx.mathjs )
+					for (key in vmctx) vmctx[key] = $.list( vmctx[key] );
 
 				return cb(vmctx);
 			}
 			
 			else
 			if (ctx) {
-				var vmctx = {};
-				Each(ctx, (key,val) => {
-					if ( val ) 
-						vmctx[key] = isArray(val) ? $.matrix(val) : val;
+				var vmctx = ctx.mathjs ? ctx : {};
+				
+				if ( !ctx.mathjs ) 
+					Each(ctx, (key,val) => {
+						if ( val ) 
+							vmctx[key] = isArray(val) ? $.matrix(val) : val;
 
-					else
-						vmctx[key] = val;
-				});
+						else
+							vmctx[key] = val;
+					});
 				
 				try {
 					$.eval(code, vmctx);
@@ -878,7 +881,8 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 					Log("$eval", err);
 				}
 
-				for (key in vmctx) ctx[key] = $.list( vmctx[key] );
+				if ( !ctx.mathjs )
+					for (key in vmctx) ctx[key] = $.list( vmctx[key] );
 				
 				return ctx;
 			}
@@ -894,7 +898,7 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 			
 			break;
 			
-		case Number:
+		case Number:	// create a list
 			var 
 				rows = code,
 				cb = ctx,
@@ -902,7 +906,7 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 			
 			return cb ? A.$(cb) : A;
 			
-		case Array:
+		case Array:		// create a matrix
 			var 
 				[rows,cols] = code,
 				cb = ctx,
@@ -925,7 +929,7 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 			
 			return cb ? A.$$(cb) : A;
 			
-		case Object:
+		case Object:	// import mathjs functions or shard tasks
 			if (task = ctx)
 				$.runTask( code, task, cb );
 			
@@ -933,6 +937,7 @@ var $ = $$ = MAN = module.exports = function $(code,ctx,cb) {
 				for (var key in code) Trace(`IMPORTING ${key}`);
 
 				Copy(code,$);		// mixin them for access from $[name]
+				
 				$.import(code, {
 					override: true
 				});		// import them for access from $(" name(...) ")
@@ -2936,6 +2941,21 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 	},
 	
 	// special functions
+	
+	loggamma: x => GAMMA.log(x),
+
+	beta: (x,alpha,beta) => {
+		const { f } = $(`
+logB = loggamma(alpha) + loggamma(beta) - loggamma(alpha+beta);
+f = exp( (alpha-1) * log(x) + (beta-1) * log(1-x) - logB );
+`, {
+		mathjs: true,
+		alpha: alpha,
+		beta: beta,
+		x: x
+	});
+		return f;
+	},
 	
 	sinc: function (x) {
 		var x = x._data, N = x.length;
