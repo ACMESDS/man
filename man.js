@@ -2933,7 +2933,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		return $.eval( "-a*log( udev(N,1) )" , {a:a, N:N} );
 	},
 
-	cumsum: function (x) {
+	cumsum: x => {
 		var
 			x = x._data,
 			N = x.length;
@@ -2957,6 +2957,13 @@ f = exp( (a-1) * log(x) + (b-1) * log(1-x) - logB );
 	});
 		//Log("beta=", x,a,b,f);
 		return f;
+	},
+	
+	len: x => x._data.length,
+	
+	cumbeta: (x,a,b) => {
+		const { F } = $("F = cumsum( beta(x,a,b) ); F = F/F[ len(F) ]; ", {x:x,a:a,b:b});
+		return F;
 	},
 	
 	sinc: function (x) {
