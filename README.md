@@ -6,7 +6,7 @@
 	[gitlab](https://gitlab.west.nga.ic.gov/acmesds/jslab)
 
 The matrix manipulator MAN provides: 
-[matlab-like matrix manipulators](https://www.npmjs.com/package/mathjs), 
+[mathjs scripting](https://www.npmjs.com/package/mathjs), 
 [light weight image processing](https://www.npmjs.com/package/jimp), 
 [symbolic algebra](https://www.npmjs.com/package/mathjs), 
 [digital signal](https://www.npmjs.com/package/dsp) and [spectral](https://www.npmjs.com/package/fft-js) processing, 
