@@ -34,23 +34,24 @@ Use MAN as follows:
 
 	var $ = require("man");
 	
-	Eval script into context ctx with callback(ctx):
+	Eval mathjs script in a mathjs || js context ctx (if ctx.mathjs: true || false) with callback:
 	
-		$( "matlab script", ctx, (ctx) => {   
+		$( "mathjs script", ctx, ctx => {   
 			...
 		} );
 
-		$( "matlab script", ctx );
+	or w/o callback:
 
-		var A = $( "matlab expression" );
+		var ctx = $( "mathjs script", ctx );
+		const {x, y, ... } = $( "mathjs script", ctx );
 
-	Create, process and index a matrix:
+	Create and index a matrix:
 	
 		var 
-			A = $( N, (n,A) => A[n] = ... ),  // define vector A of N elements 
+			A = $( N, (n,A) => A[n] = ... ),  // define N-length vector A 
 			B = $( [M,N], (n,m,B) => B[m][n] = ... ),	// define M x N matrrix
-			C = A.$( (n,C) => C[n] = ... ), 	// index matrix A with callback
-			D = A.$( C ); 	// index matrix A with matrix C
+			C = A.$( B ); 	// index matrix A with matrix B
+			A.$( (n,C) => C[n] = ... ), 	// index matrix A with callback
 
 	Import functions to $.somefn and to $( "somefn(...)" )
 	
@@ -74,10 +75,10 @@ Use MAN as follows:
 			}, 
 
 			// here, a simple task that returns a message 
-			($) => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
+			$ => "my result is " + (i + j*k) + " from " + $.worker + " on "  + $.node,
 
 			// here, a simple callback that displays the task results
-			(msg) => console.log(msg) 
+			msg => console.log(msg) 
 		);
 	
 	Group events by key to callback cb( events ) with cb( null ) at end:
