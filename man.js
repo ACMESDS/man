@@ -1500,6 +1500,27 @@ $.extensions = {		// extensions
 	
 	// regressors
 
+	beta_train: function (x,y,n,solve) {
+		var 
+			x = $.list(x),
+			y = $.list(y),
+			n = $.list(n),
+			N = n.length,
+			z = $(N, (k,z) => z[k] = { x:x[k], y:y[k], n:n[k] } ).sort( (a,b) => a.n-b.n ),
+			M = N/2, 
+			k = 0, dydx = $(M, (m,d) => { d[m] = (y[k+1]-y[k]) / (x[k+1]-x[k]); k+=2; }),
+			log = Math.log,
+			logy = $(M, (m,y) => y[m] = log( dydx[m] ) ),
+			logx = $(M, (m,x) => x[m] = [ log(x[m]), log(1-x[m]) ] ),
+			cls = new MLR(logx,logy);
+		
+		Log("rocfit", cls); // weight=[alpha-1, beta-1]
+		return cls;
+	},
+	
+	beta_predict: function () {
+	},
+	
 	rnn_train: function (x,y,solve) {
 	},
 	
