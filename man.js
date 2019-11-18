@@ -1555,9 +1555,10 @@ $.extensions = {		// extensions
 			pcScipts = {
 				default: `
 eigen = evd( sigma ); 
-key = {B: re( sqrt( diag(eigen.values) ) * eigen.vectors )}; 
+lambda = abs(re(eigen.values));
+key = {B: sqrt( diag(lambda) ) * re( eigen.vectors )}; 
 key.b = - key.B * mu; 
-SNR = sqrt( (mu' * mu) / sum(eigen.values) );
+SNR = sqrt( (mu' * mu) / sum(lambda) );
 `
 			},
 			pcScript = pcScipts[ solve.solver || "default" ] || solve.solver || pcScipts.default;
@@ -1615,7 +1616,7 @@ SNR = sqrt( (mu' * mu) / sum(eigen.values) );
 			cls.p0 = $(mixes);	// reserve 
 			cls.cols = 0;
 			cls.hits = 0;
-			cls.sigmas = nsigma;
+			cls.nsigma = nsigma;
 
 			var D = X[0].length; // feature vector dim
 			
