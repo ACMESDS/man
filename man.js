@@ -1511,8 +1511,16 @@ $.extensions = {		// extensions
 			dydx = $(M, (m,d) => d[m] = (y[m+1][0]-y[m][0]) / (x[m+1]-x[m]) ),
 			log = Math.log,
 			logy = $(M, (m,logy) => logy[m] = [ log( dydx[m] ) ] ),
-			logx = $(M, (m,logx) => logx[m] = [ log(x[m]), log(1-x[m]) ] );
+			logx = $(M, (m,logx) => logx[m] = [ log(x[m]), log(1-x[m]) ] ),
+			regy = [],
+			regx = [];
 		
+		for ( var m =0; m<M; m++ ) 
+			if ( logx[m][1] && dydx[m]>0 ) {
+				regy.push( logy[m] );
+				regx.push( logx[m] );
+			}
+				
 		Log({
 			x: x,
 			y: y,
@@ -1520,13 +1528,20 @@ $.extensions = {		// extensions
 			M: M,
 			dydx: dydx,
 			logx: logx,
-			logy: logy
+			logy: logy,
+			regx: regx,
+			regy: regy
 		});
-		
+
 		var
-			cls = new MLR(logx,logy);
+			cls = new MLR( regx, regy ),
+			alpha = cls.alpha = cls.weights[2][0] + 1,
+			beta = cls.beta = cls.weights[1][0] + 1;
 		
-		Log("rocfit", cls); // weight=[alpha-1, beta-1]
+		Log(cls, {
+			b0: cls.weights[0][0],
+			b0calc: $.loggamma(alpha) + $.loggamma(beta) - $.loggamma(alpha+beta)
+		});
 		return cls;
 	},
 	
