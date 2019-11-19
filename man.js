@@ -493,7 +493,8 @@ function saveStash(sql, stash, ID, host) {
 
 			else */
 			if ( isArray(idx) ) 
-				return $( idx.length, (k,B) => B[k] = $( N, (n,X) => X[n] = A[n][ idx[k] ] ) );
+				return $( N, (n,B) => B[n] = $( idx.length, (k,X) => X[k] = A[n][ idx[k] ] ) );
+					// $( idx.length, (k,B) => B[k] = $( N, (n,X) => X[n] = A[n][ idx[k] ] ) );
 
 			else
 			if ( isNumber(idx) || isString(idx) ) 
@@ -1500,18 +1501,29 @@ $.extensions = {		// extensions
 	
 	// regressors
 
-	beta_train: function (x,y,n,solve) {
+	beta_train: function (x,y,solve) {
 		var 
 			x = $.list(x),
 			y = $.list(y),
-			n = $.list(n),
-			N = n.length,
-			z = $(N, (k,z) => z[k] = { x:x[k], y:y[k], n:n[k] } ).sort( (a,b) => a.n-b.n ),
-			M = N/2, 
-			k = 0, dydx = $(M, (m,d) => { d[m] = (y[k+1]-y[k]) / (x[k+1]-x[k]); k+=2; }),
+			N = x.length,
+			z = $(N, (k,z) => z[k] = { x:x[k], y:y[k][0], n:y[k][1] } ).sort( (a,b) => a.n-b.n ),
+			M = N-1, 
+			dydx = $(M, (m,d) => d[m] = (y[m+1][0]-y[m][0]) / (x[m+1]-x[m]) ),
 			log = Math.log,
-			logy = $(M, (m,y) => y[m] = log( dydx[m] ) ),
-			logx = $(M, (m,x) => x[m] = [ log(x[m]), log(1-x[m]) ] ),
+			logy = $(M, (m,logy) => logy[m] = [ log( dydx[m] ) ] ),
+			logx = $(M, (m,logx) => logx[m] = [ log(x[m]), log(1-x[m]) ] );
+		
+		Log({
+			x: x,
+			y: y,
+			z: z,
+			M: M,
+			dydx: dydx,
+			logx: logx,
+			logy: logy
+		});
+		
+		var
 			cls = new MLR(logx,logy);
 		
 		Log("rocfit", cls); // weight=[alpha-1, beta-1]
