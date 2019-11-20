@@ -929,6 +929,8 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 			for (var m=0; m<M; m++) A[m] = new Array(N);
 			*/
 			
+			for (var m=0; m<rows; m++) for (var n=0; n<cols; n++) A[m][n] = 0;
+			
 			return cb ? A.$$(cb) : A;
 			
 		case Object:	// import mathjs functions or shard tasks
@@ -1481,8 +1483,13 @@ $.extensions = {		// extensions
 		return $.matrix( E );
 	},
 	
-	// KxN random matrix
-	rand: (K,N) => $.matrix( $( [K,N], (m,n,R) => R[m][n] = 1 - 2*Math.random() ) ),
+	// MxN random matrix
+	rand: (M,N) => $.matrix( $( [M,N], (m,n,R) => {
+		var 
+			x = Math.random(),
+			y = R[m][n] = 1 - 2*x;
+		Log("Rand", M,N, m,n,R[m][m], y, x, [R.length,R[m].length]);
+	}) ),
 	
 	// KxK random rotation matrix
 	randRot: K => $.orthoNorm( $.rand(K,K) ),
