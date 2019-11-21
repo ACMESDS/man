@@ -1484,12 +1484,7 @@ $.extensions = {		// extensions
 	},
 	
 	// MxN random matrix
-	rand: (M,N) => $.matrix( $( [M,N], (m,n,R) => {
-		var 
-			x = Math.random(),
-			y = R[m][n] = 1 - 2*x;
-		Log("Rand", M,N, m,n,R[m][m], y, x, [R.length,R[m].length]);
-	}) ),
+	rand: (M,N) => $.matrix( $( [M,N], (m,n,R) => R[m][n] = 1 - 2*Math.random() )),
 	
 	// KxK random rotation matrix
 	randRot: K => $.orthoNorm( $.rand(K,K) ),
@@ -3058,13 +3053,8 @@ f = exp( (a-1) * log(x) + (b-1) * log(1-x) - logB );
 	lma: function (a) {},
 	rnn: function (a) {},
 	
-	disp: function (a) {
-		if (a._data)
-			Log( a._data );
-
-		else
-			Log( a );
-	}
+	json: a => JSON.stringify(a),
+	disp: a => Log(a)
 };
 
 $( $.extensions );
