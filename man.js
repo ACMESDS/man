@@ -1574,7 +1574,7 @@ $.extensions = {		// extensions
 	dhs_predict: function (x,y,solve) {
 	},
 	
-	qda_train: function (x,y,solve) {  // quadratic discriminant analysis (aka bayesian ridge)
+	qda_train: function (x,y,solve) {  // quadratic discriminant analysis
 
 		const {mixes, nsigma} = solve;
 		
@@ -1596,12 +1596,12 @@ SNR = sqrt( (mu' * mu) / sum(lambda) );
 		cls.em.forEach( (mix,k) => {
 			$( pcScript, mix );
 			//Log( "mix", k, mix );
-			if ( key = mix.key ) {		// provided so move on
+			if ( key = mix.key ) {		// valid key provided so ...
 				key.B = $.list(key.B);
 				key.b = $.list(key.b);
 			}
 			
-			else	// missing so signal error
+			else	// missing key so signal error
 				return null;
 			
 			//Log( "qda snr=", classif.SNR);
