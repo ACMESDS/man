@@ -1504,46 +1504,83 @@ $.extensions = {		// extensions
 	// regressors
 
 	beta_train: function (x,y,solve) {
+		const { log } = Math;
+		
 		var 
 			x = $.list(x),
 			y = $.list(y),
-			N = x.length,
-			z = $(N, (k,z) => z[k] = { x:x[k], y:y[k][0], n:y[k][1] } ).sort( (a,b) => a.n-b.n ),
-			M = N-1, 
-			dydx = $(M, (m,d) => d[m] = (y[m+1][0]-y[m][0]) / (x[m+1]-x[m]) ),
-			log = Math.log,
-			logy = $(M, (m,logy) => logy[m] = [ log( dydx[m] ) ] ),
-			logx = $(M, (m,logx) => logx[m] = [ log(x[m]), log(1-x[m]) ] ),
-			regy = [],
-			regx = [];
+			N = x.length;
 		
-		for ( var m =0; m<M; m++ ) 
-			if ( logx[m][1] && dydx[m]>0 ) {
-				regy.push( logy[m] );
-				regx.push( logx[m] );
-			}
-				
-		Log({
-			x: x,
-			y: y,
-			z: z,
-			M: M,
-			dydx: dydx,
-			logx: logx,
-			logy: logy,
-			regx: regx,
-			regy: regy
-		});
+		if ( false ) {	// approx kumarswary fit
+			var
+				alpha = 0.5,
+				logy = $(N, (k,logy) => logy[k] = log(1-y[k][0]) ),
+				logx = $(N, (k,logx) => logx[k] = log(1-x[k]**alpha) ),
+				regy = [],
+				regx = [];
+						 
+			for ( var k =0; k<N; k++ ) 
+				if ( logy[k] != -Infinity ) {
+					regy.push( [ logy[k] ] );
+					regx.push( [ logx[k] ] );
+				}
+			
+			Log({
+				x: x,
+				y: y,
+				logx: logx,
+				logy: logy,
+				regx: regx,
+				regy: regy
+			});
 
-		var
-			cls = new MLR( regx, regy ),
-			alpha = cls.alpha = cls.weights[2][0] + 1,
-			beta = cls.beta = cls.weights[1][0] + 1;
+			var
+				cls = new MLR( regx, regy ),
+				a = cls.a = alpha,
+				b = cls.b = cls.weights[0][0] + 1;
+			
+			Log("weights=", cls);
+		}
 		
-		Log(cls, {
-			b0: cls.weights[0][0],
-			b0calc: $.loggamma(alpha) + $.loggamma(beta) - $.loggamma(alpha+beta)
-		});
+		else {	// strict beta fit
+			var
+				z = $(N, (k,z) => z[k] = { x:x[k], y:y[k][0], n:y[k][1] } ).sort( (a,b) => a.n-b.n ),
+				M = N-1, 
+				dydx = $(M, (m,d) => d[m] = (y[m+1][0]-y[m][0]) / (x[m+1]-x[m]) ),
+				logy = $(M, (m,logy) => logy[m] = [ log( dydx[m] ) ] ),
+				logx = $(M, (m,logx) => logx[m] = [ log(x[m]), log(1-x[m]) ] ),
+				regy = [],
+				regx = [];
+
+			for ( var m =0; m<M; m++ ) 
+				if ( logx[m][1] && dydx[m]>0 ) {
+					regy.push( logy[m] );
+					regx.push( logx[m] );
+				}
+
+			Log({
+				x: x,
+				y: y,
+				z: z,
+				M: M,
+				dydx: dydx,
+				logx: logx,
+				logy: logy,
+				regx: regx,
+				regy: regy
+			});
+
+			var
+				cls = new MLR( regx, regy ),
+				alpha = cls.alpha = cls.weights[0][0] + 1,
+				beta = cls.beta = cls.weights[1][0] + 1;
+			
+			Log(cls, {
+				b0: cls.weights[2][0],
+				b0calc: $.loggamma(alpha) + $.loggamma(beta) - $.loggamma(alpha+beta)
+			});
+		}
+		
 		return cls;
 	},
 	
