@@ -854,7 +854,8 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 					$.eval(code, vmctx);
 				}
 				catch (err) {
-					Log("$eval", err);
+					Log("$>>>>>>>>error", code, err);
+					return cb( null );
 				}
 
 				if ( !ctx.mathjs )
@@ -880,7 +881,8 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 					$.eval(code, vmctx);
 				}
 				catch (err) {
-					Log("$eval", err);
+					Log("$>>>>>>>>error", code, err);
+					return null;
 				}
 
 				if ( !ctx.mathjs )
@@ -894,7 +896,8 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 					return $.eval(code);
 				}
 				catch (err) {
-					Log("$eval", err);
+					Log("$>>>>>>>>error", code, err);
+					return null;
 				}
 			}
 			
