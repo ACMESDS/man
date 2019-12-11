@@ -844,7 +844,7 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 				if ( !ctx.mathjs ) 
 					Each(ctx, (key,val) => {
 						if ( val ) 
-							vmctx[key] = isArray(val) ? $.matrix(val) : val;
+							vmctx[key] = isArray(val) ? toMatrix(val) : val;
 
 						else
 							vmctx[key] = val;
@@ -859,7 +859,7 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 				}
 
 				if ( !ctx.mathjs )
-					for (key in vmctx) vmctx[key] = $.list( vmctx[key] );
+					for (key in vmctx) vmctx[key] = toList( vmctx[key] );
 
 				return cb(vmctx);
 			}
@@ -871,7 +871,7 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 				if ( !ctx.mathjs ) 
 					Each(ctx, (key,val) => {
 						if ( val ) 
-							vmctx[key] = isArray(val) ? $.matrix(val) : val;
+							vmctx[key] = isArray(val) ? toMatrix(val) : val;
 
 						else
 							vmctx[key] = val;
@@ -886,7 +886,7 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 				}
 
 				if ( !ctx.mathjs )
-					for (key in vmctx) ctx[key] = $.list( vmctx[key] );
+					for (key in vmctx) ctx[key] = toList( vmctx[key] );
 				
 				return ctx;
 			}
@@ -1286,7 +1286,7 @@ $.import({ // overrides
 	override: true
 });
 
-$.extensions = {		// extensions
+const {toMatrix, toList } = $.extensions = {		// extensions
 	
 	// min-man
 	
@@ -1427,7 +1427,7 @@ $.extensions = {		// extensions
 				
 				idx.$( m => {	// update D-sampler on labelled points
 					function dot(x,y) {
-						//return  $.dot( $.matrix(x), $.matrix(y) );
+						//return  $.dot( toMatrix(x), toMatrix(y) );
 						//Log("x=",x,  "y=",y);
 						return  $.dot( x, y );
 					}
@@ -1481,20 +1481,22 @@ $.extensions = {		// extensions
 			U = $( [K,M] ),
 			E = $( [K,M] );
 
-		for (var k=0; k<M; k++ ) GramSchmidt( k, E, U, $.list(V) );
+		for (var k=0; k<M; k++ ) GramSchmidt( k, E, U, toList(V) );
 		//Log("orthoNorm=", E, $.multiply($.transpose(E), E) );
-		return $.matrix( E );
+		return toMatrix( E );
 	},
 	
 	// MxN random matrix
-	rand: (M,N) => $.matrix( $( [M,N], (m,n,R) => R[m][n] = 1 - 2*Math.random() )),
+	rand: (M,N) => toMatrix( $( [M,N], (m,n,R) => R[m][n] = 1 - 2*Math.random() )),
 	
 	// KxK random rotation matrix
 	randRot: K => $.orthoNorm( $.rand(K,K) ),
 	
-	// misc and samplers
+	// JS-mathJS conversion
 	
-	list: mat => {		// covert Matrix back to a JS-native Array
+	toMatrix: list => $.matrix(list),		// native JS list -> mathJS matrix
+	
+	toList: mat => {		// mathJS matrix -> native JS list
 		if (mat)
 			return mat._data || mat;
 		
@@ -1510,8 +1512,8 @@ $.extensions = {		// extensions
 		const { log } = Math;
 		
 		var 
-			x = $.list(x),
-			y = $.list(y),
+			x = toList(x),
+			y = toList(y),
 			N = x.length;
 		
 		if ( false ) {	// approx kumarswary fit
@@ -1637,8 +1639,8 @@ SNR = sqrt( (mu' * mu) / sum(lambda) );
 			$( pcScript, mix );
 			//Log( "mix", k, mix );
 			if ( key = mix.key ) {		// valid key provided so ...
-				key.B = $.list(key.B);
-				key.b = $.list(key.b);
+				key.B = toList(key.B);
+				key.b = toList(key.b);
 			}
 			
 			else	// missing key so signal error
@@ -1755,7 +1757,7 @@ SNRsnr = SNR/std(SNRs);
 			});
 			*/
 		
-		return $.matrix(Y);
+		return toMatrix(Y);
 	},
 	
 	lda_train: function (x,y,solve) { // linear discriminant analysis (aka bayesian ridge)
@@ -1787,7 +1789,7 @@ SNRsnr = SNR/std(SNRs);
 				y[n] = P.sort( (a,b) => b.val - a.val );
 			});
 		
-		return $.matrix(Y);
+		return toMatrix(Y);
 	},
 	
 	ror_train: function (x,y,solve) {
@@ -1804,7 +1806,7 @@ SNRsnr = SNR/std(SNRs);
 			X = x._data,
 			Y = cls.predict(X);
 
-		return $.matrix(Y);
+		return toMatrix(Y);
 	},
 
 	dtr_train: function (x,y,solve) {
@@ -1828,7 +1830,7 @@ SNRsnr = SNR/std(SNRs);
 			X = x._data,
 			Y = cls.predict(X);
 
-		return $.matrix(Y);
+		return toMatrix(Y);
 	},
 
 	raf_train: function (x,y,solve) {
@@ -1858,7 +1860,7 @@ SNRsnr = SNR/std(SNRs);
 			X = x._data,
 			Y = cls.predict(X);
 
-		return $.matrix(Y);
+		return toMatrix(Y);
 	},
 
 	nab_train: function (x,y,solve) {
@@ -1876,7 +1878,7 @@ SNRsnr = SNR/std(SNRs);
 			X = x._data,
 			Y = cls.predict(X);
 
-		return $.matrix(Y);
+		return toMatrix(Y);
 	},
 	
 	som_train: function (x,y,solve) {
@@ -1896,7 +1898,7 @@ SNRsnr = SNR/std(SNRs);
 			X = x._data,
 			Y = cls.predict(X);
 
-		return $.matrix(Y);
+		return toMatrix(Y);
 	},
 
 	ols_train: function (x,y,solve) {
@@ -1916,7 +1918,7 @@ SNRsnr = SNR/std(SNRs);
 			X = x._data,
 			Y = cls.predict(X);
 
-		return $.matrix(Y);
+		return toMatrix(Y);
 	},
 
 	svm_train: function (x,y,solve) {
@@ -1973,7 +1975,7 @@ SNRsnr = SNR/std(SNRs);
 		//Log("svm", JSON.stringify(cls));
 
 		//Log("y",Y);
-		return $.matrix(Y);
+		return toMatrix(Y);
 	},
 
 	lrm_train: function (x,y,solve) {
@@ -2014,7 +2016,7 @@ SNRsnr = SNR/std(SNRs);
 			X = new ml$(x._data),
 			Y = cls.predict(X);
 
-		return $.matrix(Y);
+		return toMatrix(Y);
 	},
 
 	knn_train: function (x,y,solve) {
@@ -2033,7 +2035,7 @@ SNRsnr = SNR/std(SNRs);
 			X = new ml$(x._data),
 			Y = cls.predict(X);
 
-		return $.matrix(Y);
+		return toMatrix(Y);
 	},
 
 	pls_train: function (x,y,solve) {
@@ -2055,7 +2057,7 @@ SNRsnr = SNR/std(SNRs);
 			X = new ml$(x._data),
 			Y = cls.predict(X);
 
-		return $.matrix(Y);
+		return toMatrix(Y);
 	},
 
 	// recover gaussian process (detector self calibration, sepp, trigger recovery)
@@ -2113,7 +2115,7 @@ argH = pwrec( modH, [] );
 h = re(dft( modH .* exp(i*argH),T)); 
 x = t/T; `,  
 			{
-				evs: $.matrix( evs ),
+				evs: toMatrix( evs ),
 				N: solve.N,
 				refLambda: solve.refLambda,
 				alpha: solve.alpha,
@@ -2680,7 +2682,7 @@ x = rng(-1/2, 1/2, N); ` ,
 							N: N,
 							dt: dt,
 
-							E: $.matrix( egVals ),
+							E: toMatrix( egVals ),
 
 							B: $(N, (n,B) => {
 								var
@@ -2769,18 +2771,18 @@ x = rng(-1/2, 1/2, N); ` ,
 	// more linear algebra
 	
 	svd: A => {		// singular value decomposition of matrix A
-		var svd = new ML.SVD( $.list(A) );
+		var svd = new ML.SVD( toList(A) );
 		//Log(svd);
 		return svd;
 	},
 
 	evd: A => {	// eigen decomposition of matrix A
 		var 
-			evd = new ML.EVD( $.list(A) );  //, {assumeSymmetric: true}
+			evd = new ML.EVD( toList(A) );  //, {assumeSymmetric: true}
 		
 		return {
-			values: $.matrix(evd.d), 
-			vectors: $.matrix(evd.V)
+			values: toMatrix(evd.d), 
+			vectors: toMatrix(evd.V)
 		}; 
 	},
 	
@@ -2788,7 +2790,7 @@ x = rng(-1/2, 1/2, N); ` ,
 		var
 			del = N ? (max-min) / (N-1) : 1;
 		
-		return $.matrix( $( N || max-min, (n,R) => { R[n] = min; min+=del; } ) );
+		return toMatrix( $( N || max-min, (n,R) => { R[n] = min; min+=del; } ) );
 	},
 
 	xcorr: function ( xccf ) { 	// sampled correlation matrix
@@ -2816,7 +2818,7 @@ x = rng(-1/2, 1/2, N); ` ,
 			}
 		
 		//Log(Xccf);
-		return $.matrix( Xccf );
+		return toMatrix( Xccf );
 	},
 	
 	// hilbert and fourier transforms
@@ -2832,7 +2834,7 @@ x = rng(-1/2, 1/2, N); ` ,
 			N0 = floor( (N-1)/2 ),   // 0-based index to 0-lag
 			isOdd = N0 % 2, isEven = isOdd ? 0 : 1;
 		
-		return $.matrix( $(N, (n,g) => { 
+		return toMatrix( $(N, (n,g) => { 
 			var n0 = n - N0;
 			if ( n0 % 2) // odd n so use even k 
 				for (var sum=0,k=isOdd, k0=k-N0; k<N; k+=2,k0+=2) sum += f[k] / (n0 - k0); // Log( n0, k0, f[k], n0-k0, sum += f[k] / (n0 - k0) );  //
@@ -2869,7 +2871,7 @@ x = rng(-1/2, 1/2, N); ` ,
 		});
 
 		g.push( $.complex(0,0) );
-		return $.matrix(g);
+		return toMatrix(g);
 	},
 		
 	pwrem: function (nu, z) {  // paley-weiner remainder 
@@ -2882,7 +2884,7 @@ x = rng(-1/2, 1/2, N); ` ,
 			N = z.length,
 			ctx = {
 				nu: nu,
-				rem: $.matrix( $( nu._data.length, (n,R) => R[n] = 0 ) )
+				rem: toMatrix( $( nu._data.length, (n,R) => R[n] = 0 ) )
 			};
 		
 		for (var n=0; n<N; n++) {
@@ -2924,7 +2926,7 @@ x = rng(-1/2, 1/2, N); ` ,
 			ctx = {
 				N: ccf.length,
 				T: T,
-				ccf: $.matrix(ccf)  // [Hz^2]
+				ccf: toMatrix(ccf)  // [Hz^2]
 			};
 
 		$.eval( `
@@ -2989,7 +2991,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 		
 		for (var ids=0, N=evs.length, n=0; n<N; ids++) {
 			var 
-				t = ctx.t = $.matrix([]), 
+				t = ctx.t = toMatrix([]), 
 				t = t._data,
 				ev = evs[n], 
 				id = ctx.id = ev[idKey], K = 0;
@@ -3014,7 +3016,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 	/* 
 	Returns uniform random deviate on [0...a]
 	*/
-		return $.matrix( $(N, (n,R) => R[n] = a*random() ) );
+		return toMatrix( $(N, (n,R) => R[n] = a*random() ) );
 	},
 	
 	expdev: function (N,a) {  // exponential
@@ -3029,7 +3031,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 			x = x._data,
 			N = x.length;
 		
-		return $.matrix( $(N, (n,X) => X[n] = n ? X[n-1] + x[n] : x[0] ) );
+		return toMatrix( $(N, (n,X) => X[n] = n ? X[n-1] + x[n] : x[0] ) );
 	},
 	
 	// special functions
@@ -3059,17 +3061,17 @@ f = exp( (a-1) * log(x) + (b-1) * log(1-x) - logB );
 	
 	sinc: function (x) {
 		var x = x._data, N = x.length;
-		return $.matrix( $( N, (n, sinc) => sinc[n] = x[n] ? sin( PI*x[n] ) / (PI*x[n]) : 1) );
+		return toMatrix( $( N, (n, sinc) => sinc[n] = x[n] ? sin( PI*x[n] ) / (PI*x[n]) : 1) );
 	},
 	
 	rect: function (x) {
 		var x = x._data, N = x.length;
-		return $.matrix( $( N, (n, rect) => rect[n] = (abs(x[n])<=0.5) ? 1 : 0) );
+		return toMatrix( $( N, (n, rect) => rect[n] = (abs(x[n])<=0.5) ? 1 : 0) );
 	},
 
 	tri: function (x) {
 		var x = x._data, N = x.length;
-		return $.matrix( $( N, (n, tri) => { 
+		return toMatrix( $( N, (n, tri) => { 
 			var u = abs( x[n] );
 			tri[n] = (u<=1) ? 1-u : 0;
 		}) );
@@ -3077,12 +3079,12 @@ f = exp( (a-1) * log(x) + (b-1) * log(1-x) - logB );
 	
 	negexp: function (x) {
 		var x = x._data, N = x.length;
-		return $.matrix( $( N, (n, neg) => neg[n] = (x[n] > 0) ? exp(-x[n]) : 0) );
+		return toMatrix( $( N, (n, neg) => neg[n] = (x[n] > 0) ? exp(-x[n]) : 0) );
 	},
 		
 	lorenzian: function (x) {
 		var x = x._data, N = x.length;
-		return $.matrix( $( N, (n, lor) => lor[n] = 2 / (1 + (2*pi*x[n]**2)) ));
+		return toMatrix( $( N, (n, lor) => lor[n] = 2 / (1 + (2*pi*x[n]**2)) ));
 	},
 		
 	zeta: function (a) {},
@@ -3251,7 +3253,7 @@ switch ( process.argv[2] ) { //< unit tests
 			evs = [],
 			M = 50,
 			ctx = {
-				N:65, t0: 0.2, evs: $.matrix( evs )
+				N:65, t0: 0.2, evs: toMatrix( evs )
 			};
 		
 		//$(" disp( urand(10,1) )");
