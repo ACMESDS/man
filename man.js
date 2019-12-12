@@ -487,19 +487,27 @@ function saveStash(sql, stash, ID, host) {
 		
 		else
 		if (idx) {
-			/*
-			if ( isString(idx) )
-				return $(N, (n,B) => B[n] = idx.parseEval( A[n] ) );
-
-			else */
 			if ( isArray(idx) ) 
 				return $( N, (n,B) => B[n] = $( idx.length, (k,X) => X[k] = A[n][ idx[k] ] ) );
-					// $( idx.length, (k,B) => B[k] = $( N, (n,X) => X[n] = A[n][ idx[k] ] ) );
 
 			else
-			if ( isNumber(idx) || isString(idx) ) 
+			if ( isNumber(idx) ) 
 				return $(N, (n,B) => B[n] = A[n][idx] );
-			
+
+			else
+			if ( isString(idx) ) 
+				return $(N, (n,B) => {
+					var 
+						An = A[n],
+						keys = idx.split(",");
+					
+					if ( keys.length > 1 ) 
+						B[n] = $( keys.length, (k,B) => B[k] = An[keys[k]] );
+					
+					else
+						B[n] = An[idx];
+				});
+
 			else
 			if ( isFunction(idx) ) {
 				for (var n=0,N=A.length; n<N; n++) idx(n,A);
@@ -525,17 +533,6 @@ function saveStash(sql, stash, ID, host) {
 			if ( count = idx.len || idx.count ) 
 				return $(N, (n,B) => B[n] = A[n].slice(idx.start,idx.start+count) );
 
-			/*
-			else
-			if ( N = idx.sample || idx.draws ) 
-				return A.shuffle( N, idx.mash );
-				//$(N, (n,B) => B[n] = A[n].shuffle( idx.draws, idx.index ) );
-			
-			else
-			if ( idx.sample ==  0 )
-				return idx.mash ? [A,idx.mash] : A;
-			*/
-			
 			else  { // get( { KEY_starts: "with", KEY_ends: "with", ...  } )
 				var rtns = [];
 				A.$( (n,recs) => {
@@ -1288,6 +1285,18 @@ $.import({ // overrides
 
 const {toMatrix, toList } = $.extensions = {		// extensions
 	
+	get: ( obj, idx ) => {
+		if ( mat = obj._data ) 
+			return toMatrix( mat.get(idx) );
+		
+		else
+		if ( isArray(obj) ) 
+			return toMatrix( obj.get(idx) );
+		
+		else
+			return obj[idx];
+	},
+
 	// min-man
 	
 	argmin: ( idxKey, argKey, ctx, arg ) => {
