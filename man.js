@@ -495,19 +495,16 @@ function saveStash(sql, stash, ID, host) {
 				return $(N, (n,B) => B[n] = A[n][idx] );
 
 			else
-			if ( isString(idx) ) 
-				return $(N, (n,B) => {
-					var 
-						An = A[n],
-						keys = idx.split(",");
-					
-					if ( keys.length > 1 ) 
-						B[n] = $( keys.length, (k,B) => B[k] = An[keys[k]] );
-					
-					else
-						B[n] = An[idx];
-				});
-
+			if ( isString(idx) ) {
+				var
+					keys = idx.split(",");
+				
+				return (keys.length>1) 
+					? $(N, (n,B) => B[n] = $( keys.length, (k,B) => B[k] = A[n][keys[k]] ) )
+					: $(N, (n,B) => B[n] = A[n][idx] );
+				
+			}
+			
 			else
 			if ( isFunction(idx) ) {
 				for (var n=0,N=A.length; n<N; n++) idx(n,A);
@@ -1285,18 +1282,6 @@ $.import({ // overrides
 
 const {toMatrix, toList } = $.extensions = {		// extensions
 	
-	get: ( obj, idx ) => {
-		if ( mat = obj._data ) 
-			return toMatrix( mat.get(idx) );
-		
-		else
-		if ( isArray(obj) ) 
-			return toMatrix( obj.get(idx) );
-		
-		else
-			return obj[idx];
-	},
-
 	// min-man
 	
 	argmin: ( idxKey, argKey, ctx, arg ) => {
