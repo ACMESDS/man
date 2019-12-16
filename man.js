@@ -498,16 +498,15 @@ function saveStash(sql, stash, ID, host) {
 			if ( isString(idx) ) {
 				var
 					keys = idx.split(",");
-				
+
 				return (keys.length>1) 
 					? $(N, (n,B) => B[n] = $( keys.length, (k,B) => B[k] = A[n][keys[k]] ) )
 					: $(N, (n,B) => B[n] = A[n][idx] );
-				
 			}
 			
 			else
 			if ( isFunction(idx) ) {
-				for (var n=0,N=A.length; n<N; n++) idx(n,A);
+				for (var n=0; n<N; n++) idx(n,A);
 				return A;
 			}
 
@@ -830,12 +829,12 @@ function saveStash(sql, stash, ID, host) {
 
 var $ = MAN = module.exports = function $(code,ctx,cb) {
 	switch (code.constructor) {
-		case String:	// run a mathjs script in a mathjs || js ctx if ctx.mathjs = true || false
+		case String:	// run a mathjs script in a mathjs || js ctx if ctx.nomap = true || false
 			
 			if (cb) {
-				var vmctx = ctx.mathjs ? ctx : {};
+				var vmctx = ctx.nomap ? ctx : {};
 				
-				if ( !ctx.mathjs ) 
+				if ( !ctx.nomap ) 
 					Each(ctx, (key,val) => {
 						if ( val ) 
 							vmctx[key] = isArray(val) ? toMatrix(val) : val;
@@ -852,7 +851,7 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 					return cb( null );
 				}
 
-				if ( !ctx.mathjs )
+				if ( !ctx.nomap )
 					for (key in vmctx) vmctx[key] = toList( vmctx[key] );
 
 				return cb(vmctx);
@@ -860,9 +859,9 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 			
 			else
 			if (ctx) {
-				var vmctx = ctx.mathjs ? ctx : {};
+				var vmctx = ctx.nomap ? ctx : {};
 				
-				if ( !ctx.mathjs ) 
+				if ( !ctx.nomap ) 
 					Each(ctx, (key,val) => {
 						if ( val ) 
 							vmctx[key] = isArray(val) ? toMatrix(val) : val;
@@ -879,7 +878,7 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 					return null;
 				}
 
-				if ( !ctx.mathjs )
+				if ( !ctx.nomap )
 					for (key in vmctx) ctx[key] = toList( vmctx[key] );
 				
 				return ctx;
@@ -3037,7 +3036,7 @@ psd = abs(dft( ccf )); psd = psd * ccf[N0] / sum(psd) / df;
 logB = loggamma(a) + loggamma(b) - loggamma(a+b);
 f = exp( (a-1) * log(x) + (b-1) * log(1-x) - logB );
 `, {
-		mathjs: true,
+		nomap: true,
 		a: a,
 		b: b,
 		x: x

@@ -34,25 +34,43 @@ Use MAN as follows:
 
 	var $ = require("man");
 	
-	Eval mathjs script in a mathjs || js context ctx (if ctx.mathjs: true || false) with callback:
-	
-		$( "mathjs script", ctx, ctx => {   
-			...
-		} );
-
-	or w/o callback:
-
-		var ctx = $( "mathjs script", ctx );
-		const {x, y, ... } = $( "mathjs script", ctx );
-
-	Create and index a matrix:
+	Eval a mathjs script with optional callback:
 	
 		var 
-			A = $( N, (n,A) => A[n] = ... ),  // define N-length vector A 
-			B = $( [M,N], (n,m,B) => B[m][n] = ... ),	// define M x N matrrix
-			C = A.$( B ); 	// index matrix A with matrix B
-			A.$( (n,C) => C[n] = ... ), 	// index matrix A with callback
+			ctx = $( "mathjs script", ctx, ctx => {   
+				x: 1, 
+				y: 20, ...
+			} );
 
+	A simple way to extract context keys:
+
+		const {x, y, ... } = $( "mathjs script", ctx ) || {};
+
+	By default, Arrays on the ctx are mapped from js to mathjs on entry, and 
+	from mathjs to js on exit; disable this mapping by setting ctx.nomap = true.
+	
+	Create a matrix:
+	
+		var 
+			A = $( N, (n,A) => A[n] = ... ) ,  // define N-length vector 
+			A = $( [M,N], (n,m,A) => A[m][n] = ... ) ;	// define M x N matrrix
+			
+	Index a matrix:
+	
+			A.$( (n,A) => A[n] = ... ) 	// index matrix with callback
+			A.$$( (n,m,A) => A[n][m] = ... ) 	// index matrix with callback
+
+	Sample a matrix with optional callback cb(val):
+	
+		var 
+			B = A.get( idx || [idx, ...] , cb),
+			B = A.get( "key, ...", || [key, ...] cb ),
+			B = A.get( {rekey: { toKey: "fromKey", ... }, cb ),
+			B = A.get( {draw: N}, cb ),
+			B = A.get( {start:N, count:N}, cb ),
+			B = A.get( {KEY_starts: "with", ...}, cb ),
+			B = A.get( {KEY_ends: "with", ...}, cb )
+		
 	Import functions to $.somefn and to $( "somefn(...)" )
 	
 		$( {
@@ -61,7 +79,7 @@ Use MAN as follows:
 			:
 		} );
 	
-	Execute tasker sharder (an example):
+	Use the task sharder:
 	
 			$( { 
 				keys: "i,j,k",  	// e.g. array indecies
@@ -81,15 +99,11 @@ Use MAN as follows:
 			msg => console.log(msg) 
 		);
 	
-	Group events by key to callback cb( events ) with cb( null ) at end:
-	
-		[ev, ...].feed( key, (evs) => { ... } ); 
-		"query".feed( key, (evs) => { ... } );	
-	
-	Aggregate and save events ev = {at: "KEY", ...} to ctx.Save_KEY with callback cb(unsaved events)
+	Aggregate and save events ev = {at: "KEY", ...} to ctx.Save_KEY with 
+	callback cb(unsaved events)
 
-		[ev, ...].save( ctx, (evs) => { ... } );
-		"query".save( ctx, (evs) => { ... } );
+		[ev, ...].save( ctx, evs => { ... } );
+		"query".save( ctx, evs => { ... } );
 
 ## Installation
 
