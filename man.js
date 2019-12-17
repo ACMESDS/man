@@ -27,7 +27,7 @@ function Trace(msg,req,fwd) {
 	"$".trace(msg,req,fwd);
 }
 
-const { Copy,Each,Log,isArray,isNumber,isString,isFunction,isEmpty } = require("enum");
+const { Copy,Each,Log,isArray,isNumber,isString,isFunction,isEmpty,typeOf } = require("enum");
 
 const {random, sin, cos, exp, log, PI, floor, abs, min, max} = Math;
 
@@ -828,8 +828,8 @@ function saveStash(sql, stash, ID, host) {
 ].Extend(Array);
 
 var $ = MAN = module.exports = function $(code,ctx,cb) {
-	switch (code.constructor) {
-		case String:	// run a mathjs script in a mathjs || js ctx if ctx.nomap = true || false
+	switch ( typeOf(code) ) {
+		case "String":	// run a mathjs script in a mathjs || js ctx if ctx.nomap = true || false
 			
 			if (cb) {
 				var vmctx = ctx.nomap ? ctx : {};
@@ -896,7 +896,7 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 			
 			break;
 			
-		case Number:	// create a list
+		case "Number":	// create a list
 			var 
 				rows = code,
 				cb = ctx,
@@ -904,7 +904,7 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 			
 			return cb ? A.$(cb) : A;
 			
-		case Array:		// create a matrix
+		case "Array":		// create a matrix
 			var 
 				[rows,cols] = code,
 				cb = ctx,
@@ -929,7 +929,7 @@ var $ = MAN = module.exports = function $(code,ctx,cb) {
 			
 			return cb ? A.$$(cb) : A;
 			
-		case Object:	// import mathjs functions or shard tasks
+		case "Object":	// import mathjs functions or shard tasks
 			if (task = ctx)
 				$.runTask( code, task, cb );
 			
