@@ -122,7 +122,7 @@
     "sylvester": "0.0.21",
     "tar": "4.4.0",
     "uglify-js": "3.3.11",
-    "underscore": "1.8.3",
+    "underscore": "1.12.1",
     "webpack": "3.11.0",
     "zeros": "1.0.0"
   },
